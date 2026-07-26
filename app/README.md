@@ -59,15 +59,22 @@ label never breaks the map↔data link.
 
 ## The floor-plan background & regions
 
-`assets/floor-plan.png` is the master plan **extracted from the workbook** —
-the exact image the Excel shapes were positioned against — so the 61 regions in
-`regions.json` line up out of the box (`viewBox 0 0 1808 1125`).
+The active background is `assets/green-mile.png` — the master plan with the
+gray conveyors and the green "Green Mile" walking lanes drawn on it
+(`viewBox 0 0 1484 1060`). The background filename and dimensions are declared
+in `regions.json > meta` (`image`, `imageWidth`, `imageHeight`), so the app is
+data-driven — point `meta.image` at any file in `assets/` to swap it.
 
-To swap in a different background (e.g. a Green Mile render): open
-`editor.html`, use **Load background…** to preview it, adjust any regions that
-need it, and **Export regions.json** back into `data/`. If the new image has a
-different crop/aspect ratio than 1808×1125, regions will need re-placing — the
-editor exists for exactly that.
+`assets/floor-plan.png` is the original master plan **extracted from the
+workbook** (1808×1125) — the exact image the Excel shapes were positioned
+against. The 61 region boxes were first reconstructed in that image's space,
+then **affine-mapped onto the Green Mile image** (same underlying drawing, a
+different crop/scale) using its content bounding box. The result aligns
+closely; fine-tune any box in the editor.
+
+To swap in another background: open `editor.html`, use **Load background…** to
+preview it, adjust regions, and **Export regions.json** back into `data/`
+(update `meta.image` to the new filename).
 
 ## Heat-map scale
 

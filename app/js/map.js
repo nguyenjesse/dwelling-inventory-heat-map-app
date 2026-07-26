@@ -6,6 +6,7 @@ const SVGNS = 'http://www.w3.org/2000/svg';
 export function createMapView(root, model, { onSelect } = {}) {
   const meta = model.regions.meta || { imageWidth: 1808, imageHeight: 1125 };
   const regions = model.regions.regions || model.regions;
+  const bgImage = './assets/' + (meta.image || 'floor-plan.png');
 
   root.innerHTML = `
     <div class="map-toolbar">
@@ -16,7 +17,7 @@ export function createMapView(root, model, { onSelect } = {}) {
     </div>
     <div class="map-viewport" tabindex="0">
       <div class="map-pan">
-        <img class="floor-plan" src="./assets/floor-plan.png" alt="Warehouse floor plan" draggable="false" />
+        <img class="floor-plan" src="${bgImage}" alt="Warehouse floor plan" draggable="false" />
         <svg class="map-overlay" viewBox="0 0 ${meta.imageWidth} ${meta.imageHeight}" preserveAspectRatio="xMidYMid meet"></svg>
       </div>
     </div>
