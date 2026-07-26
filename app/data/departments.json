@@ -1,0 +1,22 @@
+[
+  {
+    "id": "docksort",
+    "name": "Docksort"
+  },
+  {
+    "id": "ib-dock",
+    "name": "IB Dock"
+  },
+  {
+    "id": "ob-dock",
+    "name": "OB Dock"
+  },
+  {
+    "id": "rpn",
+    "name": "RPN"
+  },
+  {
+    "id": "sort",
+    "name": "Sort"
+  }
+]

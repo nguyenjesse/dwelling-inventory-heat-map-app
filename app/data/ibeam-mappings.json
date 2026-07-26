@@ -1,0 +1,338 @@
+[
+  {
+    "iBeamLocation": "C21",
+    "areaIds": [
+      "ob-dock-c21"
+    ]
+  },
+  {
+    "iBeamLocation": "D16",
+    "areaIds": [
+      "ob-tote-pallet-buffer-d16"
+    ]
+  },
+  {
+    "iBeamLocation": "D18",
+    "areaIds": [
+      "ob-tote-pallet-buffer-d18"
+    ]
+  },
+  {
+    "iBeamLocation": "D20",
+    "areaIds": [
+      "ob-tote-pallet-buffer-d20"
+    ]
+  },
+  {
+    "iBeamLocation": "E16",
+    "areaIds": [
+      "end-of-line-a",
+      "end-of-line-b"
+    ]
+  },
+  {
+    "iBeamLocation": "E17",
+    "areaIds": [
+      "end-of-line-c",
+      "end-of-line-d"
+    ]
+  },
+  {
+    "iBeamLocation": "E18",
+    "areaIds": [
+      "end-of-line-e"
+    ]
+  },
+  {
+    "iBeamLocation": "E19",
+    "areaIds": [
+      "end-of-line-f",
+      "end-of-line-g"
+    ]
+  },
+  {
+    "iBeamLocation": "E20",
+    "areaIds": [
+      "end-of-line-h",
+      "end-of-line-i"
+    ]
+  },
+  {
+    "iBeamLocation": "E21",
+    "areaIds": [
+      "end-of-line-j"
+    ]
+  },
+  {
+    "iBeamLocation": "E22",
+    "areaIds": [
+      "fluid-lane-9-10"
+    ]
+  },
+  {
+    "iBeamLocation": "E23",
+    "areaIds": [
+      "fluid-lane-10-11"
+    ]
+  },
+  {
+    "iBeamLocation": "E25",
+    "areaIds": [
+      "fluid-lane-13-14",
+      "fluid-lane-14-15"
+    ]
+  },
+  {
+    "iBeamLocation": "E26",
+    "areaIds": [
+      "fluid-lane-15-16"
+    ]
+  },
+  {
+    "iBeamLocation": "F11",
+    "areaIds": [
+      "fluid-lane-1-2"
+    ]
+  },
+  {
+    "iBeamLocation": "F12",
+    "areaIds": [
+      "fluid-lane-2-3",
+      "fluid-lane-3-4"
+    ]
+  },
+  {
+    "iBeamLocation": "F14",
+    "areaIds": [
+      "fluid-lane-6-7"
+    ]
+  },
+  {
+    "iBeamLocation": "F15",
+    "areaIds": [
+      "sort-overflow-buffer"
+    ]
+  },
+  {
+    "iBeamLocation": "F16",
+    "areaIds": [
+      "a-buffer-9-12"
+    ]
+  },
+  {
+    "iBeamLocation": "F17",
+    "areaIds": [
+      "b-c-buffer-9-12"
+    ]
+  },
+  {
+    "iBeamLocation": "F18",
+    "areaIds": [
+      "d-e-buffer-9-12"
+    ]
+  },
+  {
+    "iBeamLocation": "F19",
+    "areaIds": [
+      "f-g-buffer-9-12"
+    ]
+  },
+  {
+    "iBeamLocation": "F20",
+    "areaIds": [
+      "h-i-buffer-9-12"
+    ]
+  },
+  {
+    "iBeamLocation": "G14",
+    "areaIds": [
+      "rpn-wip-sdc-arcs-p1"
+    ]
+  },
+  {
+    "iBeamLocation": "G15",
+    "areaIds": [
+      "rpn-recirc-p1"
+    ]
+  },
+  {
+    "iBeamLocation": "G16",
+    "areaIds": [
+      "a-buffer-5-8"
+    ]
+  },
+  {
+    "iBeamLocation": "G17",
+    "areaIds": [
+      "b-c-buffer-5-8"
+    ]
+  },
+  {
+    "iBeamLocation": "G18",
+    "areaIds": [
+      "d-e-buffer-5-8"
+    ]
+  },
+  {
+    "iBeamLocation": "G19",
+    "areaIds": [
+      "f-g-buffer-5-8"
+    ]
+  },
+  {
+    "iBeamLocation": "G20",
+    "areaIds": [
+      "h-i-buffer-5-8"
+    ]
+  },
+  {
+    "iBeamLocation": "G22",
+    "areaIds": [
+      "rpn-buffer"
+    ]
+  },
+  {
+    "iBeamLocation": "G23",
+    "areaIds": [
+      "rpn-wip-sdc-arcs-p2"
+    ]
+  },
+  {
+    "iBeamLocation": "H16",
+    "areaIds": [
+      "a-buffer-1-4"
+    ]
+  },
+  {
+    "iBeamLocation": "H17",
+    "areaIds": [
+      "b-c-buffer-1-4"
+    ]
+  },
+  {
+    "iBeamLocation": "H18",
+    "areaIds": [
+      "d-e-buffer-1-4"
+    ]
+  },
+  {
+    "iBeamLocation": "H19",
+    "areaIds": [
+      "f-g-buffer-1-4"
+    ]
+  },
+  {
+    "iBeamLocation": "H20",
+    "areaIds": [
+      "h-i-buffer-1-4"
+    ]
+  },
+  {
+    "iBeamLocation": "H22",
+    "areaIds": [
+      "rpn-recirc-p2"
+    ]
+  },
+  {
+    "iBeamLocation": "J12",
+    "areaIds": [
+      "presort-phase-1"
+    ]
+  },
+  {
+    "iBeamLocation": "J15",
+    "areaIds": [
+      "docksort-overflow-phase-1"
+    ]
+  },
+  {
+    "iBeamLocation": "J17",
+    "areaIds": [
+      "docksort-downstack-phase-1"
+    ]
+  },
+  {
+    "iBeamLocation": "J20",
+    "areaIds": [
+      "docksort-downstack-phase-2"
+    ]
+  },
+  {
+    "iBeamLocation": "J22",
+    "areaIds": [
+      "each-prep-buffer"
+    ]
+  },
+  {
+    "iBeamLocation": "J26",
+    "areaIds": [
+      "presort-phase-2"
+    ]
+  },
+  {
+    "iBeamLocation": "K13",
+    "areaIds": [
+      "pid-1-2"
+    ]
+  },
+  {
+    "iBeamLocation": "K18",
+    "areaIds": [
+      "docksort-phase-1"
+    ]
+  },
+  {
+    "iBeamLocation": "K19",
+    "areaIds": [
+      "docksort-phase-2"
+    ]
+  },
+  {
+    "iBeamLocation": "K24",
+    "areaIds": [
+      "pid-6-7"
+    ]
+  },
+  {
+    "iBeamLocation": "L16",
+    "areaIds": [
+      "ib-dock-l16"
+    ]
+  },
+  {
+    "iBeamLocation": "L17",
+    "areaIds": [
+      "ib-dock-l17"
+    ]
+  },
+  {
+    "iBeamLocation": "L18",
+    "areaIds": [
+      "atac"
+    ]
+  },
+  {
+    "iBeamLocation": "L19",
+    "areaIds": [
+      "ib-dock-l19"
+    ]
+  },
+  {
+    "iBeamLocation": "L20",
+    "areaIds": [
+      "ib-dock-l20"
+    ]
+  },
+  {
+    "iBeamLocation": "L21",
+    "areaIds": [
+      "ib-dock-l21"
+    ]
+  },
+  {
+    "iBeamLocation": "L22",
+    "areaIds": [
+      "ib-dock-l22"
+    ]
+  }
+]

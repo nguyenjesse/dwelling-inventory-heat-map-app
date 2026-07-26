@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Region Editor — POC3 Map</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%23e65100'/><rect x='3' y='3' width='10' height='10' fill='none' stroke='%23fff' stroke-width='1.5'/></svg>" />
+  <link rel="stylesheet" href="./css/styles.css" />
+  <link rel="stylesheet" href="./css/editor.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="title">
+      <h1>Region Editor</h1>
+      <span class="subtitle">Place &amp; adjust the 61 map regions, then export regions.json</span>
+    </div>
+    <div class="header-tools">
+      <label class="btn">Load background…<input id="bgFile" type="file" accept="image/*" hidden /></label>
+      <button id="exportRegions" class="btn btn-primary">Export regions.json</button>
+      <a class="btn" href="./index.html">← Back to app</a>
+    </div>
+  </header>
+
+  <div class="editor-layout">
+    <aside class="editor-sidebar">
+      <input id="areaSearch" type="search" placeholder="Search areas…" />
+      <p class="muted" id="editorHint">Select an area, then drag its box or corners. Arrow keys nudge; Shift+Arrow resizes.</p>
+      <ul id="areaList" class="area-list"></ul>
+    </aside>
+
+    <div class="editor-main">
+      <div class="editor-controls">
+        <span id="selName" class="sel-name">No area selected</span>
+        <span class="coord">x <input id="fx" type="number" step="1" /></span>
+        <span class="coord">y <input id="fy" type="number" step="1" /></span>
+        <span class="coord">w <input id="fw" type="number" step="1" /></span>
+        <span class="coord">h <input id="fh" type="number" step="1" /></span>
+        <span id="editorStatus" class="status"></span>
+      </div>
+      <div id="editor" class="editor-canvas"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./js/editor.js"></script>
+</body>
+</html>
