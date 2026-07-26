@@ -12,9 +12,27 @@ their distribution over the warehouse floor plan.
   I-beam→area mappings), and the 61 map regions reconstructed from the
   workbook's own shape geometry.
 
-## Run it
+## Two ways to run it
 
-It must be served over HTTP (ES modules + `fetch` don't work from `file://`):
+### 1. Standalone file — for associates (no server, just double-click)
+
+`POC3-Dwelling-Inventory-Map.html` at the repo root is a **single self-contained
+file**: the data, the floor-plan image, the CSS, and all the JavaScript are baked
+in. Double-click it (or email/Slack it to someone) and it opens in any browser —
+no server, no install, works fully offline. Each person's pallet records live in
+their own browser (`localStorage`) and are never shared between machines. This is
+the file to hand out.
+
+Rebuild it after any change to the app or data:
+
+```bash
+python3 build/build-standalone.py   # regenerates POC3-Dwelling-Inventory-Map.html
+```
+
+### 2. Served dev version — for editing/development
+
+The modular `app/` source must be served over HTTP (ES modules + `fetch` don't
+work from `file://`):
 
 ```bash
 cd app
@@ -22,7 +40,9 @@ python3 -m http.server 8000
 # open http://localhost:8000/index.html
 ```
 
-Any static host works too (S3, GitHub Pages, an internal web server, etc.).
+Any static host works too (S3, GitHub Pages, an internal web server, etc.). The
+region editor (`editor.html`) is an admin tool and only runs in this served mode
+— associates don't need it, since the regions ship already placed.
 
 ## Pages
 
