@@ -3,11 +3,8 @@
 
 import { loadRecords, saveRecords } from './storage.js';
 
-// Fetch and assemble the static seed manifest. In the single-file standalone
-// build the data is inlined as a global SEED_DATA, so no HTTP/fetch is needed
-// (that build opens straight from disk via file://).
+// Fetch and assemble the static seed manifest.
 export async function loadSeed() {
-  if (typeof SEED_DATA !== 'undefined' && SEED_DATA) return SEED_DATA;
   const base = new URL('./data/', document.baseURI);
   const [areas, departments, ibeam, regions] = await Promise.all([
     fetch(new URL('areas.json', base)).then((r) => r.json()),
