@@ -1,0 +1,429 @@
+[
+  {
+    "id": "docksort-overflow-phase-1",
+    "name": "Docksort Overflow Phase 1",
+    "departmentId": "docksort",
+    "iBeamLocation": "J15",
+    "mapRegionId": "docksort-overflow-phase-1"
+  },
+  {
+    "id": "docksort-downstack-phase-1",
+    "name": "Docksort Downstack Phase 1",
+    "departmentId": "docksort",
+    "iBeamLocation": "J17",
+    "mapRegionId": "docksort-downstack-phase-1"
+  },
+  {
+    "id": "docksort-downstack-phase-2",
+    "name": "Docksort Downstack Phase 2",
+    "departmentId": "docksort",
+    "iBeamLocation": "J20",
+    "mapRegionId": "docksort-downstack-phase-2"
+  },
+  {
+    "id": "docksort-phase-1",
+    "name": "Docksort Phase 1",
+    "departmentId": "docksort",
+    "iBeamLocation": "K18",
+    "mapRegionId": "docksort-phase-1"
+  },
+  {
+    "id": "docksort-phase-2",
+    "name": "Docksort Phase 2",
+    "departmentId": "docksort",
+    "iBeamLocation": "K19",
+    "mapRegionId": "docksort-phase-2"
+  },
+  {
+    "id": "presort-phase-1",
+    "name": "Presort Phase 1",
+    "departmentId": "ib-dock",
+    "iBeamLocation": "J12",
+    "mapRegionId": "presort-phase-1"
+  },
+  {
+    "id": "presort-phase-2",
+    "name": "Presort Phase 2",
+    "departmentId": "ib-dock",
+    "iBeamLocation": "J26",
+    "mapRegionId": "presort-phase-2"
+  },
+  {
+    "id": "pid-1-2",
+    "name": "PID 1-2",
+    "departmentId": "ib-dock",
+    "iBeamLocation": "K13",
+    "mapRegionId": "pid-1-2"
+  },
+  {
+    "id": "pid-6-7",
+    "name": "PID 6-7",
+    "departmentId": "ib-dock",
+    "iBeamLocation": "K24",
+    "mapRegionId": "pid-6-7"
+  },
+  {
+    "id": "ib-dock-l16",
+    "name": "IB Dock L16",
+    "departmentId": "ib-dock",
+    "iBeamLocation": "L16",
+    "mapRegionId": "ib-dock-l16"
+  },
+  {
+    "id": "ib-dock-l17",
+    "name": "IB Dock L17",
+    "departmentId": "ib-dock",
+    "iBeamLocation": "L17",
+    "mapRegionId": "ib-dock-l17"
+  },
+  {
+    "id": "atac",
+    "name": "ATAC",
+    "departmentId": "ib-dock",
+    "iBeamLocation": "L18",
+    "mapRegionId": "atac"
+  },
+  {
+    "id": "ib-dock-l19",
+    "name": "IB Dock L19",
+    "departmentId": "ib-dock",
+    "iBeamLocation": "L19",
+    "mapRegionId": "ib-dock-l19"
+  },
+  {
+    "id": "ib-dock-l20",
+    "name": "IB Dock L20",
+    "departmentId": "ib-dock",
+    "iBeamLocation": "L20",
+    "mapRegionId": "ib-dock-l20"
+  },
+  {
+    "id": "ib-dock-l21",
+    "name": "IB Dock L21",
+    "departmentId": "ib-dock",
+    "iBeamLocation": "L21",
+    "mapRegionId": "ib-dock-l21"
+  },
+  {
+    "id": "ib-dock-l22",
+    "name": "IB Dock L22",
+    "departmentId": "ib-dock",
+    "iBeamLocation": "L22",
+    "mapRegionId": "ib-dock-l22"
+  },
+  {
+    "id": "ob-dock-c21",
+    "name": "OB Dock C21",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "C21",
+    "mapRegionId": "ob-dock-c21"
+  },
+  {
+    "id": "ob-tote-pallet-buffer-d16",
+    "name": "OB Tote Pallet Buffer D16",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "D16",
+    "mapRegionId": "ob-tote-pallet-buffer-d16"
+  },
+  {
+    "id": "ob-tote-pallet-buffer-d18",
+    "name": "OB Tote Pallet Buffer D18",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "D18",
+    "mapRegionId": "ob-tote-pallet-buffer-d18"
+  },
+  {
+    "id": "ob-tote-pallet-buffer-d20",
+    "name": "OB Tote Pallet Buffer D20",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "D20",
+    "mapRegionId": "ob-tote-pallet-buffer-d20"
+  },
+  {
+    "id": "fluid-lane-9-10",
+    "name": "Fluid Lane 9-10",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "E22",
+    "mapRegionId": "fluid-lane-9-10"
+  },
+  {
+    "id": "fluid-lane-10-11",
+    "name": "Fluid Lane 10-11",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "E23",
+    "mapRegionId": "fluid-lane-10-11"
+  },
+  {
+    "id": "fluid-lane-13-14",
+    "name": "Fluid Lane 13-14",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "E25",
+    "mapRegionId": "fluid-lane-13-14"
+  },
+  {
+    "id": "fluid-lane-14-15",
+    "name": "Fluid Lane 14-15",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "E25",
+    "mapRegionId": "fluid-lane-14-15"
+  },
+  {
+    "id": "fluid-lane-15-16",
+    "name": "Fluid Lane 15-16",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "E26",
+    "mapRegionId": "fluid-lane-15-16"
+  },
+  {
+    "id": "fluid-lane-1-2",
+    "name": "Fluid Lane 1-2",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "F11",
+    "mapRegionId": "fluid-lane-1-2"
+  },
+  {
+    "id": "fluid-lane-2-3",
+    "name": "Fluid Lane 2-3",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "F12",
+    "mapRegionId": "fluid-lane-2-3"
+  },
+  {
+    "id": "fluid-lane-3-4",
+    "name": "Fluid Lane 3-4",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "F12",
+    "mapRegionId": "fluid-lane-3-4"
+  },
+  {
+    "id": "fluid-lane-6-7",
+    "name": "Fluid Lane 6-7",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "F14",
+    "mapRegionId": "fluid-lane-6-7"
+  },
+  {
+    "id": "end-of-line-i",
+    "name": "End of Line I",
+    "departmentId": "rpn",
+    "iBeamLocation": "E20",
+    "mapRegionId": "end-of-line-i"
+  },
+  {
+    "id": "end-of-line-j",
+    "name": "End of Line J",
+    "departmentId": "rpn",
+    "iBeamLocation": "E21",
+    "mapRegionId": "end-of-line-j"
+  },
+  {
+    "id": "rpn-wip-sdc-arcs-p1",
+    "name": "RPN WIP SDC Arcs P1",
+    "departmentId": "rpn",
+    "iBeamLocation": "G14",
+    "mapRegionId": "rpn-wip-sdc-arcs-p1"
+  },
+  {
+    "id": "rpn-buffer",
+    "name": "RPN Buffer",
+    "departmentId": "rpn",
+    "iBeamLocation": "G22",
+    "mapRegionId": "rpn-buffer"
+  },
+  {
+    "id": "rpn-wip-sdc-arcs-p2",
+    "name": "RPN WIP SDC Arcs P2",
+    "departmentId": "rpn",
+    "iBeamLocation": "G23",
+    "mapRegionId": "rpn-wip-sdc-arcs-p2"
+  },
+  {
+    "id": "each-prep-buffer",
+    "name": "Each & Prep Buffer",
+    "departmentId": "rpn",
+    "iBeamLocation": "J22",
+    "mapRegionId": "each-prep-buffer"
+  },
+  {
+    "id": "rpn-recirc-p1",
+    "name": "RPN Recirc P1",
+    "departmentId": "rpn",
+    "iBeamLocation": "G15",
+    "mapRegionId": "rpn-recirc-p1"
+  },
+  {
+    "id": "rpn-recirc-p2",
+    "name": "RPN Recirc P2",
+    "departmentId": "rpn",
+    "iBeamLocation": "H22",
+    "mapRegionId": "rpn-recirc-p2"
+  },
+  {
+    "id": "end-of-line-a",
+    "name": "End of Line A",
+    "departmentId": "sort",
+    "iBeamLocation": "E16",
+    "mapRegionId": "end-of-line-a"
+  },
+  {
+    "id": "end-of-line-b",
+    "name": "End of Line B",
+    "departmentId": "sort",
+    "iBeamLocation": "E16",
+    "mapRegionId": "end-of-line-b"
+  },
+  {
+    "id": "end-of-line-c",
+    "name": "End of Line C",
+    "departmentId": "sort",
+    "iBeamLocation": "E17",
+    "mapRegionId": "end-of-line-c"
+  },
+  {
+    "id": "end-of-line-d",
+    "name": "End of Line D",
+    "departmentId": "sort",
+    "iBeamLocation": "E17",
+    "mapRegionId": "end-of-line-d"
+  },
+  {
+    "id": "end-of-line-e",
+    "name": "End of Line E",
+    "departmentId": "sort",
+    "iBeamLocation": "E18",
+    "mapRegionId": "end-of-line-e"
+  },
+  {
+    "id": "end-of-line-f",
+    "name": "End of Line F",
+    "departmentId": "sort",
+    "iBeamLocation": "E19",
+    "mapRegionId": "end-of-line-f"
+  },
+  {
+    "id": "end-of-line-g",
+    "name": "End of Line G",
+    "departmentId": "sort",
+    "iBeamLocation": "E19",
+    "mapRegionId": "end-of-line-g"
+  },
+  {
+    "id": "end-of-line-h",
+    "name": "End of Line H",
+    "departmentId": "sort",
+    "iBeamLocation": "E20",
+    "mapRegionId": "end-of-line-h"
+  },
+  {
+    "id": "sort-overflow-buffer",
+    "name": "Sort Overflow Buffer",
+    "departmentId": "sort",
+    "iBeamLocation": "F15",
+    "mapRegionId": "sort-overflow-buffer"
+  },
+  {
+    "id": "a-buffer-9-12",
+    "name": "A Buffer 9-12",
+    "departmentId": "sort",
+    "iBeamLocation": "F16",
+    "mapRegionId": "a-buffer-9-12"
+  },
+  {
+    "id": "b-c-buffer-9-12",
+    "name": "B-C Buffer 9-12",
+    "departmentId": "sort",
+    "iBeamLocation": "F17",
+    "mapRegionId": "b-c-buffer-9-12"
+  },
+  {
+    "id": "d-e-buffer-9-12",
+    "name": "D-E Buffer 9-12",
+    "departmentId": "sort",
+    "iBeamLocation": "F18",
+    "mapRegionId": "d-e-buffer-9-12"
+  },
+  {
+    "id": "f-g-buffer-9-12",
+    "name": "F-G Buffer 9-12",
+    "departmentId": "sort",
+    "iBeamLocation": "F19",
+    "mapRegionId": "f-g-buffer-9-12"
+  },
+  {
+    "id": "h-i-buffer-9-12",
+    "name": "H-I Buffer 9-12",
+    "departmentId": "sort",
+    "iBeamLocation": "F20",
+    "mapRegionId": "h-i-buffer-9-12"
+  },
+  {
+    "id": "a-buffer-5-8",
+    "name": "A Buffer 5-8",
+    "departmentId": "sort",
+    "iBeamLocation": "G16",
+    "mapRegionId": "a-buffer-5-8"
+  },
+  {
+    "id": "b-c-buffer-5-8",
+    "name": "B-C Buffer 5-8",
+    "departmentId": "sort",
+    "iBeamLocation": "G17",
+    "mapRegionId": "b-c-buffer-5-8"
+  },
+  {
+    "id": "d-e-buffer-5-8",
+    "name": "D-E Buffer 5-8",
+    "departmentId": "sort",
+    "iBeamLocation": "G18",
+    "mapRegionId": "d-e-buffer-5-8"
+  },
+  {
+    "id": "f-g-buffer-5-8",
+    "name": "F-G Buffer 5-8",
+    "departmentId": "sort",
+    "iBeamLocation": "G19",
+    "mapRegionId": "f-g-buffer-5-8"
+  },
+  {
+    "id": "h-i-buffer-5-8",
+    "name": "H-I Buffer 5-8",
+    "departmentId": "sort",
+    "iBeamLocation": "G20",
+    "mapRegionId": "h-i-buffer-5-8"
+  },
+  {
+    "id": "a-buffer-1-4",
+    "name": "A Buffer 1-4",
+    "departmentId": "sort",
+    "iBeamLocation": "H16",
+    "mapRegionId": "a-buffer-1-4"
+  },
+  {
+    "id": "b-c-buffer-1-4",
+    "name": "B-C Buffer 1-4",
+    "departmentId": "sort",
+    "iBeamLocation": "H17",
+    "mapRegionId": "b-c-buffer-1-4"
+  },
+  {
+    "id": "d-e-buffer-1-4",
+    "name": "D-E Buffer 1-4",
+    "departmentId": "sort",
+    "iBeamLocation": "H18",
+    "mapRegionId": "d-e-buffer-1-4"
+  },
+  {
+    "id": "f-g-buffer-1-4",
+    "name": "F-G Buffer 1-4",
+    "departmentId": "sort",
+    "iBeamLocation": "H19",
+    "mapRegionId": "f-g-buffer-1-4"
+  },
+  {
+    "id": "h-i-buffer-1-4",
+    "name": "H-I Buffer 1-4",
+    "departmentId": "sort",
+    "iBeamLocation": "H20",
+    "mapRegionId": "h-i-buffer-1-4"
+  }
+]

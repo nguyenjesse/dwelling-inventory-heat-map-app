@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>POC3 Dwelling Inventory Map</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%232f528f'/><rect x='3' y='3' width='4' height='4' fill='%232ca25f'/><rect x='9' y='3' width='4' height='4' fill='%23ffd400'/><rect x='3' y='9' width='4' height='4' fill='%23e60000'/><rect x='9' y='9' width='4' height='4' fill='%23808080'/></svg>" />
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="title">
+      <h1>POC3 Dwelling Inventory Map</h1>
+      <span class="subtitle">Warehouse dwelling-pallet heat map</span>
+    </div>
+    <div class="header-tools">
+      <span id="recordCount" class="record-count">0 active records</span>
+      <button id="importBtn" class="btn">Import…</button>
+      <input id="importFile" type="file" accept=".csv,.json" hidden />
+      <button id="exportCsv" class="btn">Export CSV</button>
+      <button id="exportJson" class="btn">Export JSON</button>
+      <a class="btn" href="./editor.html">Region editor</a>
+    </div>
+  </header>
+
+  <div id="validation" class="validation" hidden></div>
+
+  <main class="layout">
+    <!-- Left: entry form -->
+    <section class="col col-entry" aria-label="Pallet entry">
+      <h2>Add pallet</h2>
+      <div id="entry"></div>
+    </section>
+
+    <!-- Center: map -->
+    <section class="col col-map" aria-label="Floor map">
+      <div class="map-controls">
+        <label>Department
+          <select id="deptFilter"></select>
+        </label>
+        <label class="inline"><input id="hideEmpty" type="checkbox" /> Hide empty</label>
+        <button id="resetSelection" class="btn">Reset selection</button>
+        <span id="status" class="status" role="status" aria-live="polite"></span>
+      </div>
+      <div id="map" class="map-shell"></div>
+    </section>
+
+    <!-- Right: panel + legend -->
+    <section class="col col-info" aria-label="Area information">
+      <h2>Area details</h2>
+      <div id="panel" class="panel"></div>
+      <h2>Legend</h2>
+      <div id="legend"></div>
+    </section>
+  </main>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
