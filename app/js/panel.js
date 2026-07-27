@@ -1,9 +1,9 @@
-// panel.js — area information panel. Shows selected-area details plus
-// department/zone totals, and the list of containers in the selected area.
+// panel.js — area information panel. Read-only summary of the selected area:
+// its pallet count plus department and overall totals.
 
 const EMPTY = 'Select an area to view details.';
 
-export function createPanel(root, model, { onRelocate, onRemove } = {}) {
+export function createPanel(root, model) {
   function renderEmpty() {
     root.innerHTML = `<div class="panel-empty">${EMPTY}</div>`;
   }
@@ -12,12 +12,10 @@ export function createPanel(root, model, { onRelocate, onRemove } = {}) {
     const area = model.getArea(areaId);
     if (!area) { renderEmpty(); return; }
     const dept = model.getDept(area.departmentId);
-    const counts = model.countsByArea();
-    const areaCount = counts[area.id] || 0;
+    const areaCount = model.getCount(area.id);
     const deptTotal = model.departmentTotal(area.departmentId);
     const grandTotal = model.totalPallets();
     const pct = grandTotal ? Math.round((areaCount / grandTotal) * 100) : 0;
-    const containers = model.recordsForArea(area.id);
 
     root.innerHTML = `
       <div class="panel-head">
@@ -29,25 +27,7 @@ export function createPanel(root, model, { onRelocate, onRemove } = {}) {
           <div><dt>Dept total</dt><dd>${deptTotal}</dd></div>
           <div><dt>% of all pallets</dt><dd>${pct}%</dd></div>
         </dl>
-      </div>
-      <div class="panel-containers">
-        <h4>Containers (${containers.length})</h4>
-        ${containers.length === 0
-          ? '<p class="muted">No containers here.</p>'
-          : `<ul class="container-list">${containers.map((c) => `
-              <li>
-                <span class="cid">${c.containerId}</span>
-                <span class="row-actions">
-                  <button type="button" data-relocate="${c.id}" title="Relocate">Move</button>
-                  <button type="button" data-remove="${c.id}" title="Remove">✕</button>
-                </span>
-              </li>`).join('')}</ul>`}
       </div>`;
-
-    root.querySelectorAll('[data-remove]').forEach((b) =>
-      b.addEventListener('click', () => { if (onRemove) onRemove(b.dataset.remove); }));
-    root.querySelectorAll('[data-relocate]').forEach((b) =>
-      b.addEventListener('click', () => { if (onRelocate) onRelocate(b.dataset.relocate); }));
   }
 
   renderEmpty();

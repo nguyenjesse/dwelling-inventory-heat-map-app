@@ -3,10 +3,10 @@ import { loadSeed, createModel } from './model.js';
 import { validateManifest } from './validate.js';
 import { colorMap, positiveExtent } from './heatmap.js';
 import { createMapView } from './map.js';
-import { createEntryForm } from './form.js';
+import { createCountEditor } from './form.js';
 import { createPanel } from './panel.js';
 import { createLegend } from './legend.js';
-import { exportCsv, exportJson, importRecords, download } from './importexport.js';
+import { exportCsv, exportJson, importCounts, download } from './importexport.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -29,23 +29,27 @@ async function main() {
 
   // ---- selection state (always empty on load) ----
   let selectedAreaId = null;
-  let relocatingRecordId = null;
 
   const legend = createLegend($('#legend'));
-  const panel = createPanel($('#panel'), model, {
-    onRemove: (id) => { model.removeRecord(id); refresh(); },
-    onRelocate: (id) => startRelocate(id),
-  });
+  const panel = createPanel($('#panel'), model);
 
   const map = createMapView($('#map'), model, {
-    onSelect: (areaId) => {
-      if (relocatingRecordId) { finishRelocate(areaId); return; }
-      selectedAreaId = areaId;
-      renderSelection();
-    },
+    onSelect: (areaId) => setSelected(areaId), // map click drives editor too
   });
 
-  const form = createEntryForm($('#entry'), model, { onChange: refresh });
+  const editor = createCountEditor($('#entry'), model, {
+    onChange: refresh,
+    onSelectArea: (areaId) => setSelected(areaId, { syncEditor: false }),
+  });
+
+  // Single source of truth for the selected area. `syncEditor` pushes the
+  // selection into the editor (used for map clicks); the editor's own dropdown
+  // already holds it, so it opts out to avoid a redundant repopulate.
+  function setSelected(areaId, { syncEditor = true } = {}) {
+    selectedAreaId = areaId;
+    if (syncEditor) editor.selectArea(areaId);
+    renderSelection();
+  }
 
   // ---- department filter (dims non-matching areas) ----
   const deptFilter = $('#deptFilter');
@@ -56,64 +60,47 @@ async function main() {
 
   // ---- reset selection ----
   $('#resetSelection').addEventListener('click', () => {
-    selectedAreaId = null; cancelRelocate(); renderSelection(); panel.renderEmpty();
+    selectedAreaId = null;
+    editor.selectArea(null);
+    renderSelection();
+    panel.renderEmpty();
   });
 
   // ---- import / export ----
   $('#exportCsv').addEventListener('click', () =>
-    download('poc3-dwelling-records.csv', exportCsv(model), 'text/csv'));
+    download('poc3-dwelling-counts.csv', exportCsv(model), 'text/csv'));
   $('#exportJson').addEventListener('click', () =>
-    download('poc3-dwelling-records.json', exportJson(model), 'application/json'));
+    download('poc3-dwelling-counts.json', exportJson(model), 'application/json'));
   $('#importBtn').addEventListener('click', () => $('#importFile').click());
   $('#importFile').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const text = await file.text();
     const fmt = file.name.toLowerCase().endsWith('.json') ? 'json' : 'csv';
-    const { records, errors: errs, total } = importRecords(model, text, fmt);
+    const { counts, errors: errs, total } = importCounts(model, text, fmt);
     e.target.value = '';
+    const areaCount = Object.keys(counts).length;
     if (errs.length) {
       const preview = errs.slice(0, 8).map((x) => `• line ${x.line}: ${x.message}`).join('\n');
       const more = errs.length > 8 ? `\n…and ${errs.length - 8} more.` : '';
       const proceed = confirm(
         `${errs.length} of ${total} rows are invalid and will be skipped:\n\n${preview}${more}\n\n`
-        + `Import the ${records.length} valid rows?`);
+        + `Import the ${areaCount} valid area${areaCount === 1 ? '' : 's'}?`);
       if (!proceed) { setStatus('Import cancelled.'); return; }
     }
-    if (records.length === 0) { setStatus('Nothing imported — no valid rows.', 'error'); return; }
-    const replace = confirm(`Import ${records.length} records.\n\nOK = replace current data, `
-      + `Cancel = append to existing.`);
-    const existing = replace ? [] : model.getRecords().map((r) => ({
-      containerId: r.containerId, iBeamLocation: r.iBeamLocation, areaId: r.areaId,
-    }));
-    model.replaceRecords([...existing, ...records].map((r) => {
-      const area = model.getArea(r.areaId);
-      const now = new Date().toISOString();
-      return { id: 'r_' + Math.random().toString(36).slice(2, 10), ...r,
-        departmentId: area.departmentId, createdAt: now, updatedAt: now };
-    }));
-    setStatus(`Imported ${records.length} records${errs.length ? ` (${errs.length} skipped)` : ''}.`, 'success');
+    if (areaCount === 0) { setStatus('Nothing imported — no valid rows.', 'error'); return; }
+    const replace = confirm(`Import counts for ${areaCount} area${areaCount === 1 ? '' : 's'}.\n\n`
+      + `OK = replace current data, Cancel = merge into existing.`);
+    if (replace) {
+      model.replaceCounts(counts);
+    } else {
+      for (const [areaId, n] of Object.entries(counts)) model.setCount(areaId, n);
+    }
+    setStatus(`Imported ${areaCount} area${areaCount === 1 ? '' : 's'}`
+      + `${errs.length ? ` (${errs.length} skipped)` : ''}.`, 'success');
+    editor.refresh();
     refresh();
   });
-
-  // ---- relocate flow ----
-  function startRelocate(id) {
-    relocatingRecordId = id;
-    const rec = model.getRecords().find((r) => r.id === id);
-    setStatus(`Relocating "${rec.containerId}" — click a target area on the map (Esc to cancel).`);
-  }
-  function finishRelocate(areaId) {
-    const area = model.getArea(areaId);
-    model.updateRecord(relocatingRecordId, { areaId, iBeamLocation: area.iBeamLocation });
-    relocatingRecordId = null;
-    selectedAreaId = areaId;
-    setStatus(`Moved to ${area.name}.`, 'success');
-    refresh();
-  }
-  function cancelRelocate() {
-    if (relocatingRecordId) { relocatingRecordId = null; setStatus(''); }
-  }
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { cancelRelocate(); } });
 
   // ---- render helpers ----
   function renderColors() {
@@ -151,12 +138,14 @@ async function main() {
   function refresh() {
     renderColors();
     renderSelection();
-    if (selectedAreaId) panel.render(selectedAreaId);
-    setCount();
+    updateHeaderCount();
   }
 
-  function setCount() {
-    $('#recordCount').textContent = `${model.recordCount()} active record${model.recordCount() === 1 ? '' : 's'}`;
+  function updateHeaderCount() {
+    const total = model.totalPallets();
+    const areas = model.areasWithCount();
+    $('#recordCount').textContent =
+      `${total} pallet${total === 1 ? '' : 's'} across ${areas} area${areas === 1 ? '' : 's'}`;
   }
 
   function setStatus(text, kind = '') {
