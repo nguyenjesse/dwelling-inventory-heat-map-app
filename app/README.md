@@ -5,8 +5,8 @@ Records where dwelling pallets sit across 61 operational areas and heat-maps
 their distribution over the warehouse floor plan.
 
 - **No build step, no npm.** Plain HTML + CSS + ES-module JavaScript.
-- **Local-first.** Records persist in the browser (`localStorage`); CSV/JSON
-  import & export move data in and out of Excel.
+- **Local-first.** Per-area pallet counts persist in the browser
+  (`localStorage`); CSV/JSON import & export move data in and out of Excel.
 - **Data faithfully extracted** from `POC3_Dwelling_Inventory_Map_v1.5`:
   61 areas, 5 departments, 55 unique I-beam locations (with one-to-many
   I-beam→area mappings), and the 61 map regions reconstructed from the
@@ -54,18 +54,21 @@ region editor (`editor.html`) is an admin tool and only runs in this served mode
 
 ## Using the app
 
-1. **Add a pallet:** scan/type a Container ID, pick an I-Beam location
-   (searchable), choose the Area (filtered to that I-beam), and the Department
-   fills in automatically. Enter submits; the form clears for the next scan.
+1. **Record a count:** pick an Area from the department-grouped dropdown, or
+   click its region on the map — either loads the area into the entry card and
+   focuses the count field. Its I-Beam and Department fill in automatically.
+   Type the pallet count and **Save** (sets the area's absolute count); **Clear**
+   zeroes it.
 2. **Heat map** updates live. Zero-pallet areas are neutral gray; positive
    counts are colored green → yellow → red, normalized across the current
    *positive* min/max only.
 3. **Click an area** (or focus + Enter) to select it: red outline on the area,
-   orange on the rest of its department, and full details + container list in
-   the panel. **Reset selection** clears it. Selection never changes on reload.
-4. **Import/Export:** CSV columns are `Container ID, I_Beam_Location, Area,
-   Department` (Excel-compatible). Invalid rows are reported, never silently
-   skipped.
+   orange on the rest of its department, and its details (I-Beam, department,
+   dept total, % of all pallets) in the panel. **Reset selection** clears it.
+   Selection never changes on reload.
+4. **Import/Export:** CSV columns are `Area, Department, I_Beam_Location,
+   Pallets` (Excel-compatible), one row per area with a positive count. Invalid
+   rows are reported, never silently skipped.
 
 ## Data model (`data/`)
 
