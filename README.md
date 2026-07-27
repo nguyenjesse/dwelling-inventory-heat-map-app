@@ -47,8 +47,12 @@ python3 build/build-standalone.py
 # -> POC3-Dwelling-Inventory-Map.html  and  POC3-Region-Editor.html
 ```
 
-`POC3-Region-Editor.html` is a double-click **admin** tool for placing/adjusting
-the 61 map regions and exporting `regions.json` — no server needed either.
+`POC3-Region-Editor.html` is a double-click **admin** tool for managing the map
+areas — create / name / rename / delete / duplicate an area, place its region
+box, and assign its **Pole** (I-Beam) and **Department** (departments can be
+created/renamed too). It exports a single `poc3-map-data.json` bundle (areas +
+departments + regions, with I-Beam mappings derived) to hand back for applying —
+no server needed either.
 
 ### 2. Served dev version — for editing/development
 

@@ -12,17 +12,40 @@
   <header class="app-header">
     <div class="title">
       <h1>Region Editor</h1>
-      <span class="subtitle">Place &amp; adjust the 61 map regions, then export regions.json</span>
+      <span class="subtitle">Create, name &amp; place areas · assign Pole + Department · export the data</span>
     </div>
     <div class="header-tools">
       <label class="btn">Load background…<input id="bgFile" type="file" accept="image/*" hidden /></label>
-      <button id="exportRegions" class="btn btn-primary">Export regions.json</button>
+      <button id="exportData" class="btn btn-primary">Export data</button>
       <a class="btn" href="./index.html">← Back to app</a>
     </div>
   </header>
 
   <div class="editor-layout">
     <aside class="editor-sidebar">
+      <div class="ed-actions">
+        <button id="newArea" class="btn">＋ New area</button>
+        <button id="dupArea" class="btn" disabled>Duplicate</button>
+        <button id="delArea" class="btn btn-danger" disabled>Delete</button>
+      </div>
+
+      <div class="ed-attrs">
+        <label class="ed-field">Name
+          <input id="aName" type="text" placeholder="Area name" disabled />
+        </label>
+        <label class="ed-field">Pole (I-Beam)
+          <input id="aPole" type="text" list="poleList" placeholder="e.g. J12" disabled />
+          <datalist id="poleList"></datalist>
+        </label>
+        <label class="ed-field">Department
+          <span class="ed-dept-row">
+            <select id="aDept" disabled></select>
+            <button id="deptAdd" class="btn ed-mini" title="Add department">＋</button>
+            <button id="deptRename" class="btn ed-mini" title="Rename department" disabled>✎</button>
+          </span>
+        </label>
+      </div>
+
       <input id="areaSearch" type="search" placeholder="Search areas…" />
       <p class="muted" id="editorHint">Select an area, then drag its box or corners. Arrow keys nudge; Shift+Arrow resizes.</p>
       <ul id="areaList" class="area-list"></ul>

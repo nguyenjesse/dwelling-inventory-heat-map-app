@@ -49,7 +49,7 @@ region editor (`editor.html`) is an admin tool and only runs in this served mode
 | File | Purpose |
 |---|---|
 | `index.html` | Operator app — entry form, heat map, info panel, legend, import/export. |
-| `editor.html` | Region editor — drag/resize/nudge the 61 map regions and export `regions.json`. |
+| `editor.html` | Area/region editor — create/name/rename/delete/duplicate areas, place their region boxes, assign Pole (I-Beam) + Department (create/rename departments too), and export a `poc3-map-data.json` bundle. |
 | `tests/tests.html` | In-browser test suite (mapping integrity, counts, color math, import/export). |
 
 ## Using the app
@@ -95,9 +95,11 @@ then **affine-mapped onto the Green Mile image** (same underlying drawing, a
 different crop/scale) using its content bounding box. The result aligns
 closely; fine-tune any box in the editor.
 
-To swap in another background: open `editor.html`, use **Load background…** to
-preview it, adjust regions, and **Export regions.json** back into `data/`
-(update `meta.image` to the new filename).
+To swap in another background: open `editor.html` (or the double-click
+`POC3-Region-Editor.html`), use **Load background…** to preview it, adjust
+regions, and **Export data** — the resulting `poc3-map-data.json` bundle
+(areas + departments + regions, I-Beam mappings derived) gets split back into
+`data/` and the standalones rebuilt (update `meta.image` to the new filename).
 
 ## Heat-map scale
 
