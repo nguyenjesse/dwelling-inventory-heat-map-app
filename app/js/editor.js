@@ -17,9 +17,14 @@ const $ = (s) => document.querySelector(s);
   const deptName = (id) => (seed.departments.find((d) => d.id === id) || {}).name || id;
 
   // ---- stage ----
+  // Standalone build injects the background as a data: URI (BG_IMAGE_DATA_URI);
+  // served build falls back to the file in assets/.
+  const bgSrc = (typeof BG_IMAGE_DATA_URI !== 'undefined' && BG_IMAGE_DATA_URI)
+    ? BG_IMAGE_DATA_URI
+    : './assets/' + (meta.image || 'floor-plan.png');
   const stage = document.createElement('div');
   stage.className = 'stage';
-  stage.innerHTML = `<img id="edImg" src="./assets/${meta.image || 'floor-plan.png'}" alt="" />
+  stage.innerHTML = `<img id="edImg" src="${bgSrc}" alt="" />
     <svg id="edSvg" viewBox="0 0 ${meta.imageWidth} ${meta.imageHeight}" preserveAspectRatio="none"></svg>`;
   $('#editor').appendChild(stage);
   const svg = $('#edSvg');

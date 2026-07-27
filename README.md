@@ -39,31 +39,36 @@ file**: data, floor-plan image, CSS, and all JavaScript are inlined. Double-clic
 it (or email it to someone) and it opens in any browser — no server, no install,
 works fully offline. **This is the file to hand out.**
 
-Rebuild it after **any** change to `app/` source or `app/data/`:
+Rebuild after **any** change to `app/` source or `app/data/` — this regenerates
+**both** standalones (the operator app and the region editor):
 
 ```bash
-python3 build/build-standalone.py   # regenerates POC3-Dwelling-Inventory-Map.html
+python3 build/build-standalone.py
+# -> POC3-Dwelling-Inventory-Map.html  and  POC3-Region-Editor.html
 ```
+
+`POC3-Region-Editor.html` is a double-click **admin** tool for placing/adjusting
+the 61 map regions and exporting `regions.json` — no server needed either.
 
 ### 2. Served dev version — for editing/development
 
-The modular `app/` source must be served over HTTP (ES modules + `fetch` don't
-work from `file://`):
+The modular `app/` source can also be served over HTTP (ES modules + `fetch`
+don't work from `file://`):
 
 ```bash
 cd app
 python3 -m http.server 8000
-# open http://localhost:8000/index.html
+# open http://localhost:8000/index.html   (or /editor.html, /tests/tests.html)
 ```
 
-The region editor (`editor.html`, admin-only) and the test suite
-(`tests/tests.html`) also run in this served mode.
+The test suite (`tests/tests.html`) runs in this served mode.
 
 ## Repository layout
 
 ```
-POC3-Dwelling-Inventory-Map.html   Generated standalone (the deliverable — do not hand-edit)
-build/build-standalone.py          Inliner that produces the standalone
+POC3-Dwelling-Inventory-Map.html   Generated operator standalone (the deliverable — do not hand-edit)
+POC3-Region-Editor.html            Generated admin region-editor standalone (double-click; do not hand-edit)
+build/build-standalone.py          Inliner that produces both standalones
 app/                               Modular source (dev version)
   index.html                       Operator app: area picker + count entry, heat map, panel, legend
   editor.html                      Region editor (admin: drag/resize/nudge the 61 regions)

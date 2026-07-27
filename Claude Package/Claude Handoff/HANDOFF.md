@@ -27,6 +27,10 @@ user deleted the old feature branches, and `main` is the most up-to-date ref.
   input model (root README was previously empty; the app README's old "scan a
   container" usage + CSV columns were corrected). Pushed straight to `main` after
   PR #2, not part of it.
+- `build/build-standalone.py` now emits a **second** standalone,
+  `POC3-Region-Editor.html` (double-click admin editor); `app/js/editor.js` was
+  tweaked to use the inlined background when present (mirrors `map.js`). Also
+  post-PR #2, on `main`.
 
 ## Decisions taken and why
 - **Single pallet count per area** (not a multi container-type table like the
@@ -43,9 +47,11 @@ user deleted the old feature branches, and `main` is the most up-to-date ref.
   map-click both drive the editor, Save heat-colors the region, panel/header
   totals update, CSV round-trips, no console errors. Screenshots confirmed the
   `file://` standalone is fully styled (all 61 boxes).
-- **Region editor:** I smoke-tested that `editor.html` still loads clean (61
-  regions, no errors) — but the **user has NOT hands-on tested it yet and wants
-  to** (see next steps). It was not otherwise changed this session.
+- **Region editor:** now also builds as a **double-click standalone**
+  (`POC3-Region-Editor.html`) so the user (no local server) can test it. Verified
+  from `file://`: all 61 regions draw on the inlined Green Mile background,
+  select/drag/nudge works, and Export produces `regions.json`, no errors. The
+  **user still wants to hands-on test it** (that's why the standalone was built).
 
 ## Dead ends & gotchas
 - **Standalone rebuild is mandatory after ANY `app/` change:**
@@ -53,18 +59,19 @@ user deleted the old feature branches, and `main` is the most up-to-date ref.
   `POC3-Dwelling-Inventory-Map.html` from `file://` and taking a real screenshot
   — a DOM-node count once hid an unstyled-render bug (favicon regex, commit
   cf0c292). Don't trust a node count for the standalone.
-- **Region editor needs served mode** (HTTP) — it uses ES modules + `fetch`, so
-  it will NOT run from `file://` (double-click). Serve it:
-  `cd app && python3 -m http.server 8000` → open
-  `http://localhost:8000/editor.html`. (If you serve from the repo root instead,
-  the path is `/app/editor.html`.)
+- **Region editor:** for the user, hand them the double-click
+  `POC3-Region-Editor.html` (built by the same script). The **served** dev editor
+  (`app/editor.html`) still needs HTTP — it uses ES modules + `fetch`, so it
+  won't run from `file://`: `cd app && python3 -m http.server 8000` → open
+  `http://localhost:8000/editor.html`.
 
 ## Suggested next steps
-1. **Test the region editor** (user's explicit ask). Serve it as above, open
-   `editor.html`, and check drag/resize/nudge of the 61 region boxes on the Green
-   Mile background, then **Export regions.json** back into `app/data/`. Region
-   alignment on Green Mile is close-but-not-pixel-perfect (affine-mapped from the
-   original CAD image), so some boxes may need nudging.
+1. **Test the region editor** (user's explicit ask) — via the double-click
+   `POC3-Region-Editor.html`. Check drag/resize/nudge of the 61 region boxes on
+   the Green Mile background, then **Export regions.json**. To apply the result,
+   drop the exported file into `app/data/regions.json` and rebuild the
+   standalones. Region alignment on Green Mile is close-but-not-pixel-perfect
+   (affine-mapped from the original CAD image), so some boxes may need nudging.
 2. Decide the Save semantics (see open question) and adjust `form.js` if needed.
 3. Only if asked: shrink the ~3.4 MB standalone (background → JPEG ≈ halves it)
    for easier emailing.

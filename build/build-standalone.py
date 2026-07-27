@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-"""Build a single self-contained HTML file from the modular app/ source.
+"""Build single self-contained HTML files from the modular app/ source.
 
-The served app (app/index.html) loads its data and image over HTTP with ES
-modules + fetch, which browsers block on file://. This script inlines
-everything — the four data JSON files, the CSS, the background image (as a
-base64 data: URI), and every JS module (import/export stripped, merged into one
-classic <script>) — so the result opens by double-click, works fully offline,
-and can be emailed/shared as one file. Each user's records live in their own
-browser localStorage; nothing is shared between machines.
+The served app loads its data and image over HTTP with ES modules + fetch,
+which browsers block on file://. This script inlines everything — the four data
+JSON files, the CSS, the background image (as a base64 data: URI), and the JS
+modules (import/export stripped, merged into one classic <script>) — so the
+result opens by double-click, works fully offline, and can be emailed/shared as
+one file. Each user's data lives in their own browser localStorage.
+
+Two files are produced at the repo root:
+  POC3-Dwelling-Inventory-Map.html   the operator app (the deliverable)
+  POC3-Region-Editor.html            the admin region editor (double-click too)
 
 Run:  python3 build/build-standalone.py
-Out:  POC3-Dwelling-Inventory-Map.html   (repo root)
 """
 
 import base64
@@ -20,11 +22,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 APP = ROOT / "app"
-OUT = ROOT / "POC3-Dwelling-Inventory-Map.html"
+
+APP_OUT = ROOT / "POC3-Dwelling-Inventory-Map.html"
+EDITOR_OUT = ROOT / "POC3-Region-Editor.html"
 
 # JS modules in dependency order. Everything lands in one scope, so anything
 # referenced at load time must be defined before its first use.
-JS_ORDER = [
+APP_JS_ORDER = [
     "storage.js",
     "heatmap.js",
     "validate.js",
@@ -35,6 +39,14 @@ JS_ORDER = [
     "form.js",
     "map.js",
     "app.js",
+]
+
+# The editor only needs loadSeed (model -> storage) and download (importexport).
+EDITOR_JS_ORDER = [
+    "storage.js",
+    "importexport.js",
+    "model.js",
+    "editor.js",
 ]
 
 IMPORT_RE = re.compile(r"^\s*import\s.*?;\s*$", re.MULTILINE)
@@ -69,22 +81,31 @@ def image_data_uri(seed: dict) -> str:
     return f"data:{mime};base64,{b64}"
 
 
-def body_from_index(html: str) -> str:
+def body_from(html: str) -> str:
     """Pull the inner <body> markup, minus the module <script> and CSS <link>."""
     body = re.search(r"<body>(.*)</body>", html, re.DOTALL).group(1)
     body = re.sub(r'<script\s+type="module".*?</script>', "", body, flags=re.DOTALL)
+    # Cross-link the two standalones (their served relative hrefs won't resolve).
+    body = body.replace('href="./index.html"', f'href="{APP_OUT.name}"')
+    body = body.replace('href="./editor.html"', f'href="{EDITOR_OUT.name}"')
     return body.strip()
 
 
-def main() -> None:
-    seed = load_seed()
-    css = (APP / "css" / "styles.css").read_text()
-    index_html = (APP / "index.html").read_text()
-    body = body_from_index(index_html)
-    bg_uri = image_data_uri(seed)
+def favicon_from(html: str) -> str:
+    # The favicon href is an SVG data: URI containing '>' characters, so match to
+    # end-of-line (not the first '>') or it truncates mid-tag and breaks <head>.
+    return re.search(r'<link rel="icon"[^\n]*>', html).group(0)
 
-    js_parts = [strip_module_syntax((APP / "js" / name).read_text()) for name in JS_ORDER]
-    bundle = "\n\n".join(js_parts)
+
+def build(out: Path, title: str, source_html_name: str, js_order, css_names,
+          seed: dict, bg_uri: str) -> None:
+    source_html = (APP / source_html_name).read_text()
+    css = "\n".join((APP / "css" / name).read_text() for name in css_names)
+    body = body_from(source_html)
+    favicon = favicon_from(source_html)
+
+    bundle = "\n\n".join(
+        strip_module_syntax((APP / "js" / name).read_text()) for name in js_order)
 
     inlined_data = (
         "// ---- inlined by build/build-standalone.py (no server needed) ----\n"
@@ -92,16 +113,12 @@ def main() -> None:
         f"const BG_IMAGE_DATA_URI = {json.dumps(bg_uri)};\n"
     )
 
-    # The favicon href is an SVG data: URI containing '>' characters, so match to
-    # end-of-line (not the first '>') or it truncates mid-tag and breaks <head>.
-    favicon = re.search(r'<link rel="icon"[^\n]*>', index_html).group(0)
-
-    out = f"""<!doctype html>
+    out.write_text(f"""<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>POC3 Dwelling Inventory Map</title>
+  <title>{title}</title>
   {favicon}
   <style>
 {css}
@@ -115,12 +132,21 @@ def main() -> None:
   </script>
 </body>
 </html>
-"""
+""")
+    size_mb = out.stat().st_size / (1024 * 1024)
+    print(f"Wrote {out.relative_to(ROOT)} ({size_mb:.1f} MB)")
 
-    OUT.write_text(out)
-    size_mb = OUT.stat().st_size / (1024 * 1024)
-    print(f"Wrote {OUT.relative_to(ROOT)} ({size_mb:.1f} MB)")
-    print("Double-click it to run — no server required.")
+
+def main() -> None:
+    seed = load_seed()
+    bg_uri = image_data_uri(seed)
+
+    build(APP_OUT, "POC3 Dwelling Inventory Map", "index.html",
+          APP_JS_ORDER, ["styles.css"], seed, bg_uri)
+    build(EDITOR_OUT, "Region Editor — POC3 Map", "editor.html",
+          EDITOR_JS_ORDER, ["styles.css", "editor.css"], seed, bg_uri)
+
+    print("Double-click either file to run — no server required.")
 
 
 if __name__ == "__main__":

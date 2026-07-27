@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>POC3 Dwelling Inventory Map</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%232f528f'/><rect x='3' y='3' width='4' height='4' fill='%232ca25f'/><rect x='9' y='3' width='4' height='4' fill='%23ffd400'/><rect x='3' y='9' width='4' height='4' fill='%23e60000'/><rect x='9' y='9' width='4' height='4' fill='%23808080'/></svg>" />
+  <title>Region Editor — POC3 Map</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%23e65100'/><rect x='3' y='3' width='10' height='10' fill='none' stroke='%23fff' stroke-width='1.5'/></svg>" />
   <style>
 /* POC3 Dwelling Inventory Map — styles */
 :root {
@@ -158,54 +158,67 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
   .map-shell { min-height: 60vh; }
 }
 
+/* editor.css — region editor specific styles */
+.editor-layout { flex: 1; display: grid; grid-template-columns: 260px minmax(0,1fr); gap: 0; min-height: 0; }
+.editor-sidebar { border-right: 1px solid var(--border); background: #fff; padding: .8rem; overflow: auto; display: flex; flex-direction: column; gap: .5rem; }
+.editor-sidebar #areaSearch { font: inherit; padding: .45rem .6rem; border: 1px solid var(--border); border-radius: 6px; }
+.area-list { list-style: none; margin: 0; padding: 0; overflow: auto; }
+.area-list li { padding: .4rem .5rem; border-radius: 5px; cursor: pointer; font-size: .84rem; display: flex; justify-content: space-between; gap: .4rem; }
+.area-list li:hover { background: #eef1f4; }
+.area-list li.active { background: var(--accent); color: #fff; }
+.area-list li .dept { font-size: .72rem; color: var(--muted); }
+.area-list li.active .dept { color: #dbe4f5; }
+.area-list li .missing { color: var(--danger); font-size: .72rem; }
+
+.editor-main { display: flex; flex-direction: column; min-width: 0; }
+.editor-controls { display: flex; align-items: center; gap: .8rem; padding: .5rem .8rem; border-bottom: 1px solid var(--border); background: #fff; flex-wrap: wrap; }
+.sel-name { font-weight: 600; font-size: .9rem; }
+.coord { font-size: .78rem; color: var(--muted); display: flex; align-items: center; gap: .25rem; }
+.coord input { width: 66px; font: inherit; padding: .25rem .4rem; border: 1px solid var(--border); border-radius: 5px; }
+
+.editor-canvas { position: relative; flex: 1; overflow: auto; background: #eceff1; }
+.editor-canvas .stage { position: relative; }
+.editor-canvas img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
+.editor-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ed-area { fill: #2f528f; fill-opacity: .18; stroke: #2f528f; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: move; }
+.ed-area.active { fill: #ff9800; fill-opacity: .3; stroke: #e65100; stroke-width: 2px; }
+.ed-handle { fill: #fff; stroke: #e65100; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: nwse-resize; }
+.ed-label { font: 600 11px Arial, sans-serif; fill: #14213d; paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; }
+
   </style>
 </head>
 <body>
 <header class="app-header">
     <div class="title">
-      <h1>POC3 Dwelling Inventory Map</h1>
-      <span class="subtitle">Warehouse dwelling-pallet heat map</span>
+      <h1>Region Editor</h1>
+      <span class="subtitle">Place &amp; adjust the 61 map regions, then export regions.json</span>
     </div>
     <div class="header-tools">
-      <span id="recordCount" class="record-count">0 pallets across 0 areas</span>
-      <button id="importBtn" class="btn">Import…</button>
-      <input id="importFile" type="file" accept=".csv,.json" hidden />
-      <button id="exportCsv" class="btn">Export CSV</button>
-      <button id="exportJson" class="btn">Export JSON</button>
-      <a class="btn" href="POC3-Region-Editor.html">Region editor</a>
+      <label class="btn">Load background…<input id="bgFile" type="file" accept="image/*" hidden /></label>
+      <button id="exportRegions" class="btn btn-primary">Export regions.json</button>
+      <a class="btn" href="POC3-Dwelling-Inventory-Map.html">← Back to app</a>
     </div>
   </header>
 
-  <div id="validation" class="validation" hidden></div>
+  <div class="editor-layout">
+    <aside class="editor-sidebar">
+      <input id="areaSearch" type="search" placeholder="Search areas…" />
+      <p class="muted" id="editorHint">Select an area, then drag its box or corners. Arrow keys nudge; Shift+Arrow resizes.</p>
+      <ul id="areaList" class="area-list"></ul>
+    </aside>
 
-  <main class="layout">
-    <!-- Left: entry form -->
-    <section class="col col-entry" aria-label="Pallet count entry">
-      <h2>Record pallet count</h2>
-      <div id="entry"></div>
-    </section>
-
-    <!-- Center: map -->
-    <section class="col col-map" aria-label="Floor map">
-      <div class="map-controls">
-        <label>Department
-          <select id="deptFilter"></select>
-        </label>
-        <label class="inline"><input id="hideEmpty" type="checkbox" /> Hide empty</label>
-        <button id="resetSelection" class="btn">Reset selection</button>
-        <span id="status" class="status" role="status" aria-live="polite"></span>
+    <div class="editor-main">
+      <div class="editor-controls">
+        <span id="selName" class="sel-name">No area selected</span>
+        <span class="coord">x <input id="fx" type="number" step="1" /></span>
+        <span class="coord">y <input id="fy" type="number" step="1" /></span>
+        <span class="coord">w <input id="fw" type="number" step="1" /></span>
+        <span class="coord">h <input id="fh" type="number" step="1" /></span>
+        <span id="editorStatus" class="status"></span>
       </div>
-      <div id="map" class="map-shell"></div>
-    </section>
-
-    <!-- Right: panel + legend -->
-    <section class="col col-info" aria-label="Area information">
-      <h2>Area details</h2>
-      <div id="panel" class="panel"></div>
-      <h2>Legend</h2>
-      <div id="legend"></div>
-    </section>
-  </main>
+      <div id="editor" class="editor-canvas"></div>
+    </div>
+  </div>
   <script>
 // ---- inlined by build/build-standalone.py (no server needed) ----
 const SEED_DATA = {"areas": [{"id": "docksort-overflow-phase-1", "name": "Docksort Overflow Phase 1", "departmentId": "docksort", "iBeamLocation": "J15", "mapRegionId": "docksort-overflow-phase-1"}, {"id": "docksort-downstack-phase-1", "name": "Docksort Downstack Phase 1", "departmentId": "docksort", "iBeamLocation": "J17", "mapRegionId": "docksort-downstack-phase-1"}, {"id": "docksort-downstack-phase-2", "name": "Docksort Downstack Phase 2", "departmentId": "docksort", "iBeamLocation": "J20", "mapRegionId": "docksort-downstack-phase-2"}, {"id": "docksort-phase-1", "name": "Docksort Phase 1", "departmentId": "docksort", "iBeamLocation": "K18", "mapRegionId": "docksort-phase-1"}, {"id": "docksort-phase-2", "name": "Docksort Phase 2", "departmentId": "docksort", "iBeamLocation": "K19", "mapRegionId": "docksort-phase-2"}, {"id": "presort-phase-1", "name": "Presort Phase 1", "departmentId": "ib-dock", "iBeamLocation": "J12", "mapRegionId": "presort-phase-1"}, {"id": "presort-phase-2", "name": "Presort Phase 2", "departmentId": "ib-dock", "iBeamLocation": "J26", "mapRegionId": "presort-phase-2"}, {"id": "pid-1-2", "name": "PID 1-2", "departmentId": "ib-dock", "iBeamLocation": "K13", "mapRegionId": "pid-1-2"}, {"id": "pid-6-7", "name": "PID 6-7", "departmentId": "ib-dock", "iBeamLocation": "K24", "mapRegionId": "pid-6-7"}, {"id": "ib-dock-l16", "name": "IB Dock L16", "departmentId": "ib-dock", "iBeamLocation": "L16", "mapRegionId": "ib-dock-l16"}, {"id": "ib-dock-l17", "name": "IB Dock L17", "departmentId": "ib-dock", "iBeamLocation": "L17", "mapRegionId": "ib-dock-l17"}, {"id": "atac", "name": "ATAC", "departmentId": "ib-dock", "iBeamLocation": "L18", "mapRegionId": "atac"}, {"id": "ib-dock-l19", "name": "IB Dock L19", "departmentId": "ib-dock", "iBeamLocation": "L19", "mapRegionId": "ib-dock-l19"}, {"id": "ib-dock-l20", "name": "IB Dock L20", "departmentId": "ib-dock", "iBeamLocation": "L20", "mapRegionId": "ib-dock-l20"}, {"id": "ib-dock-l21", "name": "IB Dock L21", "departmentId": "ib-dock", "iBeamLocation": "L21", "mapRegionId": "ib-dock-l21"}, {"id": "ib-dock-l22", "name": "IB Dock L22", "departmentId": "ib-dock", "iBeamLocation": "L22", "mapRegionId": "ib-dock-l22"}, {"id": "ob-dock-c21", "name": "OB Dock C21", "departmentId": "ob-dock", "iBeamLocation": "C21", "mapRegionId": "ob-dock-c21"}, {"id": "ob-tote-pallet-buffer-d16", "name": "OB Tote Pallet Buffer D16", "departmentId": "ob-dock", "iBeamLocation": "D16", "mapRegionId": "ob-tote-pallet-buffer-d16"}, {"id": "ob-tote-pallet-buffer-d18", "name": "OB Tote Pallet Buffer D18", "departmentId": "ob-dock", "iBeamLocation": "D18", "mapRegionId": "ob-tote-pallet-buffer-d18"}, {"id": "ob-tote-pallet-buffer-d20", "name": "OB Tote Pallet Buffer D20", "departmentId": "ob-dock", "iBeamLocation": "D20", "mapRegionId": "ob-tote-pallet-buffer-d20"}, {"id": "fluid-lane-9-10", "name": "Fluid Lane 9-10", "departmentId": "ob-dock", "iBeamLocation": "E22", "mapRegionId": "fluid-lane-9-10"}, {"id": "fluid-lane-10-11", "name": "Fluid Lane 10-11", "departmentId": "ob-dock", "iBeamLocation": "E23", "mapRegionId": "fluid-lane-10-11"}, {"id": "fluid-lane-13-14", "name": "Fluid Lane 13-14", "departmentId": "ob-dock", "iBeamLocation": "E25", "mapRegionId": "fluid-lane-13-14"}, {"id": "fluid-lane-14-15", "name": "Fluid Lane 14-15", "departmentId": "ob-dock", "iBeamLocation": "E25", "mapRegionId": "fluid-lane-14-15"}, {"id": "fluid-lane-15-16", "name": "Fluid Lane 15-16", "departmentId": "ob-dock", "iBeamLocation": "E26", "mapRegionId": "fluid-lane-15-16"}, {"id": "fluid-lane-1-2", "name": "Fluid Lane 1-2", "departmentId": "ob-dock", "iBeamLocation": "F11", "mapRegionId": "fluid-lane-1-2"}, {"id": "fluid-lane-2-3", "name": "Fluid Lane 2-3", "departmentId": "ob-dock", "iBeamLocation": "F12", "mapRegionId": "fluid-lane-2-3"}, {"id": "fluid-lane-3-4", "name": "Fluid Lane 3-4", "departmentId": "ob-dock", "iBeamLocation": "F12", "mapRegionId": "fluid-lane-3-4"}, {"id": "fluid-lane-6-7", "name": "Fluid Lane 6-7", "departmentId": "ob-dock", "iBeamLocation": "F14", "mapRegionId": "fluid-lane-6-7"}, {"id": "end-of-line-i", "name": "End of Line I", "departmentId": "rpn", "iBeamLocation": "E20", "mapRegionId": "end-of-line-i"}, {"id": "end-of-line-j", "name": "End of Line J", "departmentId": "rpn", "iBeamLocation": "E21", "mapRegionId": "end-of-line-j"}, {"id": "rpn-wip-sdc-arcs-p1", "name": "RPN WIP SDC Arcs P1", "departmentId": "rpn", "iBeamLocation": "G14", "mapRegionId": "rpn-wip-sdc-arcs-p1"}, {"id": "rpn-buffer", "name": "RPN Buffer", "departmentId": "rpn", "iBeamLocation": "G22", "mapRegionId": "rpn-buffer"}, {"id": "rpn-wip-sdc-arcs-p2", "name": "RPN WIP SDC Arcs P2", "departmentId": "rpn", "iBeamLocation": "G23", "mapRegionId": "rpn-wip-sdc-arcs-p2"}, {"id": "each-prep-buffer", "name": "Each & Prep Buffer", "departmentId": "rpn", "iBeamLocation": "J22", "mapRegionId": "each-prep-buffer"}, {"id": "rpn-recirc-p1", "name": "RPN Recirc P1", "departmentId": "rpn", "iBeamLocation": "G15", "mapRegionId": "rpn-recirc-p1"}, {"id": "rpn-recirc-p2", "name": "RPN Recirc P2", "departmentId": "rpn", "iBeamLocation": "H22", "mapRegionId": "rpn-recirc-p2"}, {"id": "end-of-line-a", "name": "End of Line A", "departmentId": "sort", "iBeamLocation": "E16", "mapRegionId": "end-of-line-a"}, {"id": "end-of-line-b", "name": "End of Line B", "departmentId": "sort", "iBeamLocation": "E16", "mapRegionId": "end-of-line-b"}, {"id": "end-of-line-c", "name": "End of Line C", "departmentId": "sort", "iBeamLocation": "E17", "mapRegionId": "end-of-line-c"}, {"id": "end-of-line-d", "name": "End of Line D", "departmentId": "sort", "iBeamLocation": "E17", "mapRegionId": "end-of-line-d"}, {"id": "end-of-line-e", "name": "End of Line E", "departmentId": "sort", "iBeamLocation": "E18", "mapRegionId": "end-of-line-e"}, {"id": "end-of-line-f", "name": "End of Line F", "departmentId": "sort", "iBeamLocation": "E19", "mapRegionId": "end-of-line-f"}, {"id": "end-of-line-g", "name": "End of Line G", "departmentId": "sort", "iBeamLocation": "E19", "mapRegionId": "end-of-line-g"}, {"id": "end-of-line-h", "name": "End of Line H", "departmentId": "sort", "iBeamLocation": "E20", "mapRegionId": "end-of-line-h"}, {"id": "sort-overflow-buffer", "name": "Sort Overflow Buffer", "departmentId": "sort", "iBeamLocation": "F15", "mapRegionId": "sort-overflow-buffer"}, {"id": "a-buffer-9-12", "name": "A Buffer 9-12", "departmentId": "sort", "iBeamLocation": "F16", "mapRegionId": "a-buffer-9-12"}, {"id": "b-c-buffer-9-12", "name": "B-C Buffer 9-12", "departmentId": "sort", "iBeamLocation": "F17", "mapRegionId": "b-c-buffer-9-12"}, {"id": "d-e-buffer-9-12", "name": "D-E Buffer 9-12", "departmentId": "sort", "iBeamLocation": "F18", "mapRegionId": "d-e-buffer-9-12"}, {"id": "f-g-buffer-9-12", "name": "F-G Buffer 9-12", "departmentId": "sort", "iBeamLocation": "F19", "mapRegionId": "f-g-buffer-9-12"}, {"id": "h-i-buffer-9-12", "name": "H-I Buffer 9-12", "departmentId": "sort", "iBeamLocation": "F20", "mapRegionId": "h-i-buffer-9-12"}, {"id": "a-buffer-5-8", "name": "A Buffer 5-8", "departmentId": "sort", "iBeamLocation": "G16", "mapRegionId": "a-buffer-5-8"}, {"id": "b-c-buffer-5-8", "name": "B-C Buffer 5-8", "departmentId": "sort", "iBeamLocation": "G17", "mapRegionId": "b-c-buffer-5-8"}, {"id": "d-e-buffer-5-8", "name": "D-E Buffer 5-8", "departmentId": "sort", "iBeamLocation": "G18", "mapRegionId": "d-e-buffer-5-8"}, {"id": "f-g-buffer-5-8", "name": "F-G Buffer 5-8", "departmentId": "sort", "iBeamLocation": "G19", "mapRegionId": "f-g-buffer-5-8"}, {"id": "h-i-buffer-5-8", "name": "H-I Buffer 5-8", "departmentId": "sort", "iBeamLocation": "G20", "mapRegionId": "h-i-buffer-5-8"}, {"id": "a-buffer-1-4", "name": "A Buffer 1-4", "departmentId": "sort", "iBeamLocation": "H16", "mapRegionId": "a-buffer-1-4"}, {"id": "b-c-buffer-1-4", "name": "B-C Buffer 1-4", "departmentId": "sort", "iBeamLocation": "H17", "mapRegionId": "b-c-buffer-1-4"}, {"id": "d-e-buffer-1-4", "name": "D-E Buffer 1-4", "departmentId": "sort", "iBeamLocation": "H18", "mapRegionId": "d-e-buffer-1-4"}, {"id": "f-g-buffer-1-4", "name": "F-G Buffer 1-4", "departmentId": "sort", "iBeamLocation": "H19", "mapRegionId": "f-g-buffer-1-4"}, {"id": "h-i-buffer-1-4", "name": "H-I Buffer 1-4", "departmentId": "sort", "iBeamLocation": "H20", "mapRegionId": "h-i-buffer-1-4"}], "departments": [{"id": "docksort", "name": "Docksort"}, {"id": "ib-dock", "name": "IB Dock"}, {"id": "ob-dock", "name": "OB Dock"}, {"id": "rpn", "name": "RPN"}, {"id": "sort", "name": "Sort"}], "ibeamMappings": [{"iBeamLocation": "C21", "areaIds": ["ob-dock-c21"]}, {"iBeamLocation": "D16", "areaIds": ["ob-tote-pallet-buffer-d16"]}, {"iBeamLocation": "D18", "areaIds": ["ob-tote-pallet-buffer-d18"]}, {"iBeamLocation": "D20", "areaIds": ["ob-tote-pallet-buffer-d20"]}, {"iBeamLocation": "E16", "areaIds": ["end-of-line-a", "end-of-line-b"]}, {"iBeamLocation": "E17", "areaIds": ["end-of-line-c", "end-of-line-d"]}, {"iBeamLocation": "E18", "areaIds": ["end-of-line-e"]}, {"iBeamLocation": "E19", "areaIds": ["end-of-line-f", "end-of-line-g"]}, {"iBeamLocation": "E20", "areaIds": ["end-of-line-h", "end-of-line-i"]}, {"iBeamLocation": "E21", "areaIds": ["end-of-line-j"]}, {"iBeamLocation": "E22", "areaIds": ["fluid-lane-9-10"]}, {"iBeamLocation": "E23", "areaIds": ["fluid-lane-10-11"]}, {"iBeamLocation": "E25", "areaIds": ["fluid-lane-13-14", "fluid-lane-14-15"]}, {"iBeamLocation": "E26", "areaIds": ["fluid-lane-15-16"]}, {"iBeamLocation": "F11", "areaIds": ["fluid-lane-1-2"]}, {"iBeamLocation": "F12", "areaIds": ["fluid-lane-2-3", "fluid-lane-3-4"]}, {"iBeamLocation": "F14", "areaIds": ["fluid-lane-6-7"]}, {"iBeamLocation": "F15", "areaIds": ["sort-overflow-buffer"]}, {"iBeamLocation": "F16", "areaIds": ["a-buffer-9-12"]}, {"iBeamLocation": "F17", "areaIds": ["b-c-buffer-9-12"]}, {"iBeamLocation": "F18", "areaIds": ["d-e-buffer-9-12"]}, {"iBeamLocation": "F19", "areaIds": ["f-g-buffer-9-12"]}, {"iBeamLocation": "F20", "areaIds": ["h-i-buffer-9-12"]}, {"iBeamLocation": "G14", "areaIds": ["rpn-wip-sdc-arcs-p1"]}, {"iBeamLocation": "G15", "areaIds": ["rpn-recirc-p1"]}, {"iBeamLocation": "G16", "areaIds": ["a-buffer-5-8"]}, {"iBeamLocation": "G17", "areaIds": ["b-c-buffer-5-8"]}, {"iBeamLocation": "G18", "areaIds": ["d-e-buffer-5-8"]}, {"iBeamLocation": "G19", "areaIds": ["f-g-buffer-5-8"]}, {"iBeamLocation": "G20", "areaIds": ["h-i-buffer-5-8"]}, {"iBeamLocation": "G22", "areaIds": ["rpn-buffer"]}, {"iBeamLocation": "G23", "areaIds": ["rpn-wip-sdc-arcs-p2"]}, {"iBeamLocation": "H16", "areaIds": ["a-buffer-1-4"]}, {"iBeamLocation": "H17", "areaIds": ["b-c-buffer-1-4"]}, {"iBeamLocation": "H18", "areaIds": ["d-e-buffer-1-4"]}, {"iBeamLocation": "H19", "areaIds": ["f-g-buffer-1-4"]}, {"iBeamLocation": "H20", "areaIds": ["h-i-buffer-1-4"]}, {"iBeamLocation": "H22", "areaIds": ["rpn-recirc-p2"]}, {"iBeamLocation": "J12", "areaIds": ["presort-phase-1"]}, {"iBeamLocation": "J15", "areaIds": ["docksort-overflow-phase-1"]}, {"iBeamLocation": "J17", "areaIds": ["docksort-downstack-phase-1"]}, {"iBeamLocation": "J20", "areaIds": ["docksort-downstack-phase-2"]}, {"iBeamLocation": "J22", "areaIds": ["each-prep-buffer"]}, {"iBeamLocation": "J26", "areaIds": ["presort-phase-2"]}, {"iBeamLocation": "K13", "areaIds": ["pid-1-2"]}, {"iBeamLocation": "K18", "areaIds": ["docksort-phase-1"]}, {"iBeamLocation": "K19", "areaIds": ["docksort-phase-2"]}, {"iBeamLocation": "K24", "areaIds": ["pid-6-7"]}, {"iBeamLocation": "L16", "areaIds": ["ib-dock-l16"]}, {"iBeamLocation": "L17", "areaIds": ["ib-dock-l17"]}, {"iBeamLocation": "L18", "areaIds": ["atac"]}, {"iBeamLocation": "L19", "areaIds": ["ib-dock-l19"]}, {"iBeamLocation": "L20", "areaIds": ["ib-dock-l20"]}, {"iBeamLocation": "L21", "areaIds": ["ib-dock-l21"]}, {"iBeamLocation": "L22", "areaIds": ["ib-dock-l22"]}], "regions": {"meta": {"imageWidth": 1484, "imageHeight": 1060, "image": "green-mile.png", "source": "POC3_Dwelling_Inventory_Map_v1.5"}, "regions": {"docksort-overflow-phase-1": {"x": 454.6, "y": 572.4, "w": 33.7, "h": 184.8}, "docksort-downstack-phase-1": {"x": 527.2, "y": 704.3, "w": 204.9, "h": 36.1}, "docksort-downstack-phase-2": {"x": 774.1, "y": 704.3, "w": 204.9, "h": 36.1}, "docksort-phase-1": {"x": 595.4, "y": 758.3, "w": 144.9, "h": 39.4}, "docksort-phase-2": {"x": 765.7, "y": 758.3, "w": 144.9, "h": 39.4}, "presort-phase-1": {"x": 190.9, "y": 564.5, "w": 73.6, "h": 233.3}, "presort-phase-2": {"x": 1339.3, "y": 563.4, "w": 73.6, "h": 233.3}, "pid-1-2": {"x": 283.4, "y": 677.2, "w": 59.9, "h": 120.6}, "pid-6-7": {"x": 1191.2, "y": 677.2, "w": 59.9, "h": 120.6}, "ib-dock-l16": {"x": 491.5, "y": 826.0, "w": 115.6, "h": 103.7}, "ib-dock-l17": {"x": 627.0, "y": 826.0, "w": 52.5, "h": 103.7}, "atac": {"x": 688.9, "y": 826.0, "w": 68.3, "h": 66.5}, "ib-dock-l19": {"x": 816.1, "y": 826.0, "w": 61.9, "h": 103.7}, "ib-dock-l20": {"x": 894.9, "y": 826.0, "w": 49.3, "h": 103.7}, "ib-dock-l21": {"x": 963.1, "y": 825.4, "w": 55.1, "h": 106.5}, "ib-dock-l22": {"x": 1024.6, "y": 826.0, "w": 49.9, "h": 105.9}, "ob-dock-c21": {"x": 966.3, "y": 39.3, "w": 53.6, "h": 191.6}, "ob-tote-pallet-buffer-d16": {"x": 508.2, "y": 171.2, "w": 114.5, "h": 59.7}, "ob-tote-pallet-buffer-d18": {"x": 652.2, "y": 171.2, "w": 141.9, "h": 59.7}, "ob-tote-pallet-buffer-d20": {"x": 815.0, "y": 171.2, "w": 131.3, "h": 59.7}, "fluid-lane-9-10": {"x": 1036.7, "y": 282.7, "w": 42.0, "h": 148.8}, "fluid-lane-10-11": {"x": 1093.5, "y": 282.7, "w": 42.0, "h": 148.8}, "fluid-lane-13-14": {"x": 1245.8, "y": 282.7, "w": 42.0, "h": 119.4}, "fluid-lane-14-15": {"x": 1304.6, "y": 282.7, "w": 42.0, "h": 119.4}, "fluid-lane-15-16": {"x": 1362.4, "y": 282.7, "w": 42.0, "h": 119.4}, "fluid-lane-1-2": {"x": 117.4, "y": 282.7, "w": 38.9, "h": 119.4}, "fluid-lane-2-3": {"x": 174.2, "y": 282.7, "w": 42.0, "h": 119.4}, "fluid-lane-3-4": {"x": 233.0, "y": 283.9, "w": 42.0, "h": 119.4}, "fluid-lane-6-7": {"x": 366.4, "y": 282.7, "w": 61.9, "h": 142.0}, "end-of-line-i": {"x": 906.4, "y": 282.7, "w": 23.1, "h": 69.9}, "end-of-line-j": {"x": 943.2, "y": 282.7, "w": 17.9, "h": 69.9}, "rpn-wip-sdc-arcs-p1": {"x": 184.8, "y": 450.6, "w": 231.2, "h": 25.1}, "rpn-buffer": {"x": 995.7, "y": 447.2, "w": 43.1, "h": 76.7}, "rpn-wip-sdc-arcs-p2": {"x": 1104.4, "y": 453.4, "w": 231.2, "h": 25.1}, "each-prep-buffer": {"x": 1026.2, "y": 581.4, "w": 94.5, "h": 183.7}, "rpn-recirc-p1": {"x": 378.1, "y": 450.9, "w": 91.6, "h": 96.6}, "rpn-recirc-p2": {"x": 1050.0, "y": 450.2, "w": 91.6, "h": 96.6}, "end-of-line-a": {"x": 560.8, "y": 282.7, "w": 17.9, "h": 69.9}, "end-of-line-b": {"x": 590.2, "y": 282.7, "w": 23.1, "h": 69.9}, "end-of-line-c": {"x": 641.7, "y": 282.7, "w": 23.1, "h": 69.9}, "end-of-line-d": {"x": 678.4, "y": 281.6, "w": 23.1, "h": 69.9}, "end-of-line-e": {"x": 731.0, "y": 281.6, "w": 23.1, "h": 69.9}, "end-of-line-f": {"x": 767.7, "y": 281.6, "w": 23.1, "h": 69.9}, "end-of-line-g": {"x": 817.1, "y": 281.6, "w": 23.1, "h": 69.9}, "end-of-line-h": {"x": 856.0, "y": 281.6, "w": 23.1, "h": 69.9}, "sort-overflow-buffer": {"x": 485.7, "y": 281.1, "w": 61.5, "h": 148.8}, "a-buffer-9-12": {"x": 525.0, "y": 358.2, "w": 26.3, "h": 95.8}, "b-c-buffer-9-12": {"x": 610.2, "y": 358.2, "w": 30.5, "h": 95.8}, "d-e-buffer-9-12": {"x": 701.5, "y": 358.2, "w": 30.5, "h": 95.8}, "f-g-buffer-9-12": {"x": 789.8, "y": 358.2, "w": 30.5, "h": 95.8}, "h-i-buffer-9-12": {"x": 877.1, "y": 359.4, "w": 30.5, "h": 95.8}, "a-buffer-5-8": {"x": 525.0, "y": 459.7, "w": 26.3, "h": 95.8}, "b-c-buffer-5-8": {"x": 610.2, "y": 459.7, "w": 30.5, "h": 95.8}, "d-e-buffer-5-8": {"x": 701.5, "y": 459.7, "w": 30.5, "h": 95.8}, "f-g-buffer-5-8": {"x": 789.8, "y": 459.7, "w": 30.5, "h": 95.8}, "h-i-buffer-5-8": {"x": 877.1, "y": 460.8, "w": 30.5, "h": 95.8}, "a-buffer-1-4": {"x": 525.0, "y": 560.0, "w": 26.3, "h": 95.8}, "b-c-buffer-1-4": {"x": 610.2, "y": 560.0, "w": 30.5, "h": 95.8}, "d-e-buffer-1-4": {"x": 701.5, "y": 560.0, "w": 30.5, "h": 95.8}, "f-g-buffer-1-4": {"x": 789.8, "y": 560.0, "w": 30.5, "h": 95.8}, "h-i-buffer-1-4": {"x": 877.1, "y": 561.1, "w": 30.5, "h": 95.8}}}};
@@ -270,139 +283,6 @@ function saveCounts(counts) {
 
 function clearCounts() {
   try { localStorage.removeItem(KEY); } catch (_) { /* ignore */ }
-}
-
-
-// heatmap.js — corrected green -> yellow -> red heat scale.
-//
-// Fixes the two quirks the migration brief calls out:
-//  1. Zero counts are neutral gray and are EXCLUDED from normalization, so the
-//     smallest positive value is a true green rather than being dragged toward
-//     the midpoint by zeros.
-//  2. A genuine 3-stop green -> yellow -> red interpolation (the Excel RGB math
-//     produced an olive midpoint instead of yellow).
-
-const ZERO_COLOR = '#808080'; // neutral gray for zero-pallet areas
-
-// Three colour stops. Vivid and clearly distinct in the legend.
-const STOP_LOW = [0x2c, 0xa2, 0x5f];  // green  (low)
-const STOP_MID = [0xff, 0xd4, 0x00];  // yellow (medium)
-const STOP_HIGH = [0xe6, 0x00, 0x00]; // red    (high)
-
-// When every positive area holds the same count we can't say which is high or
-// low, so fall back to the midpoint (yellow) rather than the Excel behaviour of
-// painting them all red. Tunable in one place.
-const EQUAL_FALLBACK_T = 0.5;
-
-function lerp(a, b, u) { return a + (b - a) * u; }
-
-function toHex(rgb) {
-  return '#' + rgb.map((v) => Math.max(0, Math.min(255, Math.round(v)))
-    .toString(16).padStart(2, '0')).join('');
-}
-
-// Interpolate a normalized value t in [0,1] across the 3 stops.
-function colorForRatio(t) {
-  t = Math.max(0, Math.min(1, t));
-  let from, to, u;
-  if (t <= 0.5) { from = STOP_LOW; to = STOP_MID; u = t / 0.5; }
-  else { from = STOP_MID; to = STOP_HIGH; u = (t - 0.5) / 0.5; }
-  return toHex([0, 1, 2].map((i) => lerp(from[i], to[i], u)));
-}
-
-// Compute the min/max of POSITIVE counts only. Zeros are ignored.
-function positiveExtent(counts) {
-  const pos = counts.filter((c) => c > 0);
-  if (pos.length === 0) return null; // no positive data at all
-  return { min: Math.min(...pos), max: Math.max(...pos) };
-}
-
-// Map a single count -> fill color given the current positive extent.
-// `extent` is the result of positiveExtent() over ALL area counts.
-function colorForCount(count, extent) {
-  if (!count || count <= 0) return ZERO_COLOR;
-  if (!extent) return colorForRatio(EQUAL_FALLBACK_T); // count>0 but no extent (shouldn't happen)
-  const { min, max } = extent;
-  if (max === min) return colorForRatio(EQUAL_FALLBACK_T); // all positives equal
-  const t = (count - min) / (max - min);
-  return colorForRatio(t);
-}
-
-// Convenience: build a { areaId -> color } map from a { areaId -> count } map.
-function colorMap(countsByArea) {
-  const counts = Object.values(countsByArea);
-  const extent = positiveExtent(counts);
-  const out = {};
-  for (const [areaId, count] of Object.entries(countsByArea)) {
-    out[areaId] = colorForCount(count, extent);
-  }
-  return out;
-}
-
-
-// validate.js — startup manifest validation. Replaces Excel's silent
-// `On Error Resume Next` shape lookups with explicit, visible reporting.
-
-// Returns { errors: [...], warnings: [...] }. Errors are integrity problems
-// that break the data<->map contract; warnings are non-fatal notes.
-function validateManifest(seed) {
-  const errors = [];
-  const warnings = [];
-
-  const areaIds = seed.areas.map((a) => a.id);
-  const areaIdSet = new Set(areaIds);
-
-  // Duplicate area IDs
-  const seen = new Set();
-  for (const id of areaIds) {
-    if (seen.has(id)) errors.push(`Duplicate area id: "${id}"`);
-    seen.add(id);
-  }
-
-  const deptIds = new Set(seed.departments.map((d) => d.id));
-  const regionIds = new Set(Object.keys(seed.regions.regions || seed.regions));
-
-  for (const a of seed.areas) {
-    // Every area needs a map region
-    if (!regionIds.has(a.mapRegionId || a.id)) {
-      errors.push(`Area "${a.name}" (${a.id}) has no map region.`);
-    }
-    // Every area needs a valid department
-    if (!deptIds.has(a.departmentId)) {
-      errors.push(`Area "${a.name}" (${a.id}) references unknown department "${a.departmentId}".`);
-    }
-    // Every area should have an I-beam location
-    if (!a.iBeamLocation) {
-      warnings.push(`Area "${a.name}" (${a.id}) has no I-beam location.`);
-    }
-  }
-
-  // Regions with no matching area (excluding known non-data shapes)
-  const IGNORED_SHAPES = new Set(['misships', 'rectangle-37']);
-  for (const rid of regionIds) {
-    if (!areaIdSet.has(rid) && !IGNORED_SHAPES.has(rid)) {
-      warnings.push(`Map region "${rid}" has no matching area record.`);
-    }
-  }
-
-  // I-beam mappings point at real areas
-  for (const m of seed.ibeamMappings) {
-    for (const aid of m.areaIds) {
-      if (!areaIdSet.has(aid)) {
-        errors.push(`I-beam "${m.iBeamLocation}" maps to unknown area "${aid}".`);
-      }
-    }
-  }
-
-  // Every area's own I-beam should appear in the mapping table
-  const mappedIBeams = new Set(seed.ibeamMappings.map((m) => m.iBeamLocation));
-  for (const a of seed.areas) {
-    if (a.iBeamLocation && !mappedIBeams.has(a.iBeamLocation)) {
-      warnings.push(`Area "${a.name}" I-beam "${a.iBeamLocation}" is not in the mapping table.`);
-    }
-  }
-
-  return { errors, warnings };
 }
 
 
@@ -648,534 +528,225 @@ function createModel(seed) {
 }
 
 
-// panel.js — area information panel. Read-only summary of the selected area:
-// its pallet count plus department and overall totals.
+// editor.js — region editor. Load the seed areas + regions, draw editable
+// rectangles over the floor plan, drag/resize/nudge them, and export regions.json.
 
-const EMPTY = 'Select an area to view details.';
-
-function createPanel(root, model) {
-  function renderEmpty() {
-    root.innerHTML = `<div class="panel-empty">${EMPTY}</div>`;
-  }
-
-  function render(areaId) {
-    const area = model.getArea(areaId);
-    if (!area) { renderEmpty(); return; }
-    const dept = model.getDept(area.departmentId);
-    const areaCount = model.getCount(area.id);
-    const deptTotal = model.departmentTotal(area.departmentId);
-    const grandTotal = model.totalPallets();
-    const pct = grandTotal ? Math.round((areaCount / grandTotal) * 100) : 0;
-
-    root.innerHTML = `
-      <div class="panel-head">
-        <h3>${area.name}</h3>
-        <dl class="panel-stats">
-          <div><dt>I-Beam</dt><dd>${area.iBeamLocation}</dd></div>
-          <div><dt>Pallets</dt><dd>${areaCount}</dd></div>
-          <div><dt>Department</dt><dd>${dept.name}</dd></div>
-          <div><dt>Dept total</dt><dd>${deptTotal}</dd></div>
-          <div><dt>% of all pallets</dt><dd>${pct}%</dd></div>
-        </dl>
-      </div>`;
-  }
-
-  renderEmpty();
-  return { render, renderEmpty };
-}
-
-
-// legend.js — heat-map legend. Reflects the actual scale (gray zero + a
-// continuous green->yellow->red ramp) and the current positive range.
-
-function createLegend(root) {
-  root.innerHTML = `
-    <div class="legend">
-      <div class="legend-row">
-        <span class="legend-swatch" style="background:${ZERO_COLOR}"></span>
-        <span>Zero pallets</span>
-      </div>
-      <div class="legend-row legend-ramp-row">
-        <span class="legend-ramp" style="background:linear-gradient(to right, ${colorForRatio(0)}, ${colorForRatio(0.5)}, ${colorForRatio(1)})"></span>
-      </div>
-      <div class="legend-scale"><span data-lo>low</span><span>medium</span><span data-hi>high</span></div>
-    </div>`;
-
-  // Update the numeric low/high labels from the current positive extent.
-  function update(extent) {
-    const lo = root.querySelector('[data-lo]');
-    const hi = root.querySelector('[data-hi]');
-    if (extent) { lo.textContent = `low (${extent.min})`; hi.textContent = `high (${extent.max})`; }
-    else { lo.textContent = 'low'; hi.textContent = 'high'; }
-  }
-  return { update };
-}
-
-
-// form.js — area pallet-count editor. Pick an area (dropdown, grouped by
-// department) or have one pushed in from a map-region click, then type the
-// area's pallet count directly. Replaces the old scan-one-container form.
-
-function createCountEditor(root, model, { onChange, onSelectArea } = {}) {
-  const optgroups = model.seed.departments.map((d) => {
-    const opts = model.areasInDept(d.id)
-      .map((a) => `<option value="${a.id}">${a.name}</option>`).join('');
-    return `<optgroup label="${d.name}">${opts}</optgroup>`;
-  }).join('');
-
-  root.innerHTML = `
-    <form class="entry-form" autocomplete="off" novalidate>
-      <div class="field">
-        <label for="areaSelect">Area</label>
-        <select id="areaSelect" name="areaSelect">
-          <option value="">Select an area…</option>
-          ${optgroups}
-        </select>
-      </div>
-      <div class="field">
-        <label for="iBeam">I-Beam Location</label>
-        <input id="iBeam" name="iBeam" type="text" readonly tabindex="-1" placeholder="—" />
-      </div>
-      <div class="field">
-        <label for="dept">Department</label>
-        <input id="dept" name="dept" type="text" readonly tabindex="-1" placeholder="—" />
-      </div>
-      <div class="field">
-        <label for="pallets">Pallets</label>
-        <input id="pallets" name="pallets" type="number" min="0" step="1"
-               inputmode="numeric" placeholder="0" disabled />
-      </div>
-      <div class="form-actions">
-        <button type="submit" class="btn btn-primary" disabled data-act="save">Save count</button>
-        <button type="button" class="btn" data-act="clear" disabled>Clear</button>
-      </div>
-      <p class="form-msg" role="status" aria-live="polite"></p>
-    </form>`;
-
-  const form = root.querySelector('form');
-  const areaEl = form.areaSelect;
-  const ibeamEl = form.iBeam;
-  const deptEl = form.dept;
-  const palletsEl = form.pallets;
-  const saveBtn = form.querySelector('[data-act="save"]');
-  const clearBtn = form.querySelector('[data-act="clear"]');
-  const msgEl = form.querySelector('.form-msg');
-
-  function setMsg(text, kind = '') {
-    msgEl.textContent = text || '';
-    msgEl.className = 'form-msg' + (kind ? ' ' + kind : '');
-  }
-
-  // Populate the read-only fields + count for the currently selected area.
-  function populate() {
-    const area = model.getArea(areaEl.value);
-    if (!area) {
-      ibeamEl.value = '';
-      deptEl.value = '';
-      palletsEl.value = '';
-      palletsEl.disabled = true;
-      saveBtn.disabled = true;
-      clearBtn.disabled = true;
-      return;
-    }
-    ibeamEl.value = area.iBeamLocation;
-    deptEl.value = model.getDept(area.departmentId).name;
-    palletsEl.value = model.getCount(area.id);
-    palletsEl.disabled = false;
-    saveBtn.disabled = false;
-    clearBtn.disabled = false;
-  }
-
-  areaEl.addEventListener('change', () => {
-    setMsg('');
-    populate();
-    if (areaEl.value && onSelectArea) onSelectArea(areaEl.value);
-  });
-
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const area = model.getArea(areaEl.value);
-    if (!area) { setMsg('Select an area first.', 'error'); areaEl.focus(); return; }
-    const raw = palletsEl.value.trim();
-    if (raw === '') { setMsg('Enter a pallet count.', 'error'); palletsEl.focus(); return; }
-    const n = Number(raw);
-    if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
-      setMsg('Pallet count must be a whole number of 0 or more.', 'error');
-      palletsEl.focus();
-      return;
-    }
-    const saved = model.setCount(area.id, n);
-    palletsEl.value = saved;
-    setMsg(`Set ${area.name} to ${saved} pallet${saved === 1 ? '' : 's'}.`, 'success');
-    if (onChange) onChange();
-  });
-
-  clearBtn.addEventListener('click', () => {
-    const area = model.getArea(areaEl.value);
-    if (!area) return;
-    model.setCount(area.id, 0);
-    palletsEl.value = 0;
-    setMsg(`Cleared ${area.name}.`, '');
-    if (onChange) onChange();
-  });
-
-  // Programmatically select an area (e.g. from a map-region click). Populates
-  // the fields and focuses the count input, but does NOT fire onSelectArea —
-  // the caller already owns the selection state.
-  function selectArea(areaId) {
-    if (areaId && model.getArea(areaId)) {
-      areaEl.value = areaId;
-      populate();
-      setMsg('');
-      palletsEl.focus();
-      palletsEl.select();
-    } else {
-      areaEl.value = '';
-      populate();
-    }
-  }
-
-  return {
-    selectArea,
-    getAreaId: () => areaEl.value || null,
-    // Re-read the current area's stored count (after external changes/import).
-    refresh: () => populate(),
-  };
-}
-
-
-// map.js — interactive SVG map overlay: heat fills, selection/zone outlines,
-// hover tooltip, keyboard support, and zoom/pan.
 
 const SVGNS = 'http://www.w3.org/2000/svg';
+const $ = (s) => document.querySelector(s);
 
-function createMapView(root, model, { onSelect } = {}) {
-  const meta = model.regions.meta || { imageWidth: 1808, imageHeight: 1125 };
-  const regions = model.regions.regions || model.regions;
+(async function main() {
+  let seed;
+  try { seed = await loadSeed(); }
+  catch { $('#editor').innerHTML = '<p class="fatal">Serve the app over HTTP to use the editor.</p>'; return; }
+
+  const meta = seed.regions.meta || { imageWidth: 1808, imageHeight: 1125 };
+  const regions = { ...(seed.regions.regions || seed.regions) };
+  const areas = seed.areas;
+  const deptName = (id) => (seed.departments.find((d) => d.id === id) || {}).name || id;
+
+  // ---- stage ----
   // Standalone build injects the background as a data: URI (BG_IMAGE_DATA_URI);
   // served build falls back to the file in assets/.
-  const bgImage = (typeof BG_IMAGE_DATA_URI !== 'undefined' && BG_IMAGE_DATA_URI)
+  const bgSrc = (typeof BG_IMAGE_DATA_URI !== 'undefined' && BG_IMAGE_DATA_URI)
     ? BG_IMAGE_DATA_URI
     : './assets/' + (meta.image || 'floor-plan.png');
+  const stage = document.createElement('div');
+  stage.className = 'stage';
+  stage.innerHTML = `<img id="edImg" src="${bgSrc}" alt="" />
+    <svg id="edSvg" viewBox="0 0 ${meta.imageWidth} ${meta.imageHeight}" preserveAspectRatio="none"></svg>`;
+  $('#editor').appendChild(stage);
+  const svg = $('#edSvg');
+  const W = meta.imageWidth, H = meta.imageHeight;
 
-  root.innerHTML = `
-    <div class="map-toolbar">
-      <button type="button" data-act="zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
-      <button type="button" data-act="zoom-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
-      <button type="button" data-act="fit" title="Fit to screen">Fit</button>
-    </div>
-    <div class="map-viewport" tabindex="0">
-      <div class="map-pan">
-        <img class="floor-plan" src="${bgImage}" alt="Warehouse floor plan" draggable="false" />
-        <svg class="map-overlay" viewBox="0 0 ${meta.imageWidth} ${meta.imageHeight}" preserveAspectRatio="xMidYMid meet"></svg>
-      </div>
-    </div>
-    <div class="map-tooltip" hidden></div>`;
+  let activeId = null;
+  const rectEls = new Map();
 
-  const viewport = root.querySelector('.map-viewport');
-  const pan = root.querySelector('.map-pan');
-  const svg = root.querySelector('.map-overlay');
-  const tooltip = root.querySelector('.map-tooltip');
-
-  // --- build one <rect> per area ---
-  const rectByArea = new Map();
-  for (const area of model.seed.areas) {
-    const g = regions[area.mapRegionId || area.id];
-    if (!g) continue;
-    const rect = document.createElementNS(SVGNS, 'rect');
-    rect.setAttribute('x', g.x); rect.setAttribute('y', g.y);
-    rect.setAttribute('width', Math.max(1, g.w)); rect.setAttribute('height', Math.max(1, g.h));
-    rect.setAttribute('rx', 2);
-    rect.classList.add('area');
-    rect.dataset.areaId = area.id;
-    rect.setAttribute('tabindex', '0');
-    rect.setAttribute('role', 'button');
-    rect.setAttribute('aria-label', area.name);
-    svg.appendChild(rect);
-    rectByArea.set(area.id, rect);
+  function drawAll() {
+    svg.innerHTML = '';
+    rectEls.clear();
+    for (const a of areas) {
+      const g = regions[a.id];
+      if (!g) continue;
+      const r = document.createElementNS(SVGNS, 'rect');
+      r.setAttribute('class', 'ed-area' + (a.id === activeId ? ' active' : ''));
+      r.setAttribute('x', g.x); r.setAttribute('y', g.y);
+      r.setAttribute('width', g.w); r.setAttribute('height', g.h);
+      r.dataset.id = a.id;
+      svg.appendChild(r);
+      rectEls.set(a.id, r);
+    }
+    if (activeId && regions[activeId]) drawHandles(activeId);
   }
 
-  let counts = {};
+  function drawHandles(id) {
+    const g = regions[id];
+    const corners = [['nw', g.x, g.y], ['ne', g.x + g.w, g.y], ['sw', g.x, g.y + g.h], ['se', g.x + g.w, g.y + g.h]];
+    const s = Math.max(6, W / 160);
+    for (const [pos, cx, cy] of corners) {
+      const h = document.createElementNS(SVGNS, 'rect');
+      h.setAttribute('class', 'ed-handle');
+      h.setAttribute('x', cx - s / 2); h.setAttribute('y', cy - s / 2);
+      h.setAttribute('width', s); h.setAttribute('height', s);
+      h.dataset.handle = pos; h.dataset.id = id;
+      svg.appendChild(h);
+    }
+    const label = document.createElementNS(SVGNS, 'text');
+    label.setAttribute('class', 'ed-label');
+    label.setAttribute('x', g.x + 3); label.setAttribute('y', g.y - 4);
+    label.textContent = (seed.areas.find((a) => a.id === id) || {}).name || id;
+    svg.appendChild(label);
+  }
 
-  // --- selection ---
-  function select(areaId) { if (onSelect) onSelect(areaId); }
+  // ---- coordinate mapping (screen px -> viewBox units) ----
+  function toUnits(clientX, clientY) {
+    const rect = svg.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) / rect.width * W,
+      y: (clientY - rect.top) / rect.height * H,
+    };
+  }
 
-  svg.addEventListener('click', (e) => {
-    const r = e.target.closest('.area');
-    if (r) select(r.dataset.areaId);
+  // ---- interaction ----
+  let drag = null; // {mode:'move'|handle, id, start:{x,y}, orig:{...}}
+  svg.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('.ed-handle');
+    const area = e.target.closest('.ed-area');
+    if (handle) {
+      setActive(handle.dataset.id);
+      drag = { mode: handle.dataset.handle, id: handle.dataset.id, start: toUnits(e.clientX, e.clientY), orig: { ...regions[handle.dataset.id] } };
+    } else if (area) {
+      setActive(area.dataset.id);
+      drag = { mode: 'move', id: area.dataset.id, start: toUnits(e.clientX, e.clientY), orig: { ...regions[area.dataset.id] } };
+    } else { return; }
+    svg.setPointerCapture(e.pointerId);
   });
-  svg.addEventListener('keydown', (e) => {
-    const r = e.target.closest('.area');
-    if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(r.dataset.areaId); }
-  });
 
-  // --- hover tooltip ---
-  svg.addEventListener('mousemove', (e) => {
-    const r = e.target.closest('.area');
-    if (!r) { tooltip.hidden = true; return; }
-    const area = model.getArea(r.dataset.areaId);
-    const c = counts[area.id] || 0;
-    tooltip.innerHTML = `<strong>${area.name}</strong><br>${model.getDept(area.departmentId).name} · ${area.iBeamLocation}<br>${c} pallet${c === 1 ? '' : 's'}`;
-    tooltip.hidden = false;
-    const rootRect = root.getBoundingClientRect();
-    let x = e.clientX - rootRect.left + 14;
-    let y = e.clientY - rootRect.top + 14;
-    if (x + tooltip.offsetWidth > rootRect.width) x = e.clientX - rootRect.left - tooltip.offsetWidth - 14;
-    tooltip.style.left = x + 'px';
-    tooltip.style.top = y + 'px';
+  svg.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const p = toUnits(e.clientX, e.clientY);
+    const dx = p.x - drag.start.x, dy = p.y - drag.start.y;
+    const o = drag.orig;
+    let g = { ...regions[drag.id] };
+    if (drag.mode === 'move') { g.x = o.x + dx; g.y = o.y + dy; }
+    else {
+      let x0 = o.x, y0 = o.y, x1 = o.x + o.w, y1 = o.y + o.h;
+      if (drag.mode.includes('w')) x0 = o.x + dx;
+      if (drag.mode.includes('e')) x1 = o.x + o.w + dx;
+      if (drag.mode.includes('n')) y0 = o.y + dy;
+      if (drag.mode.includes('s')) y1 = o.y + o.h + dy;
+      g = { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
+    }
+    regions[drag.id] = round(clampBox(g));
+    updateActiveRect();
   });
-  svg.addEventListener('mouseleave', () => { tooltip.hidden = true; });
+  const end = (e) => { if (drag) { drag = null; drawAll(); syncFields(); } };
+  svg.addEventListener('pointerup', end);
+  svg.addEventListener('pointercancel', end);
 
-  // --- heat colors ---
-  function setColors(colorMap, countsByArea) {
-    counts = countsByArea || {};
-    for (const [areaId, rect] of rectByArea) {
-      rect.style.fill = colorMap[areaId] || '#808080';
+  function clampBox(g) {
+    g.w = Math.max(4, g.w); g.h = Math.max(4, g.h);
+    g.x = Math.max(0, Math.min(W - g.w, g.x));
+    g.y = Math.max(0, Math.min(H - g.h, g.y));
+    return g;
+  }
+  function round(g) { return { x: +g.x.toFixed(1), y: +g.y.toFixed(1), w: +g.w.toFixed(1), h: +g.h.toFixed(1) }; }
+
+  function updateActiveRect() {
+    const g = regions[activeId];
+    const r = rectEls.get(activeId);
+    if (r && g) { r.setAttribute('x', g.x); r.setAttribute('y', g.y); r.setAttribute('width', g.w); r.setAttribute('height', g.h); }
+    // redraw handles cheaply
+    svg.querySelectorAll('.ed-handle, .ed-label').forEach((n) => n.remove());
+    if (activeId) drawHandles(activeId);
+    syncFields();
+  }
+
+  // ---- sidebar list ----
+  const list = $('#areaList');
+  function renderList(filter = '') {
+    const f = filter.trim().toLowerCase();
+    list.innerHTML = '';
+    for (const a of areas) {
+      if (f && !a.name.toLowerCase().includes(f) && !a.iBeamLocation.toLowerCase().includes(f)) continue;
+      const li = document.createElement('li');
+      li.dataset.id = a.id;
+      if (a.id === activeId) li.classList.add('active');
+      li.innerHTML = `<span>${a.name}</span>` +
+        (regions[a.id] ? `<span class="dept">${deptName(a.departmentId)}</span>` : '<span class="missing">no region</span>');
+      li.addEventListener('click', () => setActive(a.id, true));
+      list.appendChild(li);
     }
   }
+  $('#areaSearch').addEventListener('input', (e) => renderList(e.target.value));
 
-  // --- selection outlines ---
-  function setSelection(selectedId, zoneIds) {
-    const zone = new Set(zoneIds || []);
-    for (const [areaId, rect] of rectByArea) {
-      rect.classList.toggle('is-selected', areaId === selectedId);
-      rect.classList.toggle('is-zone', areaId !== selectedId && zone.has(areaId));
-    }
+  function setActive(id, scrollMap = false) {
+    activeId = id;
+    if (!regions[id]) regions[id] = { x: W / 2 - 40, y: H / 2 - 20, w: 80, h: 40 }; // seed a default box
+    drawAll();
+    renderList($('#areaSearch').value);
+    syncFields();
+    $('#selName').textContent = (areas.find((a) => a.id === id) || {}).name || id;
   }
-  function clearSelection() { setSelection(null, []); }
 
-  // --- zoom / pan ---
-  let scale = 1, tx = 0, ty = 0;
-  function apply() { pan.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`; }
-  function zoomAt(factor, cx, cy) {
-    const rect = viewport.getBoundingClientRect();
-    const px = (cx - rect.left - tx) / scale;
-    const py = (cy - rect.top - ty) / scale;
-    scale = Math.max(1, Math.min(6, scale * factor));
-    tx = cx - rect.left - px * scale;
-    ty = cy - rect.top - py * scale;
-    constrain(); apply();
+  // ---- numeric fields ----
+  const fx = $('#fx'), fy = $('#fy'), fw = $('#fw'), fh = $('#fh');
+  function syncFields() {
+    const g = regions[activeId];
+    if (!g) { [fx, fy, fw, fh].forEach((el) => (el.value = '')); return; }
+    fx.value = g.x; fy.value = g.y; fw.value = g.w; fh.value = g.h;
   }
-  function constrain() {
-    const rect = viewport.getBoundingClientRect();
-    const maxX = 0, minX = rect.width - rect.width * scale;
-    const maxY = 0, minY = rect.height - rect.height * scale;
-    tx = Math.min(maxX, Math.max(minX, tx));
-    ty = Math.min(maxY, Math.max(minY, ty));
-  }
-  function fit() { scale = 1; tx = 0; ty = 0; apply(); }
+  [fx, fy, fw, fh].forEach((el) => el.addEventListener('input', () => {
+    if (!activeId) return;
+    regions[activeId] = round(clampBox({ x: +fx.value || 0, y: +fy.value || 0, w: +fw.value || 4, h: +fh.value || 4 }));
+    updateActiveRect();
+  }));
 
-  root.querySelector('[data-act="zoom-in"]').addEventListener('click', () => {
-    const r = viewport.getBoundingClientRect(); zoomAt(1.25, r.left + r.width / 2, r.top + r.height / 2);
-  });
-  root.querySelector('[data-act="zoom-out"]').addEventListener('click', () => {
-    const r = viewport.getBoundingClientRect(); zoomAt(0.8, r.left + r.width / 2, r.top + r.height / 2);
-  });
-  root.querySelector('[data-act="fit"]').addEventListener('click', fit);
-
-  viewport.addEventListener('wheel', (e) => {
-    if (!e.ctrlKey && Math.abs(e.deltaY) < 1) return;
+  // ---- keyboard nudge ----
+  document.addEventListener('keydown', (e) => {
+    if (!activeId || !regions[activeId]) return;
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+    const step = e.shiftKey ? 0 : (e.altKey ? 1 : 4);
+    const rstep = e.shiftKey ? (e.altKey ? 1 : 4) : 0;
+    let g = { ...regions[activeId] };
+    if (e.key === 'ArrowLeft') { g.x -= step; g.w -= rstep; }
+    else if (e.key === 'ArrowRight') { g.x += step; g.w += rstep; }
+    else if (e.key === 'ArrowUp') { g.y -= step; g.h -= rstep; }
+    else if (e.key === 'ArrowDown') { g.y += step; g.h += rstep; }
+    else return;
     e.preventDefault();
-    zoomAt(e.deltaY < 0 ? 1.12 : 0.89, e.clientX, e.clientY);
-  }, { passive: false });
-
-  // drag to pan (only when zoomed in)
-  let dragging = false, sx = 0, sy = 0;
-  viewport.addEventListener('pointerdown', (e) => {
-    if (scale <= 1) return;
-    dragging = true; sx = e.clientX - tx; sy = e.clientY - ty;
-    viewport.setPointerCapture(e.pointerId); viewport.classList.add('grabbing');
-  });
-  viewport.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
-    tx = e.clientX - sx; ty = e.clientY - sy; constrain(); apply();
-  });
-  const endDrag = () => { dragging = false; viewport.classList.remove('grabbing'); };
-  viewport.addEventListener('pointerup', endDrag);
-  viewport.addEventListener('pointercancel', endDrag);
-
-  return { setColors, setSelection, clearSelection, fit };
-}
-
-
-// app.js — bootstrap & wiring for the main operator app.
-
-
-
-
-
-
-
-
-const $ = (sel) => document.querySelector(sel);
-
-async function main() {
-  let seed;
-  try {
-    seed = await loadSeed();
-  } catch (err) {
-    showFatal('Could not load map data. The app must be served over HTTP (e.g. '
-      + '`python3 -m http.server` in the app folder), not opened directly from disk.', err);
-    return;
-  }
-
-  // ---- startup validation (no silent failures) ----
-  const { errors, warnings } = validateManifest(seed);
-  renderBanner(errors, warnings);
-  if (errors.length) return; // integrity broken; stop before wiring UI
-
-  const model = createModel(seed);
-
-  // ---- selection state (always empty on load) ----
-  let selectedAreaId = null;
-
-  const legend = createLegend($('#legend'));
-  const panel = createPanel($('#panel'), model);
-
-  const map = createMapView($('#map'), model, {
-    onSelect: (areaId) => setSelected(areaId), // map click drives editor too
+    regions[activeId] = round(clampBox(g));
+    drawAll(); syncFields();
   });
 
-  const editor = createCountEditor($('#entry'), model, {
-    onChange: refresh,
-    onSelectArea: (areaId) => setSelected(areaId, { syncEditor: false }),
-  });
-
-  // Single source of truth for the selected area. `syncEditor` pushes the
-  // selection into the editor (used for map clicks); the editor's own dropdown
-  // already holds it, so it opts out to avoid a redundant repopulate.
-  function setSelected(areaId, { syncEditor = true } = {}) {
-    selectedAreaId = areaId;
-    if (syncEditor) editor.selectArea(areaId);
-    renderSelection();
-  }
-
-  // ---- department filter (dims non-matching areas) ----
-  const deptFilter = $('#deptFilter');
-  deptFilter.innerHTML = '<option value="">All departments</option>' +
-    seed.departments.map((d) => `<option value="${d.id}">${d.name}</option>`).join('');
-  deptFilter.addEventListener('change', renderSelection);
-  $('#hideEmpty').addEventListener('change', renderSelection);
-
-  // ---- reset selection ----
-  $('#resetSelection').addEventListener('click', () => {
-    selectedAreaId = null;
-    editor.selectArea(null);
-    renderSelection();
-    panel.renderEmpty();
-  });
-
-  // ---- import / export ----
-  $('#exportCsv').addEventListener('click', () =>
-    download('poc3-dwelling-counts.csv', exportCsv(model), 'text/csv'));
-  $('#exportJson').addEventListener('click', () =>
-    download('poc3-dwelling-counts.json', exportJson(model), 'application/json'));
-  $('#importBtn').addEventListener('click', () => $('#importFile').click());
-  $('#importFile').addEventListener('change', async (e) => {
+  // ---- background swap ----
+  $('#bgFile').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const text = await file.text();
-    const fmt = file.name.toLowerCase().endsWith('.json') ? 'json' : 'csv';
-    const { counts, errors: errs, total } = importCounts(model, text, fmt);
-    e.target.value = '';
-    const areaCount = Object.keys(counts).length;
-    if (errs.length) {
-      const preview = errs.slice(0, 8).map((x) => `• line ${x.line}: ${x.message}`).join('\n');
-      const more = errs.length > 8 ? `\n…and ${errs.length - 8} more.` : '';
-      const proceed = confirm(
-        `${errs.length} of ${total} rows are invalid and will be skipped:\n\n${preview}${more}\n\n`
-        + `Import the ${areaCount} valid area${areaCount === 1 ? '' : 's'}?`);
-      if (!proceed) { setStatus('Import cancelled.'); return; }
-    }
-    if (areaCount === 0) { setStatus('Nothing imported — no valid rows.', 'error'); return; }
-    const replace = confirm(`Import counts for ${areaCount} area${areaCount === 1 ? '' : 's'}.\n\n`
-      + `OK = replace current data, Cancel = merge into existing.`);
-    if (replace) {
-      model.replaceCounts(counts);
-    } else {
-      for (const [areaId, n] of Object.entries(counts)) model.setCount(areaId, n);
-    }
-    setStatus(`Imported ${areaCount} area${areaCount === 1 ? '' : 's'}`
-      + `${errs.length ? ` (${errs.length} skipped)` : ''}.`, 'success');
-    editor.refresh();
-    refresh();
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      $('#edImg').src = url;
+      $('#editorStatus').textContent =
+        `Background: ${file.name} (${img.naturalWidth}×${img.naturalHeight}). ` +
+        (img.naturalWidth === W && img.naturalHeight === H
+          ? 'Matches region grid — good.'
+          : `Region grid is ${W}×${H}; export keeps that grid.`);
+    };
+    img.src = url;
   });
 
-  // ---- render helpers ----
-  function renderColors() {
-    const counts = model.countsByArea();
-    const cmap = colorMap(counts);
-    map.setColors(cmap, counts);
-    legend.update(positiveExtent(Object.values(counts)));
-    return counts;
-  }
+  // ---- export ----
+  $('#exportRegions').addEventListener('click', () => {
+    const out = { meta, regions };
+    download('regions.json', JSON.stringify(out, null, 2), 'application/json');
+    $('#editorStatus').textContent = 'Exported regions.json — drop it into app/data/ to apply.';
+  });
 
-  function renderSelection() {
-    // Zone = other areas in the same department as the selected area.
-    let zoneIds = [];
-    if (selectedAreaId) {
-      const area = model.getArea(selectedAreaId);
-      zoneIds = model.areasInDept(area.departmentId).map((a) => a.id).filter((id) => id !== selectedAreaId);
-    }
-    map.setSelection(selectedAreaId, zoneIds);
-    applyFilterDim();
-    if (selectedAreaId) panel.render(selectedAreaId);
-  }
-
-  function applyFilterDim() {
-    const dept = deptFilter.value;
-    const hideEmpty = $('#hideEmpty').checked;
-    const counts = model.countsByArea();
-    document.querySelectorAll('#map .area').forEach((rect) => {
-      const a = model.getArea(rect.dataset.areaId);
-      const deptOk = !dept || a.departmentId === dept;
-      const emptyOk = !hideEmpty || counts[a.id] > 0;
-      rect.classList.toggle('is-dimmed', !(deptOk && emptyOk));
-    });
-  }
-
-  function refresh() {
-    renderColors();
-    renderSelection();
-    updateHeaderCount();
-  }
-
-  function updateHeaderCount() {
-    const total = model.totalPallets();
-    const areas = model.areasWithCount();
-    $('#recordCount').textContent =
-      `${total} pallet${total === 1 ? '' : 's'} across ${areas} area${areas === 1 ? '' : 's'}`;
-  }
-
-  function setStatus(text, kind = '') {
-    const el = $('#status');
-    el.textContent = text || '';
-    el.className = 'status' + (kind ? ' ' + kind : '');
-  }
-
-  // initial paint
-  refresh();
-  setStatus('');
-}
-
-function renderBanner(errors, warnings) {
-  const el = $('#validation');
-  if (!errors.length && !warnings.length) { el.hidden = true; return; }
-  el.hidden = false;
-  const block = (title, items, cls) => items.length
-    ? `<div class="banner ${cls}"><strong>${title} (${items.length})</strong><ul>${
-        items.slice(0, 12).map((m) => `<li>${m}</li>`).join('')}${
-        items.length > 12 ? `<li>…and ${items.length - 12} more</li>` : ''}</ul></div>`
-    : '';
-  el.innerHTML = block('Data errors', errors, 'banner-error') + block('Warnings', warnings, 'banner-warn');
-}
-
-function showFatal(msg, err) {
-  console.error(err);
-  document.body.innerHTML = `<div class="fatal"><h1>Unable to start</h1><p>${msg}</p></div>`;
-}
-
-main();
+  // init
+  renderList();
+  drawAll();
+})();
 
   </script>
 </body>
