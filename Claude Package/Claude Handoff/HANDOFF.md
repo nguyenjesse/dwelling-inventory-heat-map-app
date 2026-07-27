@@ -23,6 +23,10 @@ user deleted the old feature branches, and `main` is the most up-to-date ref.
 - `app/tests/tests.js` — rewritten for the count model. `heatmap.js`, `legend.js`,
   `validate.js`, and the region **editor** were NOT touched.
 - `POC3-Dwelling-Inventory-Map.html` — regenerated standalone (the deliverable).
+- `README.md` (root) + `app/README.md` — both now document the current area→count
+  input model (root README was previously empty; the app README's old "scan a
+  container" usage + CSV columns were corrected). Pushed straight to `main` after
+  PR #2, not part of it.
 
 ## Decisions taken and why
 - **Single pallet count per area** (not a multi container-type table like the
