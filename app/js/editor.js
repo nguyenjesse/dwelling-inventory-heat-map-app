@@ -19,7 +19,7 @@ const $ = (s) => document.querySelector(s);
   // ---- stage ----
   const stage = document.createElement('div');
   stage.className = 'stage';
-  stage.innerHTML = `<img id="edImg" src="./assets/floor-plan.png" alt="" />
+  stage.innerHTML = `<img id="edImg" src="./assets/${meta.image || 'floor-plan.png'}" alt="" />
     <svg id="edSvg" viewBox="0 0 ${meta.imageWidth} ${meta.imageHeight}" preserveAspectRatio="none"></svg>`;
   $('#editor').appendChild(stage);
   const svg = $('#edSvg');

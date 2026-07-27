@@ -6,17 +6,21 @@ const SVGNS = 'http://www.w3.org/2000/svg';
 export function createMapView(root, model, { onSelect } = {}) {
   const meta = model.regions.meta || { imageWidth: 1808, imageHeight: 1125 };
   const regions = model.regions.regions || model.regions;
+  // Standalone build injects the background as a data: URI (BG_IMAGE_DATA_URI);
+  // served build falls back to the file in assets/.
+  const bgImage = (typeof BG_IMAGE_DATA_URI !== 'undefined' && BG_IMAGE_DATA_URI)
+    ? BG_IMAGE_DATA_URI
+    : './assets/' + (meta.image || 'floor-plan.png');
 
   root.innerHTML = `
     <div class="map-toolbar">
       <button type="button" data-act="zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
       <button type="button" data-act="zoom-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
       <button type="button" data-act="fit" title="Fit to screen">Fit</button>
-      <label class="map-toggle"><input type="checkbox" data-act="toggle-plan" checked> Floor plan</label>
     </div>
     <div class="map-viewport" tabindex="0">
       <div class="map-pan">
-        <img class="floor-plan" src="./assets/floor-plan.png" alt="Warehouse floor plan" draggable="false" />
+        <img class="floor-plan" src="${bgImage}" alt="Warehouse floor plan" draggable="false" />
         <svg class="map-overlay" viewBox="0 0 ${meta.imageWidth} ${meta.imageHeight}" preserveAspectRatio="xMidYMid meet"></svg>
       </div>
     </div>
@@ -25,7 +29,6 @@ export function createMapView(root, model, { onSelect } = {}) {
   const viewport = root.querySelector('.map-viewport');
   const pan = root.querySelector('.map-pan');
   const svg = root.querySelector('.map-overlay');
-  const img = root.querySelector('.floor-plan');
   const tooltip = root.querySelector('.map-tooltip');
 
   // --- build one <rect> per area ---
@@ -94,11 +97,6 @@ export function createMapView(root, model, { onSelect } = {}) {
     }
   }
   function clearSelection() { setSelection(null, []); }
-
-  // --- floor plan visibility toggle ---
-  root.querySelector('[data-act="toggle-plan"]').addEventListener('change', (e) => {
-    img.style.visibility = e.target.checked ? 'visible' : 'hidden';
-  });
 
   // --- zoom / pan ---
   let scale = 1, tx = 0, ty = 0;

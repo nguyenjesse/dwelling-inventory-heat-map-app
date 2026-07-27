@@ -1,10 +1,13 @@
-// model.js — domain layer: areas, departments, I-beam mappings, pallet records,
-// and derived counts. No DOM here.
+// model.js — domain layer: areas, departments, I-beam mappings, and per-area
+// pallet counts. No DOM here.
 
-import { loadRecords, saveRecords } from './storage.js';
+import { loadCounts, saveCounts } from './storage.js';
 
-// Fetch and assemble the static seed manifest.
+// Fetch and assemble the static seed manifest. In the single-file standalone
+// build the data is inlined as a global SEED_DATA, so no HTTP/fetch is needed
+// (that build opens straight from disk via file://).
 export async function loadSeed() {
+  if (typeof SEED_DATA !== 'undefined' && SEED_DATA) return SEED_DATA;
   const base = new URL('./data/', document.baseURI);
   const [areas, departments, ibeam, regions] = await Promise.all([
     fetch(new URL('areas.json', base)).then((r) => r.json()),
@@ -15,8 +18,10 @@ export async function loadSeed() {
   return { areas, departments, ibeamMappings: ibeam, regions };
 }
 
-function uid() {
-  return 'r_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+// Coerce any user/import value to a non-negative integer count.
+function normalizeCount(n) {
+  const v = Math.floor(Number(n));
+  return Number.isFinite(v) && v > 0 ? v : 0;
 }
 
 export function createModel(seed) {
@@ -31,7 +36,8 @@ export function createModel(seed) {
   const uniqueIBeams = [...ibeamToAreas.keys()].sort((a, b) =>
     a.localeCompare(b, undefined, { numeric: true }));
 
-  let records = loadRecords();
+  // { areaId -> count }. Only positive areas are stored; zeros are absent.
+  let counts = loadCounts();
 
   const api = {
     seed,
@@ -47,70 +53,46 @@ export function createModel(seed) {
     areasInDept: (deptId) => (areasByDept.get(deptId) || []).map((id) => areasById.get(id)).filter(Boolean),
     isValidAreaForIBeam: (ib, areaId) => (ibeamToAreas.get(ib) || []).includes(areaId),
 
-    // ---- records ----
-    getRecords: () => records.slice(),
-    recordCount: () => records.length,
-    recordsForArea: (areaId) => records.filter((r) => r.areaId === areaId),
-    hasContainer: (containerId) =>
-      records.some((r) => r.containerId.toLowerCase() === String(containerId).toLowerCase()),
+    // ---- counts ----
+    getCount: (areaId) => counts[areaId] || 0,
+    areasWithCount: () => Object.keys(counts).filter((id) => counts[id] > 0).length,
 
-    addRecord({ containerId, iBeamLocation, areaId }) {
-      const area = areasById.get(areaId);
-      if (!area) throw new Error(`Unknown area: ${areaId}`);
-      const now = new Date().toISOString();
-      const rec = {
-        id: uid(),
-        containerId: String(containerId).trim(),
-        iBeamLocation,
-        areaId,
-        departmentId: area.departmentId,
-        createdAt: now,
-        updatedAt: now,
-      };
-      records.push(rec);
-      saveRecords(records);
-      return rec;
+    // Set an area's absolute pallet count. Non-positive clears the entry.
+    setCount(areaId, n) {
+      if (!areasById.has(areaId)) throw new Error(`Unknown area: ${areaId}`);
+      const v = normalizeCount(n);
+      if (v > 0) counts[areaId] = v;
+      else delete counts[areaId];
+      saveCounts(counts);
+      return v;
     },
 
-    removeRecord(id) {
-      const before = records.length;
-      records = records.filter((r) => r.id !== id);
-      if (records.length !== before) saveRecords(records);
-      return before - records.length;
-    },
-
-    updateRecord(id, patch) {
-      const rec = records.find((r) => r.id === id);
-      if (!rec) return null;
-      Object.assign(rec, patch, { updatedAt: new Date().toISOString() });
-      if (patch.areaId) {
-        const area = areasById.get(patch.areaId);
-        if (area) rec.departmentId = area.departmentId;
+    // Replace the entire count map (used by import). Assumes validated input;
+    // keys are filtered to known areas and values normalized.
+    replaceCounts(newCounts) {
+      const next = {};
+      for (const [areaId, n] of Object.entries(newCounts || {})) {
+        if (!areasById.has(areaId)) continue;
+        const v = normalizeCount(n);
+        if (v > 0) next[areaId] = v;
       }
-      saveRecords(records);
-      return rec;
-    },
-
-    // Replace the entire record set (used by import). Assumes validated input.
-    replaceRecords(newRecords) {
-      records = newRecords.slice();
-      saveRecords(records);
+      counts = next;
+      saveCounts(counts);
     },
 
     // ---- derived ----
     // { areaId -> count } for EVERY area (zero-filled).
     countsByArea() {
-      const counts = {};
-      for (const a of seed.areas) counts[a.id] = 0;
-      for (const r of records) if (counts[r.areaId] !== undefined) counts[r.areaId] += 1;
-      return counts;
+      const out = {};
+      for (const a of seed.areas) out[a.id] = counts[a.id] || 0;
+      return out;
     },
 
     departmentTotal(deptId) {
-      return records.filter((r) => r.departmentId === deptId).length;
+      return (areasByDept.get(deptId) || []).reduce((sum, id) => sum + (counts[id] || 0), 0);
     },
 
-    totalPallets: () => records.length,
+    totalPallets: () => Object.values(counts).reduce((sum, n) => sum + n, 0),
   };
 
   return api;
