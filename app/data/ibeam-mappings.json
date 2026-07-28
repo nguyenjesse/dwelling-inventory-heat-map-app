@@ -14,13 +14,20 @@
   {
     "iBeamLocation": "D18",
     "areaIds": [
-      "ob-tote-pallet-buffer-d18"
+      "ob-tote-pallet-buffer-d18",
+      "copy-of-sort-buffer-a"
     ]
   },
   {
     "iBeamLocation": "D20",
     "areaIds": [
       "ob-tote-pallet-buffer-d20"
+    ]
+  },
+  {
+    "iBeamLocation": "E15",
+    "areaIds": [
+      "sort-overflow-buffer"
     ]
   },
   {
@@ -53,8 +60,8 @@
   {
     "iBeamLocation": "E20",
     "areaIds": [
-      "end-of-line-h",
-      "end-of-line-i"
+      "end-of-line-i",
+      "end-of-line-h"
     ]
   },
   {
@@ -110,7 +117,7 @@
   {
     "iBeamLocation": "F15",
     "areaIds": [
-      "sort-overflow-buffer"
+      "copy-of-ob-dock-overflow"
     ]
   },
   {
@@ -141,6 +148,12 @@
     "iBeamLocation": "F20",
     "areaIds": [
       "h-i-buffer-9-12"
+    ]
+  },
+  {
+    "iBeamLocation": "G10",
+    "areaIds": [
+      "new-area"
     ]
   },
   {

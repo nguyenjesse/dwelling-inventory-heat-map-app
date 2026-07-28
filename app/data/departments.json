@@ -18,5 +18,9 @@
   {
     "id": "sort",
     "name": "Sort"
+  },
+  {
+    "id": "fluid-load",
+    "name": "Fluid Load"
   }
 ]

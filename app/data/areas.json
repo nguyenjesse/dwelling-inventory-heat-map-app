@@ -120,15 +120,15 @@
   },
   {
     "id": "ob-tote-pallet-buffer-d16",
-    "name": "OB Tote Pallet Buffer D16",
+    "name": "OB Dock Lanes",
     "departmentId": "ob-dock",
     "iBeamLocation": "D16",
     "mapRegionId": "ob-tote-pallet-buffer-d16"
   },
   {
     "id": "ob-tote-pallet-buffer-d18",
-    "name": "OB Tote Pallet Buffer D18",
-    "departmentId": "ob-dock",
+    "name": "Sort Buffer A",
+    "departmentId": "sort",
     "iBeamLocation": "D18",
     "mapRegionId": "ob-tote-pallet-buffer-d18"
   },
@@ -177,28 +177,28 @@
   {
     "id": "fluid-lane-1-2",
     "name": "Fluid Lane 1-2",
-    "departmentId": "ob-dock",
+    "departmentId": "fluid-load",
     "iBeamLocation": "F11",
     "mapRegionId": "fluid-lane-1-2"
   },
   {
     "id": "fluid-lane-2-3",
     "name": "Fluid Lane 2-3",
-    "departmentId": "ob-dock",
+    "departmentId": "fluid-load",
     "iBeamLocation": "F12",
     "mapRegionId": "fluid-lane-2-3"
   },
   {
     "id": "fluid-lane-3-4",
     "name": "Fluid Lane 3-4",
-    "departmentId": "ob-dock",
+    "departmentId": "fluid-load",
     "iBeamLocation": "F12",
     "mapRegionId": "fluid-lane-3-4"
   },
   {
     "id": "fluid-lane-6-7",
     "name": "Fluid Lane 6-7",
-    "departmentId": "ob-dock",
+    "departmentId": "fluid-load",
     "iBeamLocation": "F14",
     "mapRegionId": "fluid-lane-6-7"
   },
@@ -316,9 +316,9 @@
   },
   {
     "id": "sort-overflow-buffer",
-    "name": "Sort Overflow Buffer",
-    "departmentId": "sort",
-    "iBeamLocation": "F15",
+    "name": "OB Dock Overflow",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "E15",
     "mapRegionId": "sort-overflow-buffer"
   },
   {
@@ -425,5 +425,26 @@
     "departmentId": "sort",
     "iBeamLocation": "H20",
     "mapRegionId": "h-i-buffer-1-4"
+  },
+  {
+    "id": "new-area",
+    "name": "Catwalk RTI Phase 1",
+    "departmentId": "fluid-load",
+    "iBeamLocation": "G10",
+    "mapRegionId": "new-area"
+  },
+  {
+    "id": "copy-of-ob-dock-overflow",
+    "name": "AMZXL PDX6 Buffer",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "F15",
+    "mapRegionId": "copy-of-ob-dock-overflow"
+  },
+  {
+    "id": "copy-of-sort-buffer-a",
+    "name": "Sort Buffer B",
+    "departmentId": "sort",
+    "iBeamLocation": "D18",
+    "mapRegionId": "copy-of-sort-buffer-a"
   }
 ]
