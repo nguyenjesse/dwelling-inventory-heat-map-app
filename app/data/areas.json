@@ -127,29 +127,29 @@
   },
   {
     "id": "ob-tote-pallet-buffer-d18",
-    "name": "Sort Buffer A",
+    "name": "Sort WIP Buffer A",
     "departmentId": "sort",
     "iBeamLocation": "D18",
     "mapRegionId": "ob-tote-pallet-buffer-d18"
   },
   {
     "id": "ob-tote-pallet-buffer-d20",
-    "name": "OB Tote Pallet Buffer D20",
-    "departmentId": "ob-dock",
-    "iBeamLocation": "D20",
+    "name": "Sort WIP Buffer E5-8",
+    "departmentId": "sort",
+    "iBeamLocation": "C20",
     "mapRegionId": "ob-tote-pallet-buffer-d20"
   },
   {
     "id": "fluid-lane-9-10",
     "name": "Fluid Lane 9-10",
-    "departmentId": "ob-dock",
+    "departmentId": "fluid-load",
     "iBeamLocation": "E22",
     "mapRegionId": "fluid-lane-9-10"
   },
   {
     "id": "fluid-lane-10-11",
     "name": "Fluid Lane 10-11",
-    "departmentId": "ob-dock",
+    "departmentId": "fluid-load",
     "iBeamLocation": "E23",
     "mapRegionId": "fluid-lane-10-11"
   },
@@ -224,36 +224,29 @@
     "mapRegionId": "rpn-wip-sdc-arcs-p1"
   },
   {
-    "id": "rpn-buffer",
-    "name": "RPN Buffer",
-    "departmentId": "rpn",
-    "iBeamLocation": "G22",
-    "mapRegionId": "rpn-buffer"
-  },
-  {
     "id": "rpn-wip-sdc-arcs-p2",
-    "name": "RPN WIP SDC Arcs P2",
+    "name": "SDC Palletization Phase 2",
     "departmentId": "rpn",
     "iBeamLocation": "G23",
     "mapRegionId": "rpn-wip-sdc-arcs-p2"
   },
   {
     "id": "each-prep-buffer",
-    "name": "Each & Prep Buffer",
+    "name": "Prep Buffer",
     "departmentId": "rpn",
     "iBeamLocation": "J22",
     "mapRegionId": "each-prep-buffer"
   },
   {
     "id": "rpn-recirc-p1",
-    "name": "RPN Recirc P1",
+    "name": "Recirc P1",
     "departmentId": "rpn",
     "iBeamLocation": "G15",
     "mapRegionId": "rpn-recirc-p1"
   },
   {
     "id": "rpn-recirc-p2",
-    "name": "RPN Recirc P2",
+    "name": "Recirc Phase 2",
     "departmentId": "rpn",
     "iBeamLocation": "H22",
     "mapRegionId": "rpn-recirc-p2"
@@ -441,10 +434,80 @@
     "mapRegionId": "copy-of-ob-dock-overflow"
   },
   {
-    "id": "copy-of-sort-buffer-a",
-    "name": "Sort Buffer B",
+    "id": "copy-of-each-prep-buffer",
+    "name": "Each Buffer",
+    "departmentId": "rpn",
+    "iBeamLocation": "J22",
+    "mapRegionId": "copy-of-each-prep-buffer"
+  },
+  {
+    "id": "copy-of-sort-buffer-c",
+    "name": "Sort Buffer D",
     "departmentId": "sort",
-    "iBeamLocation": "D18",
-    "mapRegionId": "copy-of-sort-buffer-a"
+    "iBeamLocation": "C20",
+    "mapRegionId": "copy-of-sort-buffer-c"
+  },
+  {
+    "id": "copy-of-sort-buffer-a-2",
+    "name": "Sort WIP Buffer B1-4",
+    "departmentId": "sort",
+    "iBeamLocation": "D20",
+    "mapRegionId": "copy-of-sort-buffer-a-2"
+  },
+  {
+    "id": "copy-of-sort-wip-buffer-b1-4",
+    "name": "Sort WIP Buffer C1-6",
+    "departmentId": "sort",
+    "iBeamLocation": "D19",
+    "mapRegionId": "copy-of-sort-wip-buffer-b1-4"
+  },
+  {
+    "id": "copy-of-sort-wip-buffer-c1-6",
+    "name": "Sort WIP Buffer D1-3",
+    "departmentId": "sort",
+    "iBeamLocation": "D20",
+    "mapRegionId": "copy-of-sort-wip-buffer-c1-6"
+  },
+  {
+    "id": "copy-of-sort-buffer-c-2",
+    "name": "Sort WIP Buffer E1-4",
+    "departmentId": "sort",
+    "iBeamLocation": "D20",
+    "mapRegionId": "copy-of-sort-buffer-c-2"
+  },
+  {
+    "id": "copy-of-sort-buffer-d",
+    "name": "Sort WIP Buffer F1-3",
+    "departmentId": "sort",
+    "iBeamLocation": "D21",
+    "mapRegionId": "copy-of-sort-buffer-d"
+  },
+  {
+    "id": "copy-of-sort-wip-buffer-f1-3",
+    "name": "Copy of Sort WIP Buffer F1-3",
+    "departmentId": "sort",
+    "iBeamLocation": "D21",
+    "mapRegionId": "copy-of-sort-wip-buffer-f1-3"
+  },
+  {
+    "id": "copy-of-copy-of-sort-wip-buffer-f1-3",
+    "name": "Copy of Copy of Sort WIP Buffer F1-3",
+    "departmentId": "sort",
+    "iBeamLocation": "C21",
+    "mapRegionId": "copy-of-copy-of-sort-wip-buffer-f1-3"
+  },
+  {
+    "id": "copy-of-copy-of-copy-of-sort-wip-buffer-f1-3",
+    "name": "Copy of Copy of Copy of Sort WIP Buffer F1-3",
+    "departmentId": "sort",
+    "iBeamLocation": "C21",
+    "mapRegionId": "copy-of-copy-of-copy-of-sort-wip-buffer-f1-3"
+  },
+  {
+    "id": "copy-of-catwalk-rti-phase-1",
+    "name": "Copy of Catwalk RTI Phase 1",
+    "departmentId": "fluid-load",
+    "iBeamLocation": "G10",
+    "mapRegionId": "copy-of-catwalk-rti-phase-1"
   }
 ]

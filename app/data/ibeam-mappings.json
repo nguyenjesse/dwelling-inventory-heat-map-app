@@ -1,8 +1,17 @@
 [
   {
+    "iBeamLocation": "C20",
+    "areaIds": [
+      "ob-tote-pallet-buffer-d20",
+      "copy-of-sort-buffer-c"
+    ]
+  },
+  {
     "iBeamLocation": "C21",
     "areaIds": [
-      "ob-dock-c21"
+      "ob-dock-c21",
+      "copy-of-copy-of-sort-wip-buffer-f1-3",
+      "copy-of-copy-of-copy-of-sort-wip-buffer-f1-3"
     ]
   },
   {
@@ -14,14 +23,28 @@
   {
     "iBeamLocation": "D18",
     "areaIds": [
-      "ob-tote-pallet-buffer-d18",
-      "copy-of-sort-buffer-a"
+      "ob-tote-pallet-buffer-d18"
+    ]
+  },
+  {
+    "iBeamLocation": "D19",
+    "areaIds": [
+      "copy-of-sort-wip-buffer-b1-4"
     ]
   },
   {
     "iBeamLocation": "D20",
     "areaIds": [
-      "ob-tote-pallet-buffer-d20"
+      "copy-of-sort-buffer-a-2",
+      "copy-of-sort-wip-buffer-c1-6",
+      "copy-of-sort-buffer-c-2"
+    ]
+  },
+  {
+    "iBeamLocation": "D21",
+    "areaIds": [
+      "copy-of-sort-buffer-d",
+      "copy-of-sort-wip-buffer-f1-3"
     ]
   },
   {
@@ -153,7 +176,8 @@
   {
     "iBeamLocation": "G10",
     "areaIds": [
-      "new-area"
+      "new-area",
+      "copy-of-catwalk-rti-phase-1"
     ]
   },
   {
@@ -196,12 +220,6 @@
     "iBeamLocation": "G20",
     "areaIds": [
       "h-i-buffer-5-8"
-    ]
-  },
-  {
-    "iBeamLocation": "G22",
-    "areaIds": [
-      "rpn-buffer"
     ]
   },
   {
@@ -273,7 +291,8 @@
   {
     "iBeamLocation": "J22",
     "areaIds": [
-      "each-prep-buffer"
+      "each-prep-buffer",
+      "copy-of-each-prep-buffer"
     ]
   },
   {
