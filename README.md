@@ -1,8 +1,10 @@
 # Dwelling Inventory Heat Map
 
 A dependency-free browser rebuild of the Excel/VBA **POC3 Dwelling Inventory
-Map** workbook. It records how many dwelling pallets sit in each of the 61
+Map** workbook. It records how many dwelling pallets sit in each of the 74
 operational warehouse areas and heat-maps that distribution over the floor plan.
+A site can hold a separate layout per **floor**; both the operator map and the
+region editor have a Floor selector (the current site has a single floor).
 
 > Private use only. App upgrade to the Excel macro-based workbook.
 
@@ -20,9 +22,11 @@ operational warehouse areas and heat-maps that distribution over the floor plan.
 2. **Type the pallet count** for that area and hit **Save** (or **Clear** to
    zero it). Save sets the area's absolute count.
 3. **The heat map updates live.** Zero-pallet areas are neutral gray; positive
-   counts are colored green → yellow → red, normalized across the current
-   *positive* min/max only. Clicking an area also shows its details (I-Beam,
-   department, dept total, % of all pallets) in the side panel.
+   counts are colored green → yellow → red, normalized across the *positive*
+   min/max of the areas on the currently visible floor only. Clicking an area
+   also shows its details (I-Beam, department, dept total, % of all pallets) in
+   the side panel. When a site has more than one floor, the **Floor** dropdown
+   filters the map to that floor; the header pallet total stays site-wide.
 4. **Import/Export** — CSV columns are `Area, Department, I_Beam_Location,
    Pallets` (Excel-compatible); JSON export mirrors the same per-area counts.
    Invalid rows are reported, never silently skipped.
@@ -50,9 +54,10 @@ python3 build/build-standalone.py
 `POC3-Region-Editor.html` is a double-click **admin** tool for managing the map
 areas — create / name / rename / delete / duplicate an area, place its region
 box, and assign its **Pole** (I-Beam) and **Department** (departments can be
-created/renamed too). It exports a single `poc3-map-data.json` bundle (areas +
-departments + regions, with I-Beam mappings derived) to hand back for applying —
-no server needed either.
+created/renamed too). It also manages the site's **floors** (add / rename /
+delete, each with its own background image and layout). It exports a single
+`poc3-map-data.json` bundle (floors + areas + departments + regions, with I-Beam
+mappings derived) to hand back for applying — no server needed either.
 
 ### 2. Served dev version — for editing/development
 
@@ -75,11 +80,11 @@ POC3-Region-Editor.html            Generated admin region-editor standalone (dou
 build/build-standalone.py          Inliner that produces both standalones
 app/                               Modular source (dev version)
   index.html                       Operator app: area picker + count entry, heat map, panel, legend
-  editor.html                      Region editor (admin: drag/resize/nudge the 61 regions)
+  editor.html                      Region editor (admin: floor management + drag/resize/nudge the 74 regions)
   tests/tests.html                 In-browser test suite
   js/                              model, storage, form, map, panel, heatmap, importexport, validate…
   css/                             styles
-  data/                            areas / departments / ibeam-mappings / regions JSON
+  data/                            floors / areas / departments / ibeam-mappings / regions JSON
   assets/                          green-mile.png (active background), floor-plan.png (original CAD ref)
 Claude Package/                    Session handoff notes (not app code)
 ```
@@ -89,17 +94,22 @@ the floor-plan background & region alignment, and the heat-map scale.
 
 ## Data model
 
-- **61 areas** across **5 departments**, each mapped to an I-Beam location and a
-  map region.
-- Pallet counts are stored as a simple `{ areaId → count }` map. (Earlier
+- **74 areas** across **6 departments**, each mapped to an I-Beam location, a
+  map region, and a **floor**.
+- **Floors** (`floors.json`, ordered — first is the default) each carry a name,
+  background image, and dimensions; departments stay global while I-Beam
+  mappings are per-floor. Area IDs are globally unique, so floors act as a *view
+  filter* rather than a partition.
+- Pallet counts are stored as a simple `{ areaId → count }` map, keyed globally
+  by area ID (so adding floors needs no count migration). Earlier
   per-container-scan data is migrated into per-area counts automatically on first
-  load.)
+  load.
 
 ## Testing
 
 Serve the app and open `tests/tests.html` — the in-browser suite covers the
 heat-map color math, manifest integrity, the count model, legacy-data migration,
-and CSV/JSON import/export round-trips. It currently runs **31/31 green**.
+and CSV/JSON import/export round-trips. It currently runs **32/32 green**.
 
 After changing anything under `app/`, rebuild the standalone and confirm it opens
 **fully styled from `file://`** before shipping it (a DOM-node count alone can

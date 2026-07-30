@@ -1,16 +1,19 @@
 # POC3 Dwelling Inventory Map — HTML app
 
 A dependency-free browser rebuild of the Excel/VBA dwelling-inventory heat map.
-Records where dwelling pallets sit across 61 operational areas and heat-maps
+Records where dwelling pallets sit across 74 operational areas and heat-maps
 their distribution over the warehouse floor plan.
 
 - **No build step, no npm.** Plain HTML + CSS + ES-module JavaScript.
 - **Local-first.** Per-area pallet counts persist in the browser
   (`localStorage`); CSV/JSON import & export move data in and out of Excel.
-- **Data faithfully extracted** from `POC3_Dwelling_Inventory_Map_v1.5`:
-  61 areas, 5 departments, 55 unique I-beam locations (with one-to-many
-  I-beam→area mappings), and the 61 map regions reconstructed from the
-  workbook's own shape geometry.
+- **Multi-floor.** A site can hold a separate layout per floor, each with its
+  own background image; both viewer and editor have a Floor selector. The
+  current site has a single floor.
+- **Data** originally extracted from `POC3_Dwelling_Inventory_Map_v1.5` and
+  since maintained in the region editor: currently 74 areas, 6 departments,
+  61 unique I-beam locations (with one-to-many I-beam→area mappings), and 74
+  map regions reconstructed from the workbook's own shape geometry.
 
 ## Two ways to run it
 
@@ -49,7 +52,7 @@ region editor (`editor.html`) is an admin tool and only runs in this served mode
 | File | Purpose |
 |---|---|
 | `index.html` | Operator app — entry form, heat map, info panel, legend, import/export. |
-| `editor.html` | Area/region editor — create/name/rename/delete/duplicate areas, place their region boxes, assign Pole (I-Beam) + Department (create/rename departments too), and export a `poc3-map-data.json` bundle. |
+| `editor.html` | Area/region editor — create/name/rename/delete/duplicate areas, place their region boxes, assign Pole (I-Beam) + Department (create/rename departments too), manage floors (add/rename/delete, each with its own background), and export a `poc3-map-data.json` bundle. |
 | `tests/tests.html` | In-browser test suite (mapping integrity, counts, color math, import/export). |
 
 ## Using the app
@@ -60,8 +63,9 @@ region editor (`editor.html`) is an admin tool and only runs in this served mode
    Type the pallet count and **Save** (sets the area's absolute count); **Clear**
    zeroes it.
 2. **Heat map** updates live. Zero-pallet areas are neutral gray; positive
-   counts are colored green → yellow → red, normalized across the current
-   *positive* min/max only.
+   counts are colored green → yellow → red, normalized across the *positive*
+   min/max of the areas on the visible floor only. With more than one floor, the
+   **Floor** dropdown filters the map; the header pallet total stays site-wide.
 3. **Click an area** (or focus + Enter) to select it: red outline on the area,
    orange on the rest of its department, and its details (I-Beam, department,
    dept total, % of all pallets) in the panel. **Reset selection** clears it.
@@ -72,34 +76,42 @@ region editor (`editor.html`) is an admin tool and only runs in this served mode
 
 ## Data model (`data/`)
 
-- `areas.json` — `{id, name, departmentId, iBeamLocation, mapRegionId}` ×61
-- `departments.json` — `{id, name}` ×5
-- `ibeam-mappings.json` — `{iBeamLocation, areaIds[]}` ×55 (unique I-beams)
-- `regions.json` — `{meta:{imageWidth,imageHeight}, regions:{areaId:{x,y,w,h}}}`
+- `floors.json` — `[{id, name, image, imageWidth, imageHeight}]` (ordered; first
+  is the default) ×1
+- `areas.json` — `{id, name, departmentId, iBeamLocation, mapRegionId, floorId}` ×74
+- `departments.json` — `{id, name}` ×6
+- `ibeam-mappings.json` — `{iBeamLocation, floorId, areaIds[]}` ×61 (unique per floor)
+- `regions.json` — `{regions:{areaId:{x,y,w,h}}}` — a flat box map keyed by area
+  ID (each box is read against its area's floor dimensions)
 
 Stable machine IDs are the real key; display names are separate, so renaming a
-label never breaks the map↔data link.
+label never breaks the map↔data link. Area IDs are globally unique across
+floors, so floors are a view filter and pallet counts need no per-floor
+migration. Departments are global; I-Beam mappings are keyed per floor.
 
 ## The floor-plan background & regions
 
 The active background is `assets/green-mile.png` — the master plan with the
 gray conveyors and the green "Green Mile" walking lanes drawn on it
-(`viewBox 0 0 1484 1060`). The background filename and dimensions are declared
-in `regions.json > meta` (`image`, `imageWidth`, `imageHeight`), so the app is
-data-driven — point `meta.image` at any file in `assets/` to swap it.
+(`viewBox 0 0 1484 1060`). Each floor's background filename and dimensions are
+declared in `floors.json` (`image`, `imageWidth`, `imageHeight`), so the app is
+data-driven — point a floor's `image` at any file in `assets/` to swap it.
 
 `assets/floor-plan.png` is the original master plan **extracted from the
 workbook** (1808×1125) — the exact image the Excel shapes were positioned
-against. The 61 region boxes were first reconstructed in that image's space,
-then **affine-mapped onto the Green Mile image** (same underlying drawing, a
-different crop/scale) using its content bounding box. The result aligns
-closely; fine-tune any box in the editor.
+against. The original 61 region boxes were first reconstructed in that image's
+space, then **affine-mapped onto the Green Mile image** (same underlying
+drawing, a different crop/scale) using its content bounding box. The result
+aligns closely; fine-tune any box in the editor (the site has since grown to 74
+regions, added directly in the editor).
 
 To swap in another background: open `editor.html` (or the double-click
 `POC3-Region-Editor.html`), use **Load background…** to preview it, adjust
 regions, and **Export data** — the resulting `poc3-map-data.json` bundle
-(areas + departments + regions, I-Beam mappings derived) gets split back into
-`data/` and the standalones rebuilt (update `meta.image` to the new filename).
+(floors + areas + departments + regions, I-Beam mappings derived) gets split
+back into `data/` and the standalones rebuilt. The floor's `image` in
+`floors.json` records the filename; drop the actual PNG into `assets/` so the
+build can inline it.
 
 ## Heat-map scale
 
@@ -108,7 +120,8 @@ zeros distort normalization):
 
 - `count = 0` → gray `#808080`
 - `count > 0` → interpolated across three stops — green `#2ca25f` → yellow
-  `#ffd400` → red `#e60000` — normalized over the **positive** min/max.
+  `#ffd400` → red `#e60000` — normalized over the **positive** min/max of the
+  areas on the visible floor.
 - All positive counts equal → yellow midpoint (not "everything red").
 
 See `js/heatmap.js`.
