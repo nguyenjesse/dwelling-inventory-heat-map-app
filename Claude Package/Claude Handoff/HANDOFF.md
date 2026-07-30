@@ -1,77 +1,72 @@
-# HANDOFF — Code → Code · 2026-07-30 15:00 PT
+# HANDOFF — Code → Code · 2026-07-30 17:30 PT
 
 ## What happened this session
-Built **two new operator-app features** and merged them to `main` via **PR #7**
-(branch `claude/startup-skill-run-fhkvyx`): (1) an **Area Breakdown** table and
-(2) an **Inbound/Outbound** summary plus category filtering. Also confirmed two
-long-carried open questions with the user (both resolved — see below). All work
-is docs-free app code + tests; verified green in real Chromium.
+Acted on **user testing feedback** with three operator-app changes, plus a
+README/doc refresh, all on branch `claude/startup-skill-83lity` and opened as
+**PR #8** (base `main`) — **not yet merged; awaiting the user's review/merge**.
 
-## Changes on disk (merged to `main` via PR #7)
-Two feature commits: `e6a24d3` (Area Breakdown) and `49dcc5a` (Inbound/Outbound).
-- **`app/js/breakdown.js`** (new) — `createBreakdown` factory: per-department
-  roll-up table in the right info column. Top row = department (+ pallet total);
-  click to expand → its areas with columns **Area / Pole Location (I-Beam) /
-  Pallet Count**. Shows all depts+areas on the current floor incl. zeros;
-  expansion state persists across re-renders.
-- **`app/js/iosummary.js`** (new) — `createIoSummary` factory: compact
-  Outbound / Inbound / Total roll-up, mounted under Record pallet count in the
-  left column.
-- **`app/js/model.js`** — added `CATEGORIES` const (single source of truth) +
-  `categories()`, `categoryOfDept()`, `categoryTotal()`. Outbound = docksort,
-  ob-dock, sort, fluid-load; Inbound = ib-dock, rpn. `categoryTotal` is global
-  (all floors), matching `totalPallets()`.
-- **`app/js/app.js`** — wired both views into `refresh()`; rebuilt `#deptFilter`
-  to group the 6 depts under Outbound/Inbound optgroups, each with a
-  `cat:<id>` "(all)" option; `applyFilterDim()` parses `""` / `cat:<id>` /
-  `<deptId>`. Category filter dims the **map only** (deliberate — see decisions).
-- **`app/index.html`** (both mount points), **`app/css/styles.css`**
-  (`.breakdown*`, `.io-stats`), **`build/build-standalone.py`** (added
-  `breakdown.js` + `iosummary.js` to `APP_JS_ORDER`; both `POC3-*.html`
-  standalones regenerated), **`app/tests/tests.js`** (9 new tests).
+## Changes on disk (branch `claude/startup-skill-83lity`, PR #8)
+- **`app/js/modal.js`** (new) — `chooseAction({title, message, actions, cancelValue})`
+  promise-based dialog. Native `confirm()` only does OK/Cancel; the import
+  replace-vs-merge step needed **three** labelled choices.
+- **`app/js/app.js`** — import handler now `await`s `chooseAction(...)` and
+  branches on `'replace'` / `'merge'` / `'cancel'` instead of the old
+  OK=replace/Cancel=merge `confirm`. Added `import { chooseAction }`.
+- **`app/js/model.js`** — **bug fix.** `totalPallets()` now sums **known seed
+  areas only** (`seed.areas.reduce(...)`), not `Object.values(counts)`. A stale
+  areaId lingering in `localStorage` (legacy migration / import of a removed
+  area) was inflating **only** the IO-summary "Total" — hence the user's "Total
+  stuck at 4 while Outbound/Inbound + Area Breakdown all read 0."
+- **`app/js/form.js`** — count field restricted to whole numbers ≥ 0: `keydown`
+  blocks `. , e E + -`; `input` strips non-digits (handles paste).
+- **`app/css/styles.css`** — `.modal-overlay/.modal/.modal-*` styles.
+- **`build/build-standalone.py`** — `modal.js` added to `APP_JS_ORDER`
+  (before `form.js`). Both `POC3-*.html` standalones regenerated.
+- **`app/tests/tests.js`** — +2 tests (totalPallets ignores unknown areas;
+  all-zero drives Total to 0).
+- **`README.md`, `app/README.md`** — documented the Inbound/Outbound summary,
+  Area Breakdown, and category filter (were undocumented), the whole-number
+  input rule, and the import replace/merge/cancel choice; test count → 43/43.
 
 ## Verification status
-- **Test suite 41/41 green** in real Chromium over HTTP (headless_shell at
-  `/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell` —
-  NOTE: the full `chromium` binary is `--headless=old` and now refuses to launch;
-  use headless_shell. Serve `app/` with `python3 -m http.server`).
-- Live-checked in browser (screenshots): breakdown expand + column order; IO
-  summary math (Outbound/Inbound/Total); `#deptFilter` groups exactly as spec'd;
-  `cat:inbound` leaves precisely the 20 inbound areas un-dimmed. Zero console
-  errors besides the harmless favicon 404.
-- **User reviewed PR #7 and approved the merge to `main`.**
+- **Test suite 43/43 green** in real headless Chromium — use the **headless_shell**
+  binary (`/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell`),
+  NOT the full `chromium` (which refuses `--headless=old`). Serve `app/` with
+  `python3 -m http.server`.
+- Live-checked all three in the browser: modal shows exactly `Fully replace /
+  Merge / Cancel` and dismisses on choice; count field turned `1.2.3`→`123` and
+  `12e-3`→`123`; IO Total ignored a planted stale entry (showed 3 not 7) and
+  reached 0 after zeroing the real area. Zero console errors.
 
 ## Decisions taken this session
-- **Category filter dims the map only** (user choice) — the Area Breakdown table
-  and IO summary always show everything, so a hidden category can still be
-  compared. Single-select dropdown: picking one category hides the other.
-- **Categories live in code, not `departments.json`** — avoids data-migration +
-  validation + editor churn for a fixed 6-department business rule.
-- **Two carried open questions RESOLVED by the user** (no longer open): "Save
-  count" correctly **sets** an area's absolute count (not increment); **one
-  floor per area** is confirmed correct as enforced.
+- **3-button modal, not chained confirms** — a native `confirm()` can't express
+  three labelled actions; a tiny custom dialog (`modal.js`) was the clean fix.
+- **`totalPallets` counts known areas only** — makes the grand total consistent
+  with `categoryTotal` / `departmentTotal` / Area Breakdown, which already filter
+  to real areas. Root-cause fix, not a patch on the IO summary.
+- **Input hardening at the keystroke level** (block + strip), on top of the
+  existing submit-time validation — prevents the bad char ever landing.
 
 ## Dead ends & gotchas
-- **`chromium` (full) won't run headless** here ("Old Headless mode has been
-  removed"). Use the **headless_shell** binary (path above). This bit the first
-  verification run — don't repeat it.
-- Playwright harness ran entirely in the **session scratchpad** (installed
-  `playwright-core` there, not in the project). Keep it that way — never commit
-  `node_modules`/`package*.json` (dependency-free static project).
-- **Do NOT gitignore `Claude Package/`** — fresh Code-on-web sessions clone the
-  repo and see only committed files, so the handoff must stay tracked or the
-  baton breaks. (Standing decision; overrides the generic "gitignore it" advice.)
-- Branch deletion still fails through the git proxy — the **user deletes branches
-  themselves** in the GitHub UI (they will do so before the next session).
+- The Total fix stops a stale count from being *summed*, but the phantom entry
+  still physically sits in that browser's `localStorage`. It's inert now; a
+  **Fully replace** import or clearing site data flushes it entirely.
+- **`app/js/model.js` contains an intentional NUL byte** (`\x00`) as a composite
+  key separator in `ibKey` — `file` reports the file as "data"/binary and grep
+  treats it as binary. **Do not "fix" it**; edit around it with the Read/Edit
+  tools (works fine) rather than shell text tools.
+- Same standing gotchas as before: full `chromium` won't run headless (use
+  headless_shell); Playwright harness lives in the **session scratchpad**
+  (`playwright-core` installed there) — never commit `node_modules`/`package*.json`;
+  **do NOT gitignore `Claude Package/`** (fresh web sessions clone the repo and
+  need the tracked baton); branch deletion still fails through the git proxy —
+  the **user deletes merged branches themselves** in the GitHub UI.
 
 ## Suggested next steps
-1. **Nothing is queued.** `main` has both features, tests green, standalones
-   rebuilt. Branch fresh off `origin/main` for any new work (same branch name is
-   fine per the workflow).
-2. If the IO breakdown ever needs more detail, the natural extension is a
-   per-category expandable department list (reuse `breakdown.js`'s toggle pattern
-   + `model.categories()`), and/or category area-counts alongside pallet totals.
+1. **User reviews and merges PR #8** to `main` (docs + this handoff included).
+   Nothing else is queued.
+2. After merge, branch fresh off `origin/main` for any new work (reusing the
+   branch name is fine per the workflow).
 
 ## Open questions
-- None outstanding. (Both previously-carried questions were resolved this
-  session.)
+- None outstanding.

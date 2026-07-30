@@ -9,6 +9,7 @@ import { createLegend } from './legend.js';
 import { createBreakdown } from './breakdown.js';
 import { createIoSummary } from './iosummary.js';
 import { exportCsv, exportJson, importCounts, download } from './importexport.js';
+import { chooseAction } from './modal.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -122,9 +123,20 @@ async function main() {
       if (!proceed) { setStatus('Import cancelled.'); return; }
     }
     if (areaCount === 0) { setStatus('Nothing imported — no valid rows.', 'error'); return; }
-    const replace = confirm(`Import counts for ${areaCount} area${areaCount === 1 ? '' : 's'}.\n\n`
-      + `OK = replace current data, Cancel = merge into existing.`);
-    if (replace) {
+    const action = await chooseAction({
+      title: `Import ${areaCount} area${areaCount === 1 ? '' : 's'}`,
+      message: 'How should these counts be applied?\n\n'
+        + '• Fully replace — clear every other area, then set these.\n'
+        + '• Merge — update only these areas, leave the rest as-is.',
+      actions: [
+        { label: 'Fully replace', value: 'replace', variant: 'primary' },
+        { label: 'Merge', value: 'merge' },
+        { label: 'Cancel', value: 'cancel' },
+      ],
+      cancelValue: 'cancel',
+    });
+    if (action === 'cancel') { setStatus('Import cancelled.'); return; }
+    if (action === 'replace') {
       model.replaceCounts(counts);
     } else {
       for (const [areaId, n] of Object.entries(counts)) model.setCount(areaId, n);

@@ -51,7 +51,7 @@ region editor (`editor.html`) is an admin tool and only runs in this served mode
 
 | File | Purpose |
 |---|---|
-| `index.html` | Operator app — entry form, heat map, info panel, legend, import/export. |
+| `index.html` | Operator app — entry form, heat map, info panel, legend, Inbound/Outbound summary, Area Breakdown table, category filter, import/export. |
 | `editor.html` | Area/region editor — create/name/rename/delete/duplicate areas, place their region boxes, assign Pole (I-Beam) + Department (create/rename departments too), manage floors (add/rename/delete, each with its own background), and export a `poc3-map-data.json` bundle. |
 | `tests/tests.html` | In-browser test suite (mapping integrity, counts, color math, import/export). |
 
@@ -61,7 +61,8 @@ region editor (`editor.html`) is an admin tool and only runs in this served mode
    click its region on the map — either loads the area into the entry card and
    focuses the count field. Its I-Beam and Department fill in automatically.
    Type the pallet count and **Save** (sets the area's absolute count); **Clear**
-   zeroes it.
+   zeroes it. The field takes only whole numbers ≥ 0 — a decimal point, sign, or
+   exponent keystroke is rejected and pasted junk is stripped to digits.
 2. **Heat map** updates live. Zero-pallet areas are neutral gray; positive
    counts are colored green → yellow → red, normalized across the *positive*
    min/max of the areas on the visible floor only. With more than one floor, the
@@ -70,9 +71,19 @@ region editor (`editor.html`) is an admin tool and only runs in this served mode
    orange on the rest of its department, and its details (I-Beam, department,
    dept total, % of all pallets) in the panel. **Reset selection** clears it.
    Selection never changes on reload.
-4. **Import/Export:** CSV columns are `Area, Department, I_Beam_Location,
+4. **Roll-ups:** the **Inbound/Outbound** summary (under the entry card) totals
+   the two flow categories (Outbound = docksort, ob-dock, sort, fluid-load;
+   Inbound = ib-dock, rpn) plus a site-wide grand total. The **Area Breakdown**
+   table (right column) sums counts per department; click a department to expand
+   its areas in **Area / Pole Location / Pallet Count** columns. Both always list
+   everything on the floor, including zeros. The **category filter** dropdown
+   dims the map to one category or department — the roll-ups are never dimmed, so
+   a hidden category can still be compared.
+5. **Import/Export:** CSV columns are `Area, Department, I_Beam_Location,
    Pallets` (Excel-compatible), one row per area with a positive count. Invalid
-   rows are reported, never silently skipped.
+   rows are reported, never silently skipped. Import resolves each row by area ID
+   *or* name, then asks how to apply the file — **Fully replace** (clear all
+   other areas first), **Merge** (update only the file's areas), or **Cancel**.
 
 ## Data model (`data/`)
 

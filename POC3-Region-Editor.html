@@ -186,6 +186,22 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
   .map-shell { min-height: 60vh; }
 }
 
+/* ---------- modal ---------- */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(31, 41, 51, .45); padding: 1rem;
+}
+.modal {
+  background: var(--panel-bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 8px 30px rgba(0,0,0,.25); padding: 1.25rem;
+  max-width: 26rem; width: 100%;
+}
+.modal-title { font-size: 1rem; margin: 0 0 .6rem; }
+.modal-msg { font-size: .88rem; color: var(--text); margin: 0 0 1rem; white-space: pre-line; line-height: 1.4; }
+.modal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
+
 /* editor.css — region editor specific styles */
 .editor-layout { flex: 1; display: grid; grid-template-columns: 260px minmax(0,1fr); gap: 0; min-height: 0; }
 .editor-sidebar { border-right: 1px solid var(--border); background: #fff; padding: .8rem; overflow: auto; display: flex; flex-direction: column; gap: .5rem; }
@@ -686,7 +702,10 @@ function createModel(seed) {
       return (areasByDept.get(deptId) || []).reduce((sum, id) => sum + (counts[id] || 0), 0);
     },
 
-    totalPallets: () => Object.values(counts).reduce((sum, n) => sum + n, 0),
+    // Sum over KNOWN areas only — a stale/unknown areaId lingering in storage
+    // (legacy migration, import of a since-removed area) must not inflate the
+    // grand total, or it drifts from the category/breakdown roll-ups.
+    totalPallets: () => seed.areas.reduce((sum, a) => sum + (counts[a.id] || 0), 0),
 
     // ---- flow categories (Inbound / Outbound) ----
     categories: () => CATEGORIES.map((c) => ({ ...c, deptIds: c.deptIds.slice() })),

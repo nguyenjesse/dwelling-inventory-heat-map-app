@@ -128,6 +128,25 @@ test('totalPallets sums all areas', () => {
   eq(m.totalPallets(), 6);
   eq(m.areasWithCount(), 2);
 });
+test('totalPallets ignores stale/unknown areas left in storage', () => {
+  // A count for an areaId that is no longer in the layout must not inflate the
+  // grand total, or the IO-summary "Total" drifts above the category roll-ups.
+  localStorage.setItem('poc3.counts.v1',
+    JSON.stringify({ 'presort-phase-1': 2, 'ghost-removed-area': 4 }));
+  const m = createModel(seed);
+  eq(m.totalPallets(), 2);
+  localStorage.removeItem('poc3.counts.v1');
+});
+test('all-zero counts drive totalPallets to 0 (IO Total reaches 0)', () => {
+  localStorage.setItem('poc3.counts.v1',
+    JSON.stringify({ 'presort-phase-1': 3, 'end-of-line-a': 5, 'phantom': 4 }));
+  const m = createModel(seed);
+  m.setCount('presort-phase-1', 0);
+  m.setCount('end-of-line-a', 0);
+  eq(m.totalPallets(), 0);
+  eq(m.categoryTotal('inbound') + m.categoryTotal('outbound'), 0);
+  localStorage.removeItem('poc3.counts.v1');
+});
 test('setCount rejects unknown area', () => {
   const m = freshModel();
   let threw = false;

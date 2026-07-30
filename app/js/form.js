@@ -87,6 +87,17 @@ export function createCountEditor(root, model, { onChange, onSelectArea, floorId
     if (areaEl.value && onSelectArea) onSelectArea(areaEl.value);
   });
 
+  // Restrict the count field to whole, non-negative numbers as the user types.
+  // A native number input otherwise accepts ".", "e", "+" and "-"; block those
+  // keys and strip anything non-digit from pastes so only 0,1,2,… survive.
+  palletsEl.addEventListener('keydown', (e) => {
+    if (['.', ',', 'e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+  });
+  palletsEl.addEventListener('input', () => {
+    const cleaned = palletsEl.value.replace(/\D+/g, '');
+    if (cleaned !== palletsEl.value) palletsEl.value = cleaned;
+  });
+
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const area = model.getArea(areaEl.value);

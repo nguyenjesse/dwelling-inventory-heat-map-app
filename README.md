@@ -20,16 +20,27 @@ region editor have a Floor selector (the current site has a single floor).
    its region directly on the map. Either way it loads into the entry card and
    the count field is focused.
 2. **Type the pallet count** for that area and hit **Save** (or **Clear** to
-   zero it). Save sets the area's absolute count.
+   zero it). Save sets the area's absolute count. The count field accepts only
+   whole numbers ≥ 0 — decimals, signs, and other stray characters are blocked
+   as you type.
 3. **The heat map updates live.** Zero-pallet areas are neutral gray; positive
    counts are colored green → yellow → red, normalized across the *positive*
    min/max of the areas on the currently visible floor only. Clicking an area
    also shows its details (I-Beam, department, dept total, % of all pallets) in
    the side panel. When a site has more than one floor, the **Floor** dropdown
    filters the map to that floor; the header pallet total stays site-wide.
-4. **Import/Export** — CSV columns are `Area, Department, I_Beam_Location,
+4. **Read the roll-ups.** The **Inbound/Outbound** summary (left, under the entry
+   card) totals the two flow categories plus a site-wide grand total. The **Area
+   Breakdown** table (right) rolls counts up per department — click a department
+   to expand its areas (Area / Pole Location / Pallet Count). Both always show
+   every department and area, so a filtered-out category can still be compared.
+   The **category filter** dropdown dims the map to one flow (Inbound or
+   Outbound) or a single department, leaving the roll-ups untouched.
+5. **Import/Export** — CSV columns are `Area, Department, I_Beam_Location,
    Pallets` (Excel-compatible); JSON export mirrors the same per-area counts.
-   Invalid rows are reported, never silently skipped.
+   Invalid rows are reported, never silently skipped. On import you choose how to
+   apply the file: **Fully replace** (clear every other area first), **Merge**
+   (update only the areas in the file), or **Cancel**.
 
 > Each person's counts live in their own browser and are never shared between
 > machines — matching the requirement that associates' maps stay separate.
@@ -82,7 +93,7 @@ app/                               Modular source (dev version)
   index.html                       Operator app: area picker + count entry, heat map, panel, legend
   editor.html                      Region editor (admin: floor management + drag/resize/nudge the 74 regions)
   tests/tests.html                 In-browser test suite
-  js/                              model, storage, form, map, panel, heatmap, importexport, validate…
+  js/                              model, storage, form, map, panel, legend, breakdown, iosummary, heatmap, importexport, modal, validate…
   css/                             styles
   data/                            floors / areas / departments / ibeam-mappings / regions JSON
   assets/                          green-mile.png (active background), floor-plan.png (original CAD ref)
@@ -109,7 +120,8 @@ the floor-plan background & region alignment, and the heat-map scale.
 
 Serve the app and open `tests/tests.html` — the in-browser suite covers the
 heat-map color math, manifest integrity, the count model, legacy-data migration,
-and CSV/JSON import/export round-trips. It currently runs **32/32 green**.
+the Area Breakdown / Inbound-Outbound roll-ups, and CSV/JSON import/export
+round-trips. It currently runs **43/43 green**.
 
 After changing anything under `app/`, rebuild the standalone and confirm it opens
 **fully styled from `file://`** before shipping it (a DOM-node count alone can
