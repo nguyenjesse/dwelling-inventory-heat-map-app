@@ -125,6 +125,10 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 .row-actions button { border: none; background: none; cursor: pointer; color: var(--muted); font-size: .8rem; padding: .1rem .3rem; border-radius: 4px; }
 .row-actions button:hover { background: #eef1f4; color: var(--text); }
 
+/* ---------- inbound / outbound summary ---------- */
+.io-stats { font-size: .9rem; }
+.io-stats .io-total dt, .io-stats .io-total dd { border-top: 1px solid var(--border); padding-top: .3rem; margin-top: .15rem; }
+
 /* ---------- area breakdown ---------- */
 .breakdown-wrap { overflow-x: auto; }
 .breakdown { width: 100%; border-collapse: collapse; font-size: .82rem; }

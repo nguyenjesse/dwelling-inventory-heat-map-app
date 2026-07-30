@@ -133,6 +133,10 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 .row-actions button { border: none; background: none; cursor: pointer; color: var(--muted); font-size: .8rem; padding: .1rem .3rem; border-radius: 4px; }
 .row-actions button:hover { background: #eef1f4; color: var(--text); }
 
+/* ---------- inbound / outbound summary ---------- */
+.io-stats { font-size: .9rem; }
+.io-stats .io-total dt, .io-stats .io-total dd { border-top: 1px solid var(--border); padding-top: .3rem; margin-top: .15rem; }
+
 /* ---------- area breakdown ---------- */
 .breakdown-wrap { overflow-x: auto; }
 .breakdown { width: 100%; border-collapse: collapse; font-size: .82rem; }
@@ -507,6 +511,14 @@ function download(filename, text, mime = 'text/plain') {
 // model.js — domain layer: floors, areas, departments, I-beam mappings, and
 // per-area pallet counts. No DOM here.
 
+// Fixed business grouping of departments into flow categories. Two categories
+// cover all six departments; used by the department filter and the
+// Inbound/Outbound summary.
+const CATEGORIES = [
+  { id: 'outbound', name: 'Outbound', deptIds: ['docksort', 'ob-dock', 'sort', 'fluid-load'] },
+  { id: 'inbound', name: 'Inbound', deptIds: ['ib-dock', 'rpn'] },
+];
+
 // Fetch and assemble the static seed manifest. In the single-file standalone
 // build the data is inlined as a global SEED_DATA, so no HTTP/fetch is needed
 // (that build opens straight from disk via file://).
@@ -675,6 +687,16 @@ function createModel(seed) {
     },
 
     totalPallets: () => Object.values(counts).reduce((sum, n) => sum + n, 0),
+
+    // ---- flow categories (Inbound / Outbound) ----
+    categories: () => CATEGORIES.map((c) => ({ ...c, deptIds: c.deptIds.slice() })),
+    categoryOfDept: (deptId) => CATEGORIES.find((c) => c.deptIds.includes(deptId)) || null,
+    // Total pallets across a category's departments (global, all floors — matches
+    // totalPallets()).
+    categoryTotal(catId) {
+      const c = CATEGORIES.find((x) => x.id === catId);
+      return c ? c.deptIds.reduce((sum, id) => sum + api.departmentTotal(id), 0) : 0;
+    },
   };
 
   return api;

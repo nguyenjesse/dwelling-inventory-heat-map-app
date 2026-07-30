@@ -133,6 +133,10 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 .row-actions button { border: none; background: none; cursor: pointer; color: var(--muted); font-size: .8rem; padding: .1rem .3rem; border-radius: 4px; }
 .row-actions button:hover { background: #eef1f4; color: var(--text); }
 
+/* ---------- inbound / outbound summary ---------- */
+.io-stats { font-size: .9rem; }
+.io-stats .io-total dt, .io-stats .io-total dd { border-top: 1px solid var(--border); padding-top: .3rem; margin-top: .15rem; }
+
 /* ---------- area breakdown ---------- */
 .breakdown-wrap { overflow-x: auto; }
 .breakdown { width: 100%; border-collapse: collapse; font-size: .82rem; }
@@ -207,6 +211,8 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
     <section class="col col-entry" aria-label="Pallet count entry">
       <h2>Record pallet count</h2>
       <div id="entry"></div>
+      <h2>Inbound / Outbound</h2>
+      <div id="io-summary"></div>
     </section>
 
     <!-- Center: map -->
@@ -590,6 +596,14 @@ function download(filename, text, mime = 'text/plain') {
 // model.js — domain layer: floors, areas, departments, I-beam mappings, and
 // per-area pallet counts. No DOM here.
 
+// Fixed business grouping of departments into flow categories. Two categories
+// cover all six departments; used by the department filter and the
+// Inbound/Outbound summary.
+const CATEGORIES = [
+  { id: 'outbound', name: 'Outbound', deptIds: ['docksort', 'ob-dock', 'sort', 'fluid-load'] },
+  { id: 'inbound', name: 'Inbound', deptIds: ['ib-dock', 'rpn'] },
+];
+
 // Fetch and assemble the static seed manifest. In the single-file standalone
 // build the data is inlined as a global SEED_DATA, so no HTTP/fetch is needed
 // (that build opens straight from disk via file://).
@@ -758,6 +772,16 @@ function createModel(seed) {
     },
 
     totalPallets: () => Object.values(counts).reduce((sum, n) => sum + n, 0),
+
+    // ---- flow categories (Inbound / Outbound) ----
+    categories: () => CATEGORIES.map((c) => ({ ...c, deptIds: c.deptIds.slice() })),
+    categoryOfDept: (deptId) => CATEGORIES.find((c) => c.deptIds.includes(deptId)) || null,
+    // Total pallets across a category's departments (global, all floors — matches
+    // totalPallets()).
+    categoryTotal(catId) {
+      const c = CATEGORIES.find((x) => x.id === catId);
+      return c ? c.deptIds.reduce((sum, id) => sum + api.departmentTotal(id), 0) : 0;
+    },
   };
 
   return api;
@@ -920,6 +944,26 @@ function createBreakdown(root, model, { floorId } = {}) {
     render,
     setFloor(fid) { currentFloorId = fid; render(); },
   };
+}
+
+
+// iosummary.js — Inbound vs Outbound pallet roll-up. A compact read-only summary
+// of the two flow categories plus the grand total. Mirrors panel.js.
+
+function createIoSummary(root, model) {
+  function render() {
+    const out = model.categoryTotal('outbound');
+    const inb = model.categoryTotal('inbound');
+    const total = model.totalPallets();
+    root.innerHTML = `
+      <dl class="panel-stats io-stats">
+        <div><dt>Outbound</dt><dd>${out}</dd></div>
+        <div><dt>Inbound</dt><dd>${inb}</dd></div>
+        <div class="io-total"><dt>Total</dt><dd>${total}</dd></div>
+      </dl>`;
+  }
+  render();
+  return { render };
 }
 
 
@@ -1256,6 +1300,7 @@ function createMapView(root, model, { onSelect, floorId } = {}) {
 
 
 
+
 const $ = (sel) => document.querySelector(sel);
 
 async function main() {
@@ -1282,6 +1327,7 @@ async function main() {
   const legend = createLegend($('#legend'));
   const panel = createPanel($('#panel'), model);
   const breakdown = createBreakdown($('#breakdown'), model, { floorId: currentFloorId });
+  const ioSummary = createIoSummary($('#io-summary'), model);
 
   const map = createMapView($('#map'), model, {
     onSelect: (areaId) => setSelected(areaId), // map click drives editor too
@@ -1321,9 +1367,18 @@ async function main() {
   });
 
   // ---- department filter (dims non-matching areas) ----
+  // Departments are grouped by flow category, and each group offers a
+  // "<Category> (all)" option (value `cat:<id>`) to filter the whole category.
   const deptFilter = $('#deptFilter');
   deptFilter.innerHTML = '<option value="">All departments</option>' +
-    seed.departments.map((d) => `<option value="${d.id}">${d.name}</option>`).join('');
+    model.categories().map((c) => {
+      const opts = c.deptIds
+        .map((id) => model.getDept(id))
+        .filter(Boolean)
+        .map((d) => `<option value="${d.id}">${d.name}</option>`).join('');
+      return `<optgroup label="${c.name}">`
+        + `<option value="cat:${c.id}">${c.name} (all)</option>${opts}</optgroup>`;
+    }).join('');
   deptFilter.addEventListener('change', renderSelection);
   $('#hideEmpty').addEventListener('change', renderSelection);
 
@@ -1395,14 +1450,20 @@ async function main() {
   }
 
   function applyFilterDim() {
-    const dept = deptFilter.value;
+    const sel = deptFilter.value;
     const hideEmpty = $('#hideEmpty').checked;
     const counts = model.countsByArea();
+    // "" = all; "cat:<id>" = a flow category; anything else = a single department.
+    let deptMatch;
+    if (!sel) deptMatch = () => true;
+    else if (sel.startsWith('cat:')) {
+      const catId = sel.slice(4);
+      deptMatch = (a) => { const c = model.categoryOfDept(a.departmentId); return !!c && c.id === catId; };
+    } else deptMatch = (a) => a.departmentId === sel;
     document.querySelectorAll('#map .area').forEach((rect) => {
       const a = model.getArea(rect.dataset.areaId);
-      const deptOk = !dept || a.departmentId === dept;
       const emptyOk = !hideEmpty || counts[a.id] > 0;
-      rect.classList.toggle('is-dimmed', !(deptOk && emptyOk));
+      rect.classList.toggle('is-dimmed', !(deptMatch(a) && emptyOk));
     });
   }
 
@@ -1410,6 +1471,7 @@ async function main() {
     renderColors();
     renderSelection();
     breakdown.render();
+    ioSummary.render();
     updateHeaderCount();
   }
 

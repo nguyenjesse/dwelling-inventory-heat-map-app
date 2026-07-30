@@ -7,6 +7,7 @@ import { createCountEditor } from './form.js';
 import { createPanel } from './panel.js';
 import { createLegend } from './legend.js';
 import { createBreakdown } from './breakdown.js';
+import { createIoSummary } from './iosummary.js';
 import { exportCsv, exportJson, importCounts, download } from './importexport.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -35,6 +36,7 @@ async function main() {
   const legend = createLegend($('#legend'));
   const panel = createPanel($('#panel'), model);
   const breakdown = createBreakdown($('#breakdown'), model, { floorId: currentFloorId });
+  const ioSummary = createIoSummary($('#io-summary'), model);
 
   const map = createMapView($('#map'), model, {
     onSelect: (areaId) => setSelected(areaId), // map click drives editor too
@@ -74,9 +76,18 @@ async function main() {
   });
 
   // ---- department filter (dims non-matching areas) ----
+  // Departments are grouped by flow category, and each group offers a
+  // "<Category> (all)" option (value `cat:<id>`) to filter the whole category.
   const deptFilter = $('#deptFilter');
   deptFilter.innerHTML = '<option value="">All departments</option>' +
-    seed.departments.map((d) => `<option value="${d.id}">${d.name}</option>`).join('');
+    model.categories().map((c) => {
+      const opts = c.deptIds
+        .map((id) => model.getDept(id))
+        .filter(Boolean)
+        .map((d) => `<option value="${d.id}">${d.name}</option>`).join('');
+      return `<optgroup label="${c.name}">`
+        + `<option value="cat:${c.id}">${c.name} (all)</option>${opts}</optgroup>`;
+    }).join('');
   deptFilter.addEventListener('change', renderSelection);
   $('#hideEmpty').addEventListener('change', renderSelection);
 
@@ -148,14 +159,20 @@ async function main() {
   }
 
   function applyFilterDim() {
-    const dept = deptFilter.value;
+    const sel = deptFilter.value;
     const hideEmpty = $('#hideEmpty').checked;
     const counts = model.countsByArea();
+    // "" = all; "cat:<id>" = a flow category; anything else = a single department.
+    let deptMatch;
+    if (!sel) deptMatch = () => true;
+    else if (sel.startsWith('cat:')) {
+      const catId = sel.slice(4);
+      deptMatch = (a) => { const c = model.categoryOfDept(a.departmentId); return !!c && c.id === catId; };
+    } else deptMatch = (a) => a.departmentId === sel;
     document.querySelectorAll('#map .area').forEach((rect) => {
       const a = model.getArea(rect.dataset.areaId);
-      const deptOk = !dept || a.departmentId === dept;
       const emptyOk = !hideEmpty || counts[a.id] > 0;
-      rect.classList.toggle('is-dimmed', !(deptOk && emptyOk));
+      rect.classList.toggle('is-dimmed', !(deptMatch(a) && emptyOk));
     });
   }
 
@@ -163,6 +180,7 @@ async function main() {
     renderColors();
     renderSelection();
     breakdown.render();
+    ioSummary.render();
     updateHeaderCount();
   }
 

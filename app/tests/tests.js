@@ -3,6 +3,7 @@ import { ZERO_COLOR, colorForCount, positiveExtent, colorForRatio, colorMap } fr
 import { validateManifest } from '../js/validate.js';
 import { createModel } from '../js/model.js';
 import { createBreakdown } from '../js/breakdown.js';
+import { createIoSummary } from '../js/iosummary.js';
 import { importCounts, exportCsv } from '../js/importexport.js';
 
 const results = [];
@@ -185,6 +186,40 @@ test('breakdown keeps a group open across a re-render', () => {
   view.render();
   assert(root.querySelector(`.bd-group[data-dept="${deptId}"]`).classList.contains('is-open'),
     'stays open after render');
+});
+
+// ---------- flow categories (inbound / outbound) ----------
+test('categoryOfDept splits the six departments as specified', () => {
+  const m = freshModel();
+  const out = ['docksort', 'ob-dock', 'sort', 'fluid-load'];
+  const inb = ['ib-dock', 'rpn'];
+  out.forEach((d) => eq(m.categoryOfDept(d).id, 'outbound', `${d} should be outbound`));
+  inb.forEach((d) => eq(m.categoryOfDept(d).id, 'inbound', `${d} should be inbound`));
+});
+test('categoryTotal sums only its departments', () => {
+  const m = freshModel();
+  m.setCount('pid-1-2', 3);          // IB Dock -> inbound
+  m.setCount('presort-phase-1', 2);  // IB Dock -> inbound
+  m.setCount('end-of-line-a', 4);    // Sort -> outbound
+  eq(m.categoryTotal('inbound'), 5);
+  eq(m.categoryTotal('outbound'), 4);
+});
+test('every department is categorized: inbound + outbound = total', () => {
+  const m = freshModel();
+  m.setCount('pid-1-2', 3);
+  m.setCount('end-of-line-a', 4);
+  eq(m.categoryTotal('inbound') + m.categoryTotal('outbound'), m.totalPallets());
+});
+test('io summary renders Outbound / Inbound / Total figures', () => {
+  const m = freshModel();
+  m.setCount('pid-1-2', 3);          // inbound
+  m.setCount('end-of-line-a', 4);    // outbound
+  const root = document.createElement('div');
+  createIoSummary(root, m);
+  const dd = [...root.querySelectorAll('.io-stats dd')].map((el) => el.textContent);
+  eq(dd[0], '4'); // Outbound
+  eq(dd[1], '3'); // Inbound
+  eq(dd[2], '7'); // Total
 });
 
 // ---------- migration from legacy records ----------
