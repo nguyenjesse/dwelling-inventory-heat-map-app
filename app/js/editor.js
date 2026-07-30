@@ -82,15 +82,18 @@ function deriveIbeamMappings(areas) {
 
   function drawHandles(id) {
     const g = regions[id];
-    const corners = [['nw', g.x, g.y], ['ne', g.x + g.w, g.y], ['sw', g.x, g.y + g.h], ['se', g.x + g.w, g.y + g.h]];
-    const s = Math.max(6, W / 160);
-    for (const [pos, cx, cy] of corners) {
-      const h = document.createElementNS(SVGNS, 'rect');
-      h.setAttribute('class', 'ed-handle');
-      h.setAttribute('x', cx - s / 2); h.setAttribute('y', cy - s / 2);
-      h.setAttribute('width', s); h.setAttribute('height', s);
-      h.dataset.handle = pos; h.dataset.id = id;
-      svg.appendChild(h);
+    // Skip the resize handles when locked — nothing should be grabbable.
+    if (!locked) {
+      const corners = [['nw', g.x, g.y], ['ne', g.x + g.w, g.y], ['sw', g.x, g.y + g.h], ['se', g.x + g.w, g.y + g.h]];
+      const s = Math.max(6, W / 160);
+      for (const [pos, cx, cy] of corners) {
+        const h = document.createElementNS(SVGNS, 'rect');
+        h.setAttribute('class', 'ed-handle');
+        h.setAttribute('x', cx - s / 2); h.setAttribute('y', cy - s / 2);
+        h.setAttribute('width', s); h.setAttribute('height', s);
+        h.dataset.handle = pos; h.dataset.id = id;
+        svg.appendChild(h);
+      }
     }
     const label = document.createElementNS(SVGNS, 'text');
     label.setAttribute('class', 'ed-label');
@@ -110,9 +113,16 @@ function deriveIbeamMappings(areas) {
 
   // ---- interaction ----
   let drag = null; // {mode:'move'|handle, id, start:{x,y}, orig:{...}}
+  let locked = true; // in-memory; boots locked to prevent accidental drags
   svg.addEventListener('pointerdown', (e) => {
     const handle = e.target.closest('.ed-handle');
     const area = e.target.closest('.ed-area');
+    // When locked, still select on click but never arm a drag/resize.
+    if (locked) {
+      if (handle) setActive(handle.dataset.id);
+      else if (area) setActive(area.dataset.id);
+      return;
+    }
     if (handle) {
       setActive(handle.dataset.id);
       drag = { mode: handle.dataset.handle, id: handle.dataset.id, start: toUnits(e.clientX, e.clientY), orig: { ...regions[handle.dataset.id] } };
@@ -202,6 +212,16 @@ function deriveIbeamMappings(areas) {
     regions[activeId] = round(clampBox({ x: +fx.value || 0, y: +fy.value || 0, w: +fw.value || 4, h: +fh.value || 4 }));
     updateActiveRect();
   }));
+
+  // ---- region lock toggle (in-memory; boots locked) ----
+  const lockToggle = $('#lockRegions');
+  function applyLock() {
+    locked = lockToggle.checked;
+    svg.classList.toggle('locked', locked);
+    drawAll(); // re-render so resize handles appear/disappear
+  }
+  lockToggle.addEventListener('change', applyLock);
+  svg.classList.toggle('locked', locked); // reflect initial state
 
   // ---- area attribute panel (name / pole / department) ----
   const aName = $('#aName'), aPole = $('#aPole'), aDept = $('#aDept'), poleList = $('#poleList');
@@ -307,8 +327,9 @@ function deriveIbeamMappings(areas) {
     status(`Deleted "${a.name}".`);
   });
 
-  // ---- keyboard nudge (skips when typing in a field) ----
+  // ---- keyboard nudge (skips when typing in a field, or when locked) ----
   document.addEventListener('keydown', (e) => {
+    if (locked) return; // lock also freezes arrow-key nudging; use the x/y/w/h fields instead
     if (!activeId || !regions[activeId]) return;
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
     const step = e.shiftKey ? 0 : (e.altKey ? 1 : 4);
