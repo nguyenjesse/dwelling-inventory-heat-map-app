@@ -1,88 +1,67 @@
-# HANDOFF — Code → Code · 2026-07-30 10:42 PT
+# HANDOFF — Code → Code · 2026-07-30 11:35 PT
 
 ## What happened this session
-Picked up the editor area-manager work and used this session as a **cross-device
-save/restore channel** for the user's in-progress region-editor edits. The user
-edited areas in the browser editor on one device, exported the data bundle, and I
-baked each export back into the repo so they could resume elsewhere. Three
-successive exports were applied; the branch now holds a validated **74-area**
-layout with both standalones rebuilt and verified. User confirmed "everything
-looks good."
+Added a **region lock toggle** to the editor (prevents accidental drags), reworded
+the sidebar hint to explain it, then **merged everything to `main`** and cleaned up.
+The long-running multi-branch situation is now **resolved**: all the editor /
+area-manager work + the 74-area dataset + the lock toggle live on `main`.
 
-## Where this lives — branch & PR
-- Branch: **`claude/editor-area-manager-wip`**, PR **#3** (opened from the Claude
-  Code UI — pushing to the branch updates it; do NOT open a new PR).
-- Based off **`claude/editor-area-manager`** (the original area-manager editor
-  code, still unmerged). This wip branch is deliberately kept **separate from both
-  `main` and `claude/editor-area-manager`** — the user asked for a 3rd branch.
-- Latest commit `4be7da7`. Nothing here is merged anywhere.
+## ⚠️ Branch state — this supersedes every earlier handoff
+Earlier batons told you the live branch was `claude/editor-area-manager-wip` (PR #3),
+based off `claude/editor-area-manager`. **That is no longer true. Ignore it.**
+- **`main` is the only branch now** (remote tip `d76b527`, "Merge pull request #4…").
+  All feature branches — `claude/map-editor-work-2t9k73`, `claude/editor-area-manager`,
+  `claude/editor-area-manager-wip` — have been **deleted from the remote**.
+- **PR #4** merged the work to `main`; **PR #3** was closed as superseded. Nothing is unmerged.
+- **Start new work from a fresh branch off `main`.** (This session's local checkout still
+  has stale deleted branches — a fresh clone won't; don't reuse them.)
 
-## Changes on disk
-- `app/data/{areas,regions,ibeam-mappings}.json` — current seed = **74 areas, 6
-  departments, 74 regions, 61 I-beam mappings**. (`departments.json` unchanged all
-  session — still the original 6.)
-- `POC3-Dwelling-Inventory-Map.html` + `POC3-Region-Editor.html` (repo root) —
-  rebuilt from the 74-area data, in sync with `app/data`.
-- No JS/code changes this session — data + regenerated standalones only.
+## Changes on disk (all on `main`)
+- `app/js/editor.js`, `app/editor.html`, `app/css/editor.css` — the lock toggle (see below).
+- `app/data/{areas,departments,regions,ibeam-mappings}.json` — **74 areas, 6 depts, 74 regions, 61 I-beam mappings** (unchanged this session; carried in via the merge).
+- Both root standalones (`POC3-*.html`) — rebuilt via `python3 build/build-standalone.py`.
 
-## The repeatable workflow (this is the whole job)
-For each new export the user hands over:
-1. Split the bundle → `app/data/{areas,departments,regions,ibeam-mappings}.json`
-   (bundle keys: `areas`, `departments`, `regions`, `ibeamMappings`).
-2. Validate with `validateManifest` (must be 0 errors / 0 warnings).
-3. `python3 build/build-standalone.py` to rebuild both standalones.
-4. **Verify from `file://` with a real screenshot** — not just a node count (see
-   gotcha). Confirm box count matches area count and 0 console errors.
-5. Commit (data + standalones together) and push to `claude/editor-area-manager-wip`.
-
-## Files to reference
-- **On disk (durable):** the four `app/data/*.json`, the two root standalones, and
-  `build/build-standalone.py`.
-- **Ephemeral — NOT on disk:** the user's uploaded exports lived at
-  `/root/.claude/uploads/.../poc3mapdata*.json` (session uploads, gone next
-  session — the committed `app/data` is the durable copy). The validator harness
-  was a scratch file at
-  `…/scratchpad/validate.mjs` (also gone) — trivially recreated: a `.mjs` that
-  imports `validateManifest` from `app/js/validate.js`, reads the four
-  `app/data/*.json` into a `{areas, departments, regions, ibeamMappings}` seed, and
-  prints errors/warnings. Run with `node`.
+## The region lock feature (chat-only detail)
+- Header checkbox **`#lockRegions`**, **boots locked** (on by default). State is a plain
+  in-memory `let locked` in `editor.js` — **no persistence**, resets to locked on reload
+  (deliberate, matches the editor's no-storage design).
+- Locked = **no mouse drag, no corner-resize, no arrow-key nudge**. Clicking still *selects*
+  (fields populate). The **x/y/w/h number fields remain the deliberate reposition path** —
+  that's the intended escape hatch, don't "fix" it. Resize handles are hidden while locked.
+- Implemented by guarding `pointerdown`, `drawHandles`, and the `keydown` nudge handler on `locked`.
 
 ## Verification status
-- Latest 74-area build: `validateManifest` **0/0**; both standalones render fully
-  styled from `file://` with **74 boxes each, 0 console errors** (confirmed by
-  actually viewing the screenshots, per the gotcha below).
-- Operator heat map shows all-gray (zero pallets) — correct for fresh counts.
-- The user has been hands-on testing the editor across devices and signed off on
-  the current state.
+- Confirmed in a **real browser from `file://`** (per the standing don't-trust-node-counts gotcha):
+  74 boxes, 0 console errors, and every lock behavior asserted (boots locked; drag & arrow-nudge
+  do nothing while locked; click still selects; x/y/w/h still reposition; unlock restores drag +
+  handles; re-lock hides them). User signed off ("it looks good").
+- **How to re-run the browser check** (the harness for this is chat-only, not in the repo):
+  `npm install playwright-core` (browsers are pre-installed at `/opt/pw-browsers`; do NOT run
+  `playwright install`), launch with `executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'`,
+  and because playwright-core is CommonJS, import it in an `.mjs` via
+  `import pw from 'file:///…/node_modules/playwright-core/index.js'; const {chromium}=pw;`.
+  Delete `node_modules`/`package.json`/`package-lock.json` after — they must NOT be committed
+  (this is a dependency-free static project).
 
 ## Dead ends & gotchas
-- **Editor has no persistence and no re-import.** No localStorage, no FileReader —
-  it always boots from the seed (`SEED_DATA` inlined in the standalone, or
-  `app/data/*.json` when served). The ONLY save path is the editor's **Export
-  data** button → `poc3-map-data.json`. That's why "saving progress" = committing a
-  fresh export into `app/data` and rebuilding.
-- **Served vs. standalone.** The served dev editor (`cd app && python3 -m
-  http.server 8000` → `http://localhost:8000/editor.html`) reads `app/data` live.
-  The double-click `POC3-Region-Editor.html` needs a rebuild to reflect new data.
-  Commit `cabf366` intentionally updated data **without** rebuilding (left
-  standalones stale for one hop); `405d3a6` re-synced them. Current tip is fully in
-  sync — don't be fooled by that mid-history gap.
-- **Don't trust a DOM node count for the standalone** — a node count once hid an
-  unstyled-render bug (favicon regex, older commit cf0c292). Always eyeball a real
-  screenshot.
+- **Branch deletion 403s from here.** `git push origin --delete <branch>` fails with HTTP 403
+  through the agent git proxy (policy block, not transient; retries won't help). The GitHub MCP
+  has no delete-branch tool either. Branch cleanup must be done by the user in the GitHub UI
+  (the user did exactly that this session). Don't burn time fighting it.
+- **`list_pull_requests` `merged` field is unreliable** — it showed `merged:false` for the
+  merged PR #4. `pull_request_read method:get` is authoritative (`merged:true`, `merged_at` set).
+- Standing gotcha still applies: verify the standalone with a **real screenshot**, not a DOM node count.
 
 ## Suggested next steps
-1. If the user hands over another export: run the 5-step workflow above. That's the
-   steady-state loop.
-2. When the user says the layout is final: decide how to fold this back in —
-   likely merge `claude/editor-area-manager-wip` (which contains the editor code
-   *and* the finished data) toward `main`. Confirm with the user first; nothing is
-   merged yet.
-3. Region alignment on Green Mile is close-but-not-pixel-perfect; a few boxes may
-   still want nudging if the user flags them.
+1. **If the user hands over another editor export:** run the steady-state loop — split the bundle
+   into `app/data/{areas,departments,regions,ibeamMappings→ibeam-mappings}.json`, validate with
+   `validateManifest` (0/0), `python3 build/build-standalone.py`, screenshot-verify from `file://`,
+   commit data + standalones together on a fresh branch off `main`.
+2. **Green Mile region alignment** is close-but-not-pixel-perfect — nudge boxes if the user flags them.
+3. Consider suggesting `Claude Package/` be added to `.gitignore` (it's session plumbing, currently
+   tracked on `main` — gitignoring won't untrack it, would need `git rm --cached` too).
 
 ## Open questions
-- **Save = set vs. increment?** (Carried from the prior baton, still unconfirmed.)
-  Operator "Save count" currently *sets* an area's absolute pallet count rather than
-  incrementing. `form.js` would change if the user wants running totals.
-- Final merge target/timing for the wip branch (see next step 2) — user hasn't said.
+- **Save = set vs. increment?** (Still unconfirmed, carried across several batons.) Operator
+  "Save count" currently *sets* an area's absolute pallet count rather than incrementing.
+  `app/js/form.js` changes if the user wants running totals.
