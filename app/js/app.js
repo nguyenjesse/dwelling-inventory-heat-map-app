@@ -27,19 +27,22 @@ async function main() {
 
   const model = createModel(seed);
 
-  // ---- selection state (always empty on load) ----
+  // ---- selection + floor state ----
   let selectedAreaId = null;
+  let currentFloorId = model.defaultFloorId();
 
   const legend = createLegend($('#legend'));
   const panel = createPanel($('#panel'), model);
 
   const map = createMapView($('#map'), model, {
     onSelect: (areaId) => setSelected(areaId), // map click drives editor too
+    floorId: currentFloorId,
   });
 
   const editor = createCountEditor($('#entry'), model, {
     onChange: refresh,
     onSelectArea: (areaId) => setSelected(areaId, { syncEditor: false }),
+    floorId: currentFloorId,
   });
 
   // Single source of truth for the selected area. `syncEditor` pushes the
@@ -50,6 +53,22 @@ async function main() {
     if (syncEditor) editor.selectArea(areaId);
     renderSelection();
   }
+
+  // ---- floor selector ----
+  const floorSelect = $('#floorSelect');
+  const floors = model.floors();
+  floorSelect.innerHTML = floors.map((f) => `<option value="${f.id}">${f.name}</option>`).join('');
+  floorSelect.value = currentFloorId;
+  // Hide the control entirely when there's only one floor — nothing to switch.
+  floorSelect.closest('.floor-control').style.display = floors.length < 2 ? 'none' : '';
+  floorSelect.addEventListener('change', () => {
+    currentFloorId = floorSelect.value;
+    selectedAreaId = null;
+    map.setFloor(currentFloorId);   // rebuilds boxes + background, clears selection
+    editor.setFloor(currentFloorId); // repopulates the area dropdown
+    panel.renderEmpty();
+    refresh();
+  });
 
   // ---- department filter (dims non-matching areas) ----
   const deptFilter = $('#deptFilter');
@@ -104,7 +123,9 @@ async function main() {
 
   // ---- render helpers ----
   function renderColors() {
-    const counts = model.countsByArea();
+    // Heat scale normalizes per visible floor: only this floor's counts feed the
+    // color map and legend extent.
+    const counts = model.countsForFloor(currentFloorId);
     const cmap = colorMap(counts);
     map.setColors(cmap, counts);
     legend.update(positiveExtent(Object.values(counts)));

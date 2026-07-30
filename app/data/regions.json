@@ -1,10 +1,4 @@
 {
-  "meta": {
-    "imageWidth": 1484,
-    "imageHeight": 1060,
-    "image": "green-mile.png",
-    "source": "POC3_Dwelling_Inventory_Map_v1.5"
-  },
   "regions": {
     "docksort-downstack-phase-1": {
       "x": 488,

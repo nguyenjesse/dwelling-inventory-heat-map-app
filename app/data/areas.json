@@ -4,517 +4,591 @@
     "name": "Docksort Downstack Phase 1",
     "departmentId": "docksort",
     "iBeamLocation": "J17",
-    "mapRegionId": "docksort-downstack-phase-1"
+    "mapRegionId": "docksort-downstack-phase-1",
+    "floorId": "floor-1"
   },
   {
     "id": "docksort-downstack-phase-2",
     "name": "Docksort Downstack Phase 2",
     "departmentId": "docksort",
     "iBeamLocation": "J20",
-    "mapRegionId": "docksort-downstack-phase-2"
+    "mapRegionId": "docksort-downstack-phase-2",
+    "floorId": "floor-1"
   },
   {
     "id": "docksort-phase-1",
     "name": "Docksort MP Phase 1",
     "departmentId": "docksort",
     "iBeamLocation": "K18",
-    "mapRegionId": "docksort-phase-1"
+    "mapRegionId": "docksort-phase-1",
+    "floorId": "floor-1"
   },
   {
     "id": "docksort-phase-2",
     "name": "Docksort MP Phase 2",
     "departmentId": "docksort",
     "iBeamLocation": "K19",
-    "mapRegionId": "docksort-phase-2"
+    "mapRegionId": "docksort-phase-2",
+    "floorId": "floor-1"
   },
   {
     "id": "presort-phase-1",
     "name": "Presort Phase 1",
     "departmentId": "ib-dock",
     "iBeamLocation": "H12",
-    "mapRegionId": "presort-phase-1"
+    "mapRegionId": "presort-phase-1",
+    "floorId": "floor-1"
   },
   {
     "id": "presort-phase-2",
     "name": "Presort Phase 2",
     "departmentId": "ib-dock",
     "iBeamLocation": "H26",
-    "mapRegionId": "presort-phase-2"
+    "mapRegionId": "presort-phase-2",
+    "floorId": "floor-1"
   },
   {
     "id": "pid-1-2",
     "name": "PID 1-2",
     "departmentId": "ib-dock",
     "iBeamLocation": "K13",
-    "mapRegionId": "pid-1-2"
+    "mapRegionId": "pid-1-2",
+    "floorId": "floor-1"
   },
   {
     "id": "pid-6-7",
     "name": "PID 6-7",
     "departmentId": "ib-dock",
     "iBeamLocation": "K24",
-    "mapRegionId": "pid-6-7"
+    "mapRegionId": "pid-6-7",
+    "floorId": "floor-1"
   },
   {
     "id": "ib-dock-l16",
     "name": "IB Dock L16",
     "departmentId": "ib-dock",
     "iBeamLocation": "L16",
-    "mapRegionId": "ib-dock-l16"
+    "mapRegionId": "ib-dock-l16",
+    "floorId": "floor-1"
   },
   {
     "id": "ib-dock-l17",
     "name": "IB Dock L17",
     "departmentId": "ib-dock",
     "iBeamLocation": "L17",
-    "mapRegionId": "ib-dock-l17"
+    "mapRegionId": "ib-dock-l17",
+    "floorId": "floor-1"
   },
   {
     "id": "atac",
     "name": "ATAC",
     "departmentId": "ib-dock",
     "iBeamLocation": "L18",
-    "mapRegionId": "atac"
+    "mapRegionId": "atac",
+    "floorId": "floor-1"
   },
   {
     "id": "ib-dock-l19",
     "name": "IB Dock L19",
     "departmentId": "ib-dock",
     "iBeamLocation": "L19",
-    "mapRegionId": "ib-dock-l19"
+    "mapRegionId": "ib-dock-l19",
+    "floorId": "floor-1"
   },
   {
     "id": "ib-dock-l20",
     "name": "IB Dock L20",
     "departmentId": "ib-dock",
     "iBeamLocation": "L20",
-    "mapRegionId": "ib-dock-l20"
+    "mapRegionId": "ib-dock-l20",
+    "floorId": "floor-1"
   },
   {
     "id": "ib-dock-l21",
     "name": "IB Dock L21",
     "departmentId": "ib-dock",
     "iBeamLocation": "L21",
-    "mapRegionId": "ib-dock-l21"
+    "mapRegionId": "ib-dock-l21",
+    "floorId": "floor-1"
   },
   {
     "id": "ib-dock-l22",
     "name": "IB Dock L22",
     "departmentId": "ib-dock",
     "iBeamLocation": "L22",
-    "mapRegionId": "ib-dock-l22"
+    "mapRegionId": "ib-dock-l22",
+    "floorId": "floor-1"
   },
   {
     "id": "ob-tote-pallet-buffer-d16",
     "name": "OB Dock Lanes",
     "departmentId": "ob-dock",
     "iBeamLocation": "D16",
-    "mapRegionId": "ob-tote-pallet-buffer-d16"
+    "mapRegionId": "ob-tote-pallet-buffer-d16",
+    "floorId": "floor-1"
   },
   {
     "id": "ob-tote-pallet-buffer-d18",
     "name": "Sort WIP Buffer A",
     "departmentId": "sort",
     "iBeamLocation": "D18",
-    "mapRegionId": "ob-tote-pallet-buffer-d18"
+    "mapRegionId": "ob-tote-pallet-buffer-d18",
+    "floorId": "floor-1"
   },
   {
     "id": "ob-tote-pallet-buffer-d20",
     "name": "Sort WIP Buffer E5-8",
     "departmentId": "sort",
     "iBeamLocation": "C20",
-    "mapRegionId": "ob-tote-pallet-buffer-d20"
+    "mapRegionId": "ob-tote-pallet-buffer-d20",
+    "floorId": "floor-1"
   },
   {
     "id": "fluid-lane-9-10",
     "name": "Fluid Lane 9-10",
     "departmentId": "fluid-load",
     "iBeamLocation": "E22",
-    "mapRegionId": "fluid-lane-9-10"
+    "mapRegionId": "fluid-lane-9-10",
+    "floorId": "floor-1"
   },
   {
     "id": "fluid-lane-10-11",
     "name": "Fluid Lane 10-11",
     "departmentId": "fluid-load",
     "iBeamLocation": "E23",
-    "mapRegionId": "fluid-lane-10-11"
+    "mapRegionId": "fluid-lane-10-11",
+    "floorId": "floor-1"
   },
   {
     "id": "fluid-lane-13-14",
     "name": "Fluid Lane 13-14",
     "departmentId": "fluid-load",
     "iBeamLocation": "E25",
-    "mapRegionId": "fluid-lane-13-14"
+    "mapRegionId": "fluid-lane-13-14",
+    "floorId": "floor-1"
   },
   {
     "id": "fluid-lane-14-15",
     "name": "Fluid Lane 14-15",
     "departmentId": "fluid-load",
     "iBeamLocation": "E25",
-    "mapRegionId": "fluid-lane-14-15"
+    "mapRegionId": "fluid-lane-14-15",
+    "floorId": "floor-1"
   },
   {
     "id": "fluid-lane-15-16",
     "name": "Fluid Lane 15-16",
     "departmentId": "fluid-load",
     "iBeamLocation": "E26",
-    "mapRegionId": "fluid-lane-15-16"
+    "mapRegionId": "fluid-lane-15-16",
+    "floorId": "floor-1"
   },
   {
     "id": "fluid-lane-1-2",
     "name": "Fluid Lane 1-2",
     "departmentId": "fluid-load",
     "iBeamLocation": "F11",
-    "mapRegionId": "fluid-lane-1-2"
+    "mapRegionId": "fluid-lane-1-2",
+    "floorId": "floor-1"
   },
   {
     "id": "fluid-lane-2-3",
     "name": "Fluid Lane 2-3",
     "departmentId": "fluid-load",
     "iBeamLocation": "F12",
-    "mapRegionId": "fluid-lane-2-3"
+    "mapRegionId": "fluid-lane-2-3",
+    "floorId": "floor-1"
   },
   {
     "id": "fluid-lane-3-4",
     "name": "Fluid Lane 3-4",
     "departmentId": "fluid-load",
     "iBeamLocation": "F12",
-    "mapRegionId": "fluid-lane-3-4"
+    "mapRegionId": "fluid-lane-3-4",
+    "floorId": "floor-1"
   },
   {
     "id": "fluid-lane-6-7",
     "name": "Fluid Lane 6-7",
     "departmentId": "fluid-load",
     "iBeamLocation": "F14",
-    "mapRegionId": "fluid-lane-6-7"
+    "mapRegionId": "fluid-lane-6-7",
+    "floorId": "floor-1"
   },
   {
     "id": "end-of-line-i",
     "name": "End of Line I",
     "departmentId": "rpn",
     "iBeamLocation": "E20",
-    "mapRegionId": "end-of-line-i"
+    "mapRegionId": "end-of-line-i",
+    "floorId": "floor-1"
   },
   {
     "id": "end-of-line-j",
     "name": "End of Line J",
     "departmentId": "rpn",
     "iBeamLocation": "E21",
-    "mapRegionId": "end-of-line-j"
+    "mapRegionId": "end-of-line-j",
+    "floorId": "floor-1"
   },
   {
     "id": "rpn-wip-sdc-arcs-p1",
     "name": "SDC Palletization Phase 1",
     "departmentId": "ob-dock",
     "iBeamLocation": "G14",
-    "mapRegionId": "rpn-wip-sdc-arcs-p1"
+    "mapRegionId": "rpn-wip-sdc-arcs-p1",
+    "floorId": "floor-1"
   },
   {
     "id": "rpn-wip-sdc-arcs-p2",
     "name": "SDC Palletization Phase 2",
     "departmentId": "ob-dock",
     "iBeamLocation": "G23",
-    "mapRegionId": "rpn-wip-sdc-arcs-p2"
+    "mapRegionId": "rpn-wip-sdc-arcs-p2",
+    "floorId": "floor-1"
   },
   {
     "id": "each-prep-buffer",
     "name": "Prep Buffer",
     "departmentId": "rpn",
     "iBeamLocation": "J22",
-    "mapRegionId": "each-prep-buffer"
+    "mapRegionId": "each-prep-buffer",
+    "floorId": "floor-1"
   },
   {
     "id": "rpn-recirc-p1",
     "name": "Recirc Phase 1",
     "departmentId": "ib-dock",
     "iBeamLocation": "G15",
-    "mapRegionId": "rpn-recirc-p1"
+    "mapRegionId": "rpn-recirc-p1",
+    "floorId": "floor-1"
   },
   {
     "id": "rpn-recirc-p2",
     "name": "Recirc Phase 2",
     "departmentId": "rpn",
     "iBeamLocation": "H22",
-    "mapRegionId": "rpn-recirc-p2"
+    "mapRegionId": "rpn-recirc-p2",
+    "floorId": "floor-1"
   },
   {
     "id": "end-of-line-a",
     "name": "End of Line A",
     "departmentId": "sort",
     "iBeamLocation": "E16",
-    "mapRegionId": "end-of-line-a"
+    "mapRegionId": "end-of-line-a",
+    "floorId": "floor-1"
   },
   {
     "id": "end-of-line-b",
     "name": "End of Line B",
     "departmentId": "sort",
     "iBeamLocation": "E16",
-    "mapRegionId": "end-of-line-b"
+    "mapRegionId": "end-of-line-b",
+    "floorId": "floor-1"
   },
   {
     "id": "end-of-line-c",
     "name": "End of Line C",
     "departmentId": "sort",
     "iBeamLocation": "E17",
-    "mapRegionId": "end-of-line-c"
+    "mapRegionId": "end-of-line-c",
+    "floorId": "floor-1"
   },
   {
     "id": "end-of-line-d",
     "name": "End of Line D",
     "departmentId": "sort",
     "iBeamLocation": "E17",
-    "mapRegionId": "end-of-line-d"
+    "mapRegionId": "end-of-line-d",
+    "floorId": "floor-1"
   },
   {
     "id": "end-of-line-e",
     "name": "End of Line E",
     "departmentId": "sort",
     "iBeamLocation": "E18",
-    "mapRegionId": "end-of-line-e"
+    "mapRegionId": "end-of-line-e",
+    "floorId": "floor-1"
   },
   {
     "id": "end-of-line-f",
     "name": "End of Line F",
     "departmentId": "sort",
     "iBeamLocation": "E19",
-    "mapRegionId": "end-of-line-f"
+    "mapRegionId": "end-of-line-f",
+    "floorId": "floor-1"
   },
   {
     "id": "end-of-line-g",
     "name": "End of Line G",
     "departmentId": "sort",
     "iBeamLocation": "E19",
-    "mapRegionId": "end-of-line-g"
+    "mapRegionId": "end-of-line-g",
+    "floorId": "floor-1"
   },
   {
     "id": "end-of-line-h",
     "name": "End of Line H",
     "departmentId": "sort",
     "iBeamLocation": "E20",
-    "mapRegionId": "end-of-line-h"
+    "mapRegionId": "end-of-line-h",
+    "floorId": "floor-1"
   },
   {
     "id": "sort-overflow-buffer",
     "name": "OB Dock Overflow",
     "departmentId": "ob-dock",
     "iBeamLocation": "E15",
-    "mapRegionId": "sort-overflow-buffer"
+    "mapRegionId": "sort-overflow-buffer",
+    "floorId": "floor-1"
   },
   {
     "id": "b-c-buffer-9-12",
     "name": "B-C Buffer 9-12",
     "departmentId": "sort",
     "iBeamLocation": "F17",
-    "mapRegionId": "b-c-buffer-9-12"
+    "mapRegionId": "b-c-buffer-9-12",
+    "floorId": "floor-1"
   },
   {
     "id": "a-buffer-5-8",
     "name": "A Buffer 5-8",
     "departmentId": "sort",
     "iBeamLocation": "G16",
-    "mapRegionId": "a-buffer-5-8"
+    "mapRegionId": "a-buffer-5-8",
+    "floorId": "floor-1"
   },
   {
     "id": "a-buffer-1-4",
     "name": "A Buffer 1-4",
     "departmentId": "sort",
     "iBeamLocation": "H16",
-    "mapRegionId": "a-buffer-1-4"
+    "mapRegionId": "a-buffer-1-4",
+    "floorId": "floor-1"
   },
   {
     "id": "new-area",
     "name": "Catwalk RTI Phase 1",
     "departmentId": "fluid-load",
     "iBeamLocation": "G10",
-    "mapRegionId": "new-area"
+    "mapRegionId": "new-area",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-ob-dock-overflow",
     "name": "AMZXL PDX6 Buffer",
     "departmentId": "ob-dock",
     "iBeamLocation": "F15",
-    "mapRegionId": "copy-of-ob-dock-overflow"
+    "mapRegionId": "copy-of-ob-dock-overflow",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-each-prep-buffer",
     "name": "Each Buffer",
     "departmentId": "rpn",
     "iBeamLocation": "J22",
-    "mapRegionId": "copy-of-each-prep-buffer"
+    "mapRegionId": "copy-of-each-prep-buffer",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-sort-buffer-c",
     "name": "Sort WIP Buffer F4-6",
     "departmentId": "sort",
     "iBeamLocation": "C20",
-    "mapRegionId": "copy-of-sort-buffer-c"
+    "mapRegionId": "copy-of-sort-buffer-c",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-sort-buffer-a-2",
     "name": "Sort WIP Buffer B1-4",
     "departmentId": "sort",
     "iBeamLocation": "D19",
-    "mapRegionId": "copy-of-sort-buffer-a-2"
+    "mapRegionId": "copy-of-sort-buffer-a-2",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-sort-wip-buffer-b1-4",
     "name": "Sort WIP Buffer C1-6",
     "departmentId": "sort",
     "iBeamLocation": "D19",
-    "mapRegionId": "copy-of-sort-wip-buffer-b1-4"
+    "mapRegionId": "copy-of-sort-wip-buffer-b1-4",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-sort-wip-buffer-c1-6",
     "name": "Sort WIP Buffer D1-3",
     "departmentId": "sort",
     "iBeamLocation": "D20",
-    "mapRegionId": "copy-of-sort-wip-buffer-c1-6"
+    "mapRegionId": "copy-of-sort-wip-buffer-c1-6",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-sort-buffer-c-2",
     "name": "Sort WIP Buffer E1-4",
     "departmentId": "sort",
     "iBeamLocation": "D20",
-    "mapRegionId": "copy-of-sort-buffer-c-2"
+    "mapRegionId": "copy-of-sort-buffer-c-2",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-sort-buffer-d",
     "name": "Sort WIP Buffer F1-3",
     "departmentId": "sort",
     "iBeamLocation": "D21",
-    "mapRegionId": "copy-of-sort-buffer-d"
+    "mapRegionId": "copy-of-sort-buffer-d",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-sort-wip-buffer-f1-3",
     "name": "Outbound Overflow 1",
     "departmentId": "fluid-load",
     "iBeamLocation": "D21",
-    "mapRegionId": "copy-of-sort-wip-buffer-f1-3"
+    "mapRegionId": "copy-of-sort-wip-buffer-f1-3",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-copy-of-sort-wip-buffer-f1-3",
     "name": "Outbound Overflow 2",
     "departmentId": "fluid-load",
     "iBeamLocation": "C21",
-    "mapRegionId": "copy-of-copy-of-sort-wip-buffer-f1-3"
+    "mapRegionId": "copy-of-copy-of-sort-wip-buffer-f1-3",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-copy-of-copy-of-sort-wip-buffer-f1-3",
     "name": "Outbound Overflow 3",
     "departmentId": "fluid-load",
     "iBeamLocation": "C21",
-    "mapRegionId": "copy-of-copy-of-copy-of-sort-wip-buffer-f1-3"
+    "mapRegionId": "copy-of-copy-of-copy-of-sort-wip-buffer-f1-3",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-catwalk-rti-phase-1",
     "name": "Catwalk RTI Phase 2",
     "departmentId": "fluid-load",
     "iBeamLocation": "G27",
-    "mapRegionId": "copy-of-catwalk-rti-phase-1"
+    "mapRegionId": "copy-of-catwalk-rti-phase-1",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-a-buffer-1-4",
     "name": "B-C Buffer 1-4",
     "departmentId": "sort",
     "iBeamLocation": "H17",
-    "mapRegionId": "copy-of-a-buffer-1-4"
+    "mapRegionId": "copy-of-a-buffer-1-4",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-b-c-buffer-1-4",
     "name": "D-E Buffer 1-4",
     "departmentId": "sort",
     "iBeamLocation": "H18",
-    "mapRegionId": "copy-of-b-c-buffer-1-4"
+    "mapRegionId": "copy-of-b-c-buffer-1-4",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-d-e-buffer-1-4",
     "name": "F-G Buffer 1-4",
     "departmentId": "sort",
     "iBeamLocation": "H19",
-    "mapRegionId": "copy-of-d-e-buffer-1-4"
+    "mapRegionId": "copy-of-d-e-buffer-1-4",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-f-g-buffer-1-4",
     "name": "H-I Buffer 1-4",
     "departmentId": "sort",
     "iBeamLocation": "H20",
-    "mapRegionId": "copy-of-f-g-buffer-1-4"
+    "mapRegionId": "copy-of-f-g-buffer-1-4",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-a-buffer-5-8",
     "name": "B-C Buffer 5-8",
     "departmentId": "sort",
     "iBeamLocation": "G17",
-    "mapRegionId": "copy-of-a-buffer-5-8"
+    "mapRegionId": "copy-of-a-buffer-5-8",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-b-c-buffer-5-8",
     "name": "D-E Buffer 5-8",
     "departmentId": "sort",
     "iBeamLocation": "G18",
-    "mapRegionId": "copy-of-b-c-buffer-5-8"
+    "mapRegionId": "copy-of-b-c-buffer-5-8",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-d-e-buffer-5-8",
     "name": "F-G Buffer 5-8",
     "departmentId": "sort",
     "iBeamLocation": "G19",
-    "mapRegionId": "copy-of-d-e-buffer-5-8"
+    "mapRegionId": "copy-of-d-e-buffer-5-8",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-f-g-buffer-5-8",
     "name": "H-I Buffer 5-8",
     "departmentId": "sort",
     "iBeamLocation": "G20",
-    "mapRegionId": "copy-of-f-g-buffer-5-8"
+    "mapRegionId": "copy-of-f-g-buffer-5-8",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-b-c-buffer-9-12",
     "name": "D-E Buffer 9-12",
     "departmentId": "sort",
     "iBeamLocation": "F18",
-    "mapRegionId": "copy-of-b-c-buffer-9-12"
+    "mapRegionId": "copy-of-b-c-buffer-9-12",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-d-e-buffer-9-12",
     "name": "F-G Buffer 9-12",
     "departmentId": "sort",
     "iBeamLocation": "F19",
-    "mapRegionId": "copy-of-d-e-buffer-9-12"
+    "mapRegionId": "copy-of-d-e-buffer-9-12",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-f-g-buffer-9-12",
     "name": "H-I Buffer 9-12",
     "departmentId": "sort",
     "iBeamLocation": "F20",
-    "mapRegionId": "copy-of-f-g-buffer-9-12"
+    "mapRegionId": "copy-of-f-g-buffer-9-12",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-recirc-phase-2",
     "name": "RPN F21",
     "departmentId": "rpn",
     "iBeamLocation": "F21",
-    "mapRegionId": "copy-of-recirc-phase-2"
+    "mapRegionId": "copy-of-recirc-phase-2",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-ib-dock-l19",
     "name": "Misships",
     "departmentId": "ib-dock",
     "iBeamLocation": "L19",
-    "mapRegionId": "copy-of-ib-dock-l19"
+    "mapRegionId": "copy-of-ib-dock-l19",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-presort-phase-1",
     "name": "Inbound Overflow",
     "departmentId": "ib-dock",
     "iBeamLocation": "K10",
-    "mapRegionId": "copy-of-presort-phase-1"
+    "mapRegionId": "copy-of-presort-phase-1",
+    "floorId": "floor-1"
   },
   {
     "id": "copy-of-sort-wip-buffer-b1-4-2",
     "name": "Sort WIP Buffer B5-8",
     "departmentId": "sort",
     "iBeamLocation": "C19",
-    "mapRegionId": "copy-of-sort-wip-buffer-b1-4-2"
+    "mapRegionId": "copy-of-sort-wip-buffer-b1-4-2",
+    "floorId": "floor-1"
   }
 ]

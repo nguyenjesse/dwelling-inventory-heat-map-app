@@ -1,16 +1,14 @@
 // map.js — interactive SVG map overlay: heat fills, selection/zone outlines,
-// hover tooltip, keyboard support, and zoom/pan.
+// hover tooltip, keyboard support, and zoom/pan. Renders one floor at a time;
+// call setFloor() to switch which floor's plan + boxes are shown.
+
+import { bgSrcFor } from './model.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 
-export function createMapView(root, model, { onSelect } = {}) {
-  const meta = model.regions.meta || { imageWidth: 1808, imageHeight: 1125 };
+export function createMapView(root, model, { onSelect, floorId } = {}) {
   const regions = model.regions.regions || model.regions;
-  // Standalone build injects the background as a data: URI (BG_IMAGE_DATA_URI);
-  // served build falls back to the file in assets/.
-  const bgImage = (typeof BG_IMAGE_DATA_URI !== 'undefined' && BG_IMAGE_DATA_URI)
-    ? BG_IMAGE_DATA_URI
-    : './assets/' + (meta.image || 'floor-plan.png');
+  let currentFloorId = floorId || model.defaultFloorId();
 
   root.innerHTML = `
     <div class="map-toolbar">
@@ -20,36 +18,53 @@ export function createMapView(root, model, { onSelect } = {}) {
     </div>
     <div class="map-viewport" tabindex="0">
       <div class="map-pan">
-        <img class="floor-plan" src="${bgImage}" alt="Warehouse floor plan" draggable="false" />
-        <svg class="map-overlay" viewBox="0 0 ${meta.imageWidth} ${meta.imageHeight}" preserveAspectRatio="xMidYMid meet"></svg>
+        <img class="floor-plan" src="" alt="Warehouse floor plan" draggable="false" />
+        <svg class="map-overlay" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"></svg>
       </div>
     </div>
     <div class="map-tooltip" hidden></div>`;
 
   const viewport = root.querySelector('.map-viewport');
   const pan = root.querySelector('.map-pan');
+  const img = root.querySelector('.floor-plan');
   const svg = root.querySelector('.map-overlay');
   const tooltip = root.querySelector('.map-tooltip');
 
-  // --- build one <rect> per area ---
   const rectByArea = new Map();
-  for (const area of model.seed.areas) {
-    const g = regions[area.mapRegionId || area.id];
-    if (!g) continue;
-    const rect = document.createElementNS(SVGNS, 'rect');
-    rect.setAttribute('x', g.x); rect.setAttribute('y', g.y);
-    rect.setAttribute('width', Math.max(1, g.w)); rect.setAttribute('height', Math.max(1, g.h));
-    rect.setAttribute('rx', 2);
-    rect.classList.add('area');
-    rect.dataset.areaId = area.id;
-    rect.setAttribute('tabindex', '0');
-    rect.setAttribute('role', 'button');
-    rect.setAttribute('aria-label', area.name);
-    svg.appendChild(rect);
-    rectByArea.set(area.id, rect);
+  let counts = {};
+  let lastColorMap = {};
+
+  // --- (re)build rects + background for one floor ---
+  function renderFloor(fid) {
+    currentFloorId = fid;
+    const floor = model.getFloor(fid) || { imageWidth: 1808, imageHeight: 1125 };
+    img.src = bgSrcFor(floor);
+    svg.setAttribute('viewBox', `0 0 ${floor.imageWidth} ${floor.imageHeight}`);
+    svg.innerHTML = '';
+    rectByArea.clear();
+    for (const area of model.areasOnFloor(fid)) {
+      const g = regions[area.mapRegionId || area.id];
+      if (!g) continue;
+      const rect = document.createElementNS(SVGNS, 'rect');
+      rect.setAttribute('x', g.x); rect.setAttribute('y', g.y);
+      rect.setAttribute('width', Math.max(1, g.w)); rect.setAttribute('height', Math.max(1, g.h));
+      rect.setAttribute('rx', 2);
+      rect.classList.add('area');
+      rect.dataset.areaId = area.id;
+      rect.setAttribute('tabindex', '0');
+      rect.setAttribute('role', 'button');
+      rect.setAttribute('aria-label', area.name);
+      svg.appendChild(rect);
+      rectByArea.set(area.id, rect);
+    }
+    applyColors();
   }
 
-  let counts = {};
+  function applyColors() {
+    for (const [areaId, rect] of rectByArea) {
+      rect.style.fill = lastColorMap[areaId] || '#808080';
+    }
+  }
 
   // --- selection ---
   function select(areaId) { if (onSelect) onSelect(areaId); }
@@ -83,9 +98,8 @@ export function createMapView(root, model, { onSelect } = {}) {
   // --- heat colors ---
   function setColors(colorMap, countsByArea) {
     counts = countsByArea || {};
-    for (const [areaId, rect] of rectByArea) {
-      rect.style.fill = colorMap[areaId] || '#808080';
-    }
+    lastColorMap = colorMap || {};
+    applyColors();
   }
 
   // --- selection outlines ---
@@ -148,5 +162,16 @@ export function createMapView(root, model, { onSelect } = {}) {
   viewport.addEventListener('pointerup', endDrag);
   viewport.addEventListener('pointercancel', endDrag);
 
-  return { setColors, setSelection, clearSelection, fit };
+  // Switch which floor is shown: rebuild boxes + background, reset zoom, and
+  // drop any selection (the selected area may not live on the new floor).
+  function setFloor(fid) {
+    renderFloor(fid);
+    fit();
+    clearSelection();
+  }
+
+  // initial paint
+  renderFloor(currentFloorId);
+
+  return { setColors, setSelection, clearSelection, fit, setFloor };
 }

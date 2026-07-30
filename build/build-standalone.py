@@ -63,6 +63,7 @@ def strip_module_syntax(src: str) -> str:
 def load_seed() -> dict:
     data = APP / "data"
     return {
+        "floors": json.loads((data / "floors.json").read_text()),
         "areas": json.loads((data / "areas.json").read_text()),
         "departments": json.loads((data / "departments.json").read_text()),
         "ibeamMappings": json.loads((data / "ibeam-mappings.json").read_text()),
@@ -70,15 +71,25 @@ def load_seed() -> dict:
     }
 
 
-def image_data_uri(seed: dict) -> str:
-    meta = seed["regions"].get("meta", {})
-    name = meta.get("image", "floor-plan.png")
+def _data_uri(name: str) -> str:
     img = APP / "assets" / name
     ext = img.suffix.lower().lstrip(".")
     mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
             "gif": "image/gif", "webp": "image/webp"}.get(ext, "image/png")
     b64 = base64.b64encode(img.read_bytes()).decode("ascii")
     return f"data:{mime};base64,{b64}"
+
+
+def image_data_uris(seed: dict) -> dict:
+    """{ image filename -> base64 data: URI } for every floor's background."""
+    names = []
+    for floor in seed.get("floors", []):
+        name = floor.get("image")
+        if name and name not in names:
+            names.append(name)
+    if not names:  # pre-floor fallback
+        names = [seed["regions"].get("meta", {}).get("image", "floor-plan.png")]
+    return {name: _data_uri(name) for name in names}
 
 
 def body_from(html: str) -> str:
@@ -98,7 +109,7 @@ def favicon_from(html: str) -> str:
 
 
 def build(out: Path, title: str, source_html_name: str, js_order, css_names,
-          seed: dict, bg_uri: str) -> None:
+          seed: dict, bg_uris: dict) -> None:
     source_html = (APP / source_html_name).read_text()
     css = "\n".join((APP / "css" / name).read_text() for name in css_names)
     body = body_from(source_html)
@@ -110,7 +121,7 @@ def build(out: Path, title: str, source_html_name: str, js_order, css_names,
     inlined_data = (
         "// ---- inlined by build/build-standalone.py (no server needed) ----\n"
         f"const SEED_DATA = {json.dumps(seed)};\n"
-        f"const BG_IMAGE_DATA_URI = {json.dumps(bg_uri)};\n"
+        f"const BG_IMAGE_DATA_URIS = {json.dumps(bg_uris)};\n"
     )
 
     out.write_text(f"""<!doctype html>
@@ -139,12 +150,12 @@ def build(out: Path, title: str, source_html_name: str, js_order, css_names,
 
 def main() -> None:
     seed = load_seed()
-    bg_uri = image_data_uri(seed)
+    bg_uris = image_data_uris(seed)
 
     build(APP_OUT, "POC3 Dwelling Inventory Map", "index.html",
-          APP_JS_ORDER, ["styles.css"], seed, bg_uri)
+          APP_JS_ORDER, ["styles.css"], seed, bg_uris)
     build(EDITOR_OUT, "Region Editor — POC3 Map", "editor.html",
-          EDITOR_JS_ORDER, ["styles.css", "editor.css"], seed, bg_uri)
+          EDITOR_JS_ORDER, ["styles.css", "editor.css"], seed, bg_uris)
 
     print("Double-click either file to run — no server required.")
 

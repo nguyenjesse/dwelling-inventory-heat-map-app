@@ -2,20 +2,13 @@
 // department) or have one pushed in from a map-region click, then type the
 // area's pallet count directly. Replaces the old scan-one-container form.
 
-export function createCountEditor(root, model, { onChange, onSelectArea } = {}) {
-  const optgroups = model.seed.departments.map((d) => {
-    const opts = model.areasInDept(d.id)
-      .map((a) => `<option value="${a.id}">${a.name}</option>`).join('');
-    return `<optgroup label="${d.name}">${opts}</optgroup>`;
-  }).join('');
-
+export function createCountEditor(root, model, { onChange, onSelectArea, floorId } = {}) {
   root.innerHTML = `
     <form class="entry-form" autocomplete="off" novalidate>
       <div class="field">
         <label for="areaSelect">Area</label>
         <select id="areaSelect" name="areaSelect">
           <option value="">Select an area…</option>
-          ${optgroups}
         </select>
       </div>
       <div class="field">
@@ -50,6 +43,22 @@ export function createCountEditor(root, model, { onChange, onSelectArea } = {}) 
   function setMsg(text, kind = '') {
     msgEl.textContent = text || '';
     msgEl.className = 'form-msg' + (kind ? ' ' + kind : '');
+  }
+
+  // Rebuild the area dropdown for one floor (departments are global; only that
+  // floor's areas are listed). Clears the current selection.
+  function buildOptions(fid) {
+    const onFloor = new Set(model.areasOnFloor(fid).map((a) => a.id));
+    const optgroups = model.seed.departments.map((d) => {
+      const opts = model.areasInDept(d.id)
+        .filter((a) => onFloor.has(a.id))
+        .map((a) => `<option value="${a.id}">${a.name}</option>`).join('');
+      return opts ? `<optgroup label="${d.name}">${opts}</optgroup>` : '';
+    }).join('');
+    areaEl.innerHTML = `<option value="">Select an area…</option>${optgroups}`;
+    areaEl.value = '';
+    setMsg('');
+    populate();
   }
 
   // Populate the read-only fields + count for the currently selected area.
@@ -121,10 +130,15 @@ export function createCountEditor(root, model, { onChange, onSelectArea } = {}) 
     }
   }
 
+  // initial population for the starting floor
+  buildOptions(floorId || model.defaultFloorId());
+
   return {
     selectArea,
     getAreaId: () => areaEl.value || null,
     // Re-read the current area's stored count (after external changes/import).
     refresh: () => populate(),
+    // Repopulate the dropdown for a different floor.
+    setFloor: (fid) => buildOptions(fid),
   };
 }

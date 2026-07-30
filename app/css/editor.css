@@ -17,6 +17,11 @@
 .ed-dept-row select { flex: 1; min-width: 0; }
 .btn.ed-mini { padding: .3rem .5rem; font-size: .85rem; line-height: 1; }
 
+/* floor selector in the editor header */
+.floor-group { display: inline-flex; align-items: center; gap: .3rem; }
+.floor-label { display: inline-flex; align-items: center; gap: .3rem; font-size: .82rem; color: var(--muted); }
+.floor-label select { font: inherit; padding: .35rem .4rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+
 .area-list { list-style: none; margin: 0; padding: 0; overflow: auto; }
 .area-list li { padding: .4rem .5rem; border-radius: 5px; cursor: pointer; font-size: .84rem; display: flex; justify-content: space-between; gap: .4rem; }
 .area-list li:hover { background: #eef1f4; }

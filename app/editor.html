@@ -15,7 +15,13 @@
       <span class="subtitle">Create, name &amp; place areas · assign Pole + Department · export the data</span>
     </div>
     <div class="header-tools">
-      <label class="btn">Load background…<input id="bgFile" type="file" accept="image/*" hidden /></label>
+      <span class="floor-group" title="Switch, add, rename or delete floors">
+        <label class="floor-label">Floor <select id="floorSelect"></select></label>
+        <button id="addFloor" class="btn ed-mini" title="Add floor (name it + load its background)">＋</button>
+        <button id="renameFloor" class="btn ed-mini" title="Rename this floor">✎</button>
+        <button id="delFloor" class="btn ed-mini" title="Delete this floor">🗑</button>
+      </span>
+      <label class="btn" title="Replace the current floor's background image">Load background…<input id="bgFile" type="file" accept="image/*" hidden /></label>
       <label class="btn" title="Prevent accidental dragging — clicking still selects a region; edit x/y/w/h to reposition">🔒 <input id="lockRegions" type="checkbox" checked /> Lock regions</label>
       <button id="exportData" class="btn btn-primary">Export data</button>
       <a class="btn" href="./index.html">← Back to app</a>
