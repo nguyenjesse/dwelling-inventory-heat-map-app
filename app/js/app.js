@@ -6,6 +6,7 @@ import { createMapView } from './map.js';
 import { createCountEditor } from './form.js';
 import { createPanel } from './panel.js';
 import { createLegend } from './legend.js';
+import { createBreakdown } from './breakdown.js';
 import { exportCsv, exportJson, importCounts, download } from './importexport.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -33,6 +34,7 @@ async function main() {
 
   const legend = createLegend($('#legend'));
   const panel = createPanel($('#panel'), model);
+  const breakdown = createBreakdown($('#breakdown'), model, { floorId: currentFloorId });
 
   const map = createMapView($('#map'), model, {
     onSelect: (areaId) => setSelected(areaId), // map click drives editor too
@@ -66,6 +68,7 @@ async function main() {
     selectedAreaId = null;
     map.setFloor(currentFloorId);   // rebuilds boxes + background, clears selection
     editor.setFloor(currentFloorId); // repopulates the area dropdown
+    breakdown.setFloor(currentFloorId); // re-rolls the per-department table
     panel.renderEmpty();
     refresh();
   });
@@ -159,6 +162,7 @@ async function main() {
   function refresh() {
     renderColors();
     renderSelection();
+    breakdown.render();
     updateHeaderCount();
   }
 

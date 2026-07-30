@@ -133,6 +133,30 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 .row-actions button { border: none; background: none; cursor: pointer; color: var(--muted); font-size: .8rem; padding: .1rem .3rem; border-radius: 4px; }
 .row-actions button:hover { background: #eef1f4; color: var(--text); }
 
+/* ---------- area breakdown ---------- */
+.breakdown-wrap { overflow-x: auto; }
+.breakdown { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.breakdown thead th { text-align: left; font-size: .72rem; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: .25rem .3rem; border-bottom: 1px solid var(--border); }
+.breakdown .bd-num { text-align: right; font-variant-numeric: tabular-nums; }
+.bd-dept { cursor: pointer; }
+.bd-dept:hover { background: #eef1f4; }
+.bd-dept:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.bd-dept td { padding: .35rem .3rem; border-bottom: 1px solid var(--border); font-weight: 600; }
+.bd-dept-name { display: flex; align-items: center; gap: .35rem; }
+.bd-caret { display: inline-block; width: .6em; color: var(--muted); transition: transform .12s; }
+.bd-caret::before { content: "\25B8"; } /* ▸ */
+.bd-group.is-open .bd-caret { transform: rotate(90deg); }
+/* sub-rows hidden until the group is expanded */
+.bd-sub { display: none; }
+.bd-group.is-open .bd-sub { display: table-row; }
+.bd-sub > td { padding: 0 0 .3rem .3rem; }
+.bd-inner { width: 100%; border-collapse: collapse; }
+.bd-inner th { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .03em;
+  color: var(--muted); font-weight: 600; padding: .2rem .3rem; }
+.bd-inner td { padding: .2rem .3rem; border-bottom: 1px solid var(--border); color: var(--text); }
+.bd-inner tr:last-child td { border-bottom: none; }
+
 /* ---------- legend ---------- */
 .legend { font-size: .82rem; }
 .legend-row { display: flex; align-items: center; gap: .5rem; margin-bottom: .4rem; }
@@ -207,6 +231,8 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
       <div id="panel" class="panel"></div>
       <h2>Legend</h2>
       <div id="legend"></div>
+      <h2>Area Breakdown</h2>
+      <div id="breakdown" class="breakdown-wrap"></div>
     </section>
   </main>
   <script>
@@ -802,6 +828,101 @@ function createLegend(root) {
 }
 
 
+// breakdown.js — "Area Breakdown" table. A per-department roll-up of pallet
+// counts (business "Area" = department here), each row expandable to its areas
+// (business "Physical Location"), showing Area, Pole Location (I-Beam), and
+// Pallet Count. Read-only; mirrors the factory pattern of panel.js.
+
+function createBreakdown(root, model, { floorId } = {}) {
+  let currentFloorId = floorId || model.defaultFloorId();
+  // Departments the user has expanded — kept across re-renders so a count edit
+  // doesn't collapse an open section.
+  const openDepts = new Set();
+
+  // Departments that have at least one area on the current floor, each with its
+  // floor-filtered areas and subtotal. Preserves data order (departments.json,
+  // areas.json). Every such department and every one of its areas is listed,
+  // including zero counts.
+  function rows() {
+    return model.seed.departments
+      .map((d) => {
+        const areas = model.areasInDept(d.id).filter((a) => a.floorId === currentFloorId);
+        const total = areas.reduce((sum, a) => sum + model.getCount(a.id), 0);
+        return { dept: d, areas, total };
+      })
+      .filter((r) => r.areas.length > 0);
+  }
+
+  function render() {
+    const groups = rows();
+    if (!groups.length) {
+      root.innerHTML = '<div class="panel-empty">No areas on this floor.</div>';
+      return;
+    }
+    const bodies = groups.map(({ dept, areas, total }) => {
+      const open = openDepts.has(dept.id);
+      const areaRows = areas.map((a) => `
+        <tr>
+          <td>${a.name}</td>
+          <td>${a.iBeamLocation}</td>
+          <td class="bd-num">${model.getCount(a.id)}</td>
+        </tr>`).join('');
+      return `
+      <tbody class="bd-group${open ? ' is-open' : ''}" data-dept="${dept.id}">
+        <tr class="bd-dept" role="button" tabindex="0" aria-expanded="${open}">
+          <td class="bd-dept-name"><span class="bd-caret" aria-hidden="true"></span>${dept.name}</td>
+          <td class="bd-num">${total}</td>
+        </tr>
+        <tr class="bd-sub">
+          <td colspan="2">
+            <table class="bd-inner">
+              <thead><tr><th>Area</th><th>Pole Location</th><th class="bd-num">Pallet Count</th></tr></thead>
+              <tbody>${areaRows}</tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>`;
+    }).join('');
+
+    root.innerHTML = `
+      <table class="breakdown">
+        <thead><tr><th>Area</th><th class="bd-num">Pallet Count</th></tr></thead>
+        ${bodies}
+      </table>`;
+  }
+
+  function toggle(deptId) {
+    if (openDepts.has(deptId)) openDepts.delete(deptId);
+    else openDepts.add(deptId);
+    const group = root.querySelector(`.bd-group[data-dept="${deptId}"]`);
+    if (!group) return;
+    const open = openDepts.has(deptId);
+    group.classList.toggle('is-open', open);
+    group.querySelector('.bd-dept').setAttribute('aria-expanded', String(open));
+  }
+
+  root.addEventListener('click', (e) => {
+    const deptRow = e.target.closest('.bd-dept');
+    if (deptRow && root.contains(deptRow)) toggle(deptRow.closest('.bd-group').dataset.dept);
+  });
+  root.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const deptRow = e.target.closest('.bd-dept');
+    if (deptRow && root.contains(deptRow)) {
+      e.preventDefault();
+      toggle(deptRow.closest('.bd-group').dataset.dept);
+    }
+  });
+
+  render();
+
+  return {
+    render,
+    setFloor(fid) { currentFloorId = fid; render(); },
+  };
+}
+
+
 // form.js — area pallet-count editor. Pick an area (dropdown, grouped by
 // department) or have one pushed in from a map-region click, then type the
 // area's pallet count directly. Replaces the old scan-one-container form.
@@ -1134,6 +1255,7 @@ function createMapView(root, model, { onSelect, floorId } = {}) {
 
 
 
+
 const $ = (sel) => document.querySelector(sel);
 
 async function main() {
@@ -1159,6 +1281,7 @@ async function main() {
 
   const legend = createLegend($('#legend'));
   const panel = createPanel($('#panel'), model);
+  const breakdown = createBreakdown($('#breakdown'), model, { floorId: currentFloorId });
 
   const map = createMapView($('#map'), model, {
     onSelect: (areaId) => setSelected(areaId), // map click drives editor too
@@ -1192,6 +1315,7 @@ async function main() {
     selectedAreaId = null;
     map.setFloor(currentFloorId);   // rebuilds boxes + background, clears selection
     editor.setFloor(currentFloorId); // repopulates the area dropdown
+    breakdown.setFloor(currentFloorId); // re-rolls the per-department table
     panel.renderEmpty();
     refresh();
   });
@@ -1285,6 +1409,7 @@ async function main() {
   function refresh() {
     renderColors();
     renderSelection();
+    breakdown.render();
     updateHeaderCount();
   }
 

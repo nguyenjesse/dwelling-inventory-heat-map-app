@@ -2,6 +2,7 @@
 import { ZERO_COLOR, colorForCount, positiveExtent, colorForRatio, colorMap } from '../js/heatmap.js';
 import { validateManifest } from '../js/validate.js';
 import { createModel } from '../js/model.js';
+import { createBreakdown } from '../js/breakdown.js';
 import { importCounts, exportCsv } from '../js/importexport.js';
 
 const results = [];
@@ -136,6 +137,54 @@ test('areasForIBeam returns valid areas; multi works', () => {
   const m = freshModel();
   const areas = m.areasForIBeam('E16').map((a) => a.id).sort();
   assert(areas.length === 2, 'E16 should have 2 areas');
+});
+
+// ---------- area breakdown ----------
+function renderBreakdown(model) {
+  const root = document.createElement('div');
+  const view = createBreakdown(root, model, { floorId: model.defaultFloorId() });
+  return { root, view };
+}
+test('breakdown lists one group per department with areas on the floor', () => {
+  const m = freshModel();
+  const { root } = renderBreakdown(m);
+  // All 74 areas live on the single floor, so all 6 departments appear.
+  eq(root.querySelectorAll('.bd-group').length, 6);
+});
+test('breakdown department subtotal equals sum of its area counts', () => {
+  const m = freshModel();
+  m.setCount('presort-phase-1', 2); // IB Dock
+  m.setCount('pid-1-2', 3);          // IB Dock
+  const { root } = renderBreakdown(m);
+  const group = root.querySelector('.bd-group[data-dept="ib-dock"]');
+  eq(group.querySelector('.bd-dept .bd-num').textContent, '5');
+});
+test('breakdown sub-rows expose Area / Pole / Pallet in that column order', () => {
+  const m = freshModel();
+  const { root } = renderBreakdown(m);
+  const heads = [...root.querySelector('.bd-inner thead').querySelectorAll('th')]
+    .map((th) => th.textContent);
+  eq(heads[0], 'Area'); eq(heads[1], 'Pole Location'); eq(heads[2], 'Pallet Count');
+});
+test('breakdown groups start collapsed and toggle open on click', () => {
+  const m = freshModel();
+  const { root } = renderBreakdown(m);
+  const group = root.querySelector('.bd-group');
+  assert(!group.classList.contains('is-open'), 'starts collapsed');
+  group.querySelector('.bd-dept').click();
+  assert(group.classList.contains('is-open'), 'opens on click');
+  eq(group.querySelector('.bd-dept').getAttribute('aria-expanded'), 'true');
+  group.querySelector('.bd-dept').click();
+  assert(!group.classList.contains('is-open'), 'closes on second click');
+});
+test('breakdown keeps a group open across a re-render', () => {
+  const m = freshModel();
+  const { root, view } = renderBreakdown(m);
+  const deptId = root.querySelector('.bd-group').dataset.dept;
+  root.querySelector(`.bd-group[data-dept="${deptId}"] .bd-dept`).click();
+  view.render();
+  assert(root.querySelector(`.bd-group[data-dept="${deptId}"]`).classList.contains('is-open'),
+    'stays open after render');
 });
 
 // ---------- migration from legacy records ----------

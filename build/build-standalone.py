@@ -36,6 +36,7 @@ APP_JS_ORDER = [
     "model.js",
     "panel.js",
     "legend.js",
+    "breakdown.js",
     "form.js",
     "map.js",
     "app.js",
