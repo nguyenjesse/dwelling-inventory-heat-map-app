@@ -20,6 +20,7 @@ const seed = {
   departments: await loadJson('../data/departments.json'),
   ibeamMappings: await loadJson('../data/ibeam-mappings.json'),
   regions: await loadJson('../data/regions.json'),
+  floors: await loadJson('../data/floors.json'),
 };
 
 // ---------- heat map ----------
@@ -60,9 +61,14 @@ test('manifest validates with no errors', () => {
   const { errors } = validateManifest(seed);
   assert(errors.length === 0, 'errors: ' + errors.join('; '));
 });
-test('61 areas', () => eq(seed.areas.length, 61));
-test('5 departments', () => eq(seed.departments.length, 5));
-test('55 unique I-beams', () => eq(seed.ibeamMappings.length, 55));
+test('74 areas', () => eq(seed.areas.length, 74));
+test('6 departments', () => eq(seed.departments.length, 6));
+test('61 unique I-beams', () => eq(seed.ibeamMappings.length, 61));
+test('every area lives on a declared floor', () => {
+  const fids = new Set(seed.floors.map((f) => f.id));
+  assert(fids.size >= 1, 'at least one floor declared');
+  for (const a of seed.areas) assert(fids.has(a.floorId), `area ${a.id} on unknown floor ${a.floorId}`);
+});
 test('all areas have a region', () => {
   const rids = new Set(Object.keys(seed.regions.regions));
   for (const a of seed.areas) assert(rids.has(a.mapRegionId), `no region for ${a.id}`);
@@ -92,7 +98,7 @@ test('countsByArea zero-fills every area', () => {
   const m = freshModel();
   m.setCount('presort-phase-1', 3);
   const c = m.countsByArea();
-  eq(Object.keys(c).length, 61);
+  eq(Object.keys(c).length, 74);
   eq(c['pid-1-2'], 0);
 });
 test('setCount to 0 clears the area', () => {
