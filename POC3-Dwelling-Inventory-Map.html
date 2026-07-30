@@ -186,6 +186,22 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
   .map-shell { min-height: 60vh; }
 }
 
+/* ---------- modal ---------- */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(31, 41, 51, .45); padding: 1rem;
+}
+.modal {
+  background: var(--panel-bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 8px 30px rgba(0,0,0,.25); padding: 1.25rem;
+  max-width: 26rem; width: 100%;
+}
+.modal-title { font-size: 1rem; margin: 0 0 .6rem; }
+.modal-msg { font-size: .88rem; color: var(--text); margin: 0 0 1rem; white-space: pre-line; line-height: 1.4; }
+.modal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
+
   </style>
 </head>
 <body>
@@ -771,7 +787,10 @@ function createModel(seed) {
       return (areasByDept.get(deptId) || []).reduce((sum, id) => sum + (counts[id] || 0), 0);
     },
 
-    totalPallets: () => Object.values(counts).reduce((sum, n) => sum + n, 0),
+    // Sum over KNOWN areas only — a stale/unknown areaId lingering in storage
+    // (legacy migration, import of a since-removed area) must not inflate the
+    // grand total, or it drifts from the category/breakdown roll-ups.
+    totalPallets: () => seed.areas.reduce((sum, a) => sum + (counts[a.id] || 0), 0),
 
     // ---- flow categories (Inbound / Outbound) ----
     categories: () => CATEGORIES.map((c) => ({ ...c, deptIds: c.deptIds.slice() })),
@@ -967,6 +986,70 @@ function createIoSummary(root, model) {
 }
 
 
+// modal.js — a minimal promise-based choice dialog. Used where a native
+// confirm() (only OK/Cancel) can't express more than two clearly-labelled
+// actions — e.g. the import "fully replace / merge / cancel" decision.
+//
+// chooseAction resolves to the picked action's `value`, or `cancelValue`
+// (default null) if the user dismisses via Escape, the backdrop, or a button
+// carrying that value.
+
+function chooseAction({ title, message, actions, cancelValue = null }) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+
+    const dialog = document.createElement('div');
+    dialog.className = 'modal';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+
+    if (title) {
+      const heading = document.createElement('h2');
+      heading.className = 'modal-title';
+      heading.textContent = title;
+      dialog.appendChild(heading);
+    }
+    if (message) {
+      const body = document.createElement('p');
+      body.className = 'modal-msg';
+      body.textContent = message;
+      dialog.appendChild(body);
+    }
+
+    const btnRow = document.createElement('div');
+    btnRow.className = 'modal-actions';
+
+    function close(value) {
+      document.removeEventListener('keydown', onKey);
+      overlay.remove();
+      resolve(value);
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') { e.preventDefault(); close(cancelValue); }
+    }
+
+    (actions || []).forEach((a) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn' + (a.variant ? ' btn-' + a.variant : '');
+      b.textContent = a.label;
+      b.addEventListener('click', () => close(a.value));
+      btnRow.appendChild(b);
+    });
+    dialog.appendChild(btnRow);
+
+    overlay.appendChild(dialog);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(cancelValue); });
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(overlay);
+
+    const first = btnRow.querySelector('button');
+    if (first) first.focus();
+  });
+}
+
+
 // form.js — area pallet-count editor. Pick an area (dropdown, grouped by
 // department) or have one pushed in from a map-region click, then type the
 // area's pallet count directly. Replaces the old scan-one-container form.
@@ -1054,6 +1137,17 @@ function createCountEditor(root, model, { onChange, onSelectArea, floorId } = {}
     setMsg('');
     populate();
     if (areaEl.value && onSelectArea) onSelectArea(areaEl.value);
+  });
+
+  // Restrict the count field to whole, non-negative numbers as the user types.
+  // A native number input otherwise accepts ".", "e", "+" and "-"; block those
+  // keys and strip anything non-digit from pastes so only 0,1,2,… survive.
+  palletsEl.addEventListener('keydown', (e) => {
+    if (['.', ',', 'e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+  });
+  palletsEl.addEventListener('input', () => {
+    const cleaned = palletsEl.value.replace(/\D+/g, '');
+    if (cleaned !== palletsEl.value) palletsEl.value = cleaned;
   });
 
   form.addEventListener('submit', (e) => {
@@ -1301,6 +1395,7 @@ function createMapView(root, model, { onSelect, floorId } = {}) {
 
 
 
+
 const $ = (sel) => document.querySelector(sel);
 
 async function main() {
@@ -1413,9 +1508,20 @@ async function main() {
       if (!proceed) { setStatus('Import cancelled.'); return; }
     }
     if (areaCount === 0) { setStatus('Nothing imported — no valid rows.', 'error'); return; }
-    const replace = confirm(`Import counts for ${areaCount} area${areaCount === 1 ? '' : 's'}.\n\n`
-      + `OK = replace current data, Cancel = merge into existing.`);
-    if (replace) {
+    const action = await chooseAction({
+      title: `Import ${areaCount} area${areaCount === 1 ? '' : 's'}`,
+      message: 'How should these counts be applied?\n\n'
+        + '• Fully replace — clear every other area, then set these.\n'
+        + '• Merge — update only these areas, leave the rest as-is.',
+      actions: [
+        { label: 'Fully replace', value: 'replace', variant: 'primary' },
+        { label: 'Merge', value: 'merge' },
+        { label: 'Cancel', value: 'cancel' },
+      ],
+      cancelValue: 'cancel',
+    });
+    if (action === 'cancel') { setStatus('Import cancelled.'); return; }
+    if (action === 'replace') {
       model.replaceCounts(counts);
     } else {
       for (const [areaId, n] of Object.entries(counts)) model.setCount(areaId, n);

@@ -38,6 +38,7 @@ APP_JS_ORDER = [
     "legend.js",
     "breakdown.js",
     "iosummary.js",
+    "modal.js",
     "form.js",
     "map.js",
     "app.js",
