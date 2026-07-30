@@ -1,8 +1,22 @@
 [
   {
+    "iBeamLocation": "C19",
+    "areaIds": [
+      "copy-of-sort-wip-buffer-b1-4-2"
+    ]
+  },
+  {
+    "iBeamLocation": "C20",
+    "areaIds": [
+      "ob-tote-pallet-buffer-d20",
+      "copy-of-sort-buffer-c"
+    ]
+  },
+  {
     "iBeamLocation": "C21",
     "areaIds": [
-      "ob-dock-c21"
+      "copy-of-copy-of-sort-wip-buffer-f1-3",
+      "copy-of-copy-of-copy-of-sort-wip-buffer-f1-3"
     ]
   },
   {
@@ -18,9 +32,30 @@
     ]
   },
   {
+    "iBeamLocation": "D19",
+    "areaIds": [
+      "copy-of-sort-buffer-a-2",
+      "copy-of-sort-wip-buffer-b1-4"
+    ]
+  },
+  {
     "iBeamLocation": "D20",
     "areaIds": [
-      "ob-tote-pallet-buffer-d20"
+      "copy-of-sort-wip-buffer-c1-6",
+      "copy-of-sort-buffer-c-2"
+    ]
+  },
+  {
+    "iBeamLocation": "D21",
+    "areaIds": [
+      "copy-of-sort-buffer-d",
+      "copy-of-sort-wip-buffer-f1-3"
+    ]
+  },
+  {
+    "iBeamLocation": "E15",
+    "areaIds": [
+      "sort-overflow-buffer"
     ]
   },
   {
@@ -53,8 +88,8 @@
   {
     "iBeamLocation": "E20",
     "areaIds": [
-      "end-of-line-h",
-      "end-of-line-i"
+      "end-of-line-i",
+      "end-of-line-h"
     ]
   },
   {
@@ -110,13 +145,7 @@
   {
     "iBeamLocation": "F15",
     "areaIds": [
-      "sort-overflow-buffer"
-    ]
-  },
-  {
-    "iBeamLocation": "F16",
-    "areaIds": [
-      "a-buffer-9-12"
+      "copy-of-ob-dock-overflow"
     ]
   },
   {
@@ -128,19 +157,31 @@
   {
     "iBeamLocation": "F18",
     "areaIds": [
-      "d-e-buffer-9-12"
+      "copy-of-b-c-buffer-9-12"
     ]
   },
   {
     "iBeamLocation": "F19",
     "areaIds": [
-      "f-g-buffer-9-12"
+      "copy-of-d-e-buffer-9-12"
     ]
   },
   {
     "iBeamLocation": "F20",
     "areaIds": [
-      "h-i-buffer-9-12"
+      "copy-of-f-g-buffer-9-12"
+    ]
+  },
+  {
+    "iBeamLocation": "F21",
+    "areaIds": [
+      "copy-of-recirc-phase-2"
+    ]
+  },
+  {
+    "iBeamLocation": "G10",
+    "areaIds": [
+      "new-area"
     ]
   },
   {
@@ -164,37 +205,43 @@
   {
     "iBeamLocation": "G17",
     "areaIds": [
-      "b-c-buffer-5-8"
+      "copy-of-a-buffer-5-8"
     ]
   },
   {
     "iBeamLocation": "G18",
     "areaIds": [
-      "d-e-buffer-5-8"
+      "copy-of-b-c-buffer-5-8"
     ]
   },
   {
     "iBeamLocation": "G19",
     "areaIds": [
-      "f-g-buffer-5-8"
+      "copy-of-d-e-buffer-5-8"
     ]
   },
   {
     "iBeamLocation": "G20",
     "areaIds": [
-      "h-i-buffer-5-8"
-    ]
-  },
-  {
-    "iBeamLocation": "G22",
-    "areaIds": [
-      "rpn-buffer"
+      "copy-of-f-g-buffer-5-8"
     ]
   },
   {
     "iBeamLocation": "G23",
     "areaIds": [
       "rpn-wip-sdc-arcs-p2"
+    ]
+  },
+  {
+    "iBeamLocation": "G27",
+    "areaIds": [
+      "copy-of-catwalk-rti-phase-1"
+    ]
+  },
+  {
+    "iBeamLocation": "H12",
+    "areaIds": [
+      "presort-phase-1"
     ]
   },
   {
@@ -206,25 +253,25 @@
   {
     "iBeamLocation": "H17",
     "areaIds": [
-      "b-c-buffer-1-4"
+      "copy-of-a-buffer-1-4"
     ]
   },
   {
     "iBeamLocation": "H18",
     "areaIds": [
-      "d-e-buffer-1-4"
+      "copy-of-b-c-buffer-1-4"
     ]
   },
   {
     "iBeamLocation": "H19",
     "areaIds": [
-      "f-g-buffer-1-4"
+      "copy-of-d-e-buffer-1-4"
     ]
   },
   {
     "iBeamLocation": "H20",
     "areaIds": [
-      "h-i-buffer-1-4"
+      "copy-of-f-g-buffer-1-4"
     ]
   },
   {
@@ -234,15 +281,9 @@
     ]
   },
   {
-    "iBeamLocation": "J12",
+    "iBeamLocation": "H26",
     "areaIds": [
-      "presort-phase-1"
-    ]
-  },
-  {
-    "iBeamLocation": "J15",
-    "areaIds": [
-      "docksort-overflow-phase-1"
+      "presort-phase-2"
     ]
   },
   {
@@ -260,13 +301,14 @@
   {
     "iBeamLocation": "J22",
     "areaIds": [
-      "each-prep-buffer"
+      "each-prep-buffer",
+      "copy-of-each-prep-buffer"
     ]
   },
   {
-    "iBeamLocation": "J26",
+    "iBeamLocation": "K10",
     "areaIds": [
-      "presort-phase-2"
+      "copy-of-presort-phase-1"
     ]
   },
   {
@@ -314,7 +356,8 @@
   {
     "iBeamLocation": "L19",
     "areaIds": [
-      "ib-dock-l19"
+      "ib-dock-l19",
+      "copy-of-ib-dock-l19"
     ]
   },
   {
