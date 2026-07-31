@@ -43,6 +43,16 @@ async function main() {
   }
   const filePrefix = (siteCode || 'dwelling').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'dwelling';
 
+  // ---- build stamp footer ----
+  // Generated standalones carry a build timestamp; the served dev app has none,
+  // so the footer stays hidden there.
+  const { builtAt } = model.buildInfo();
+  if (builtAt) {
+    const footer = $('#appFooter');
+    footer.textContent = (siteCode ? `${siteCode} · ` : '') + `built ${builtAt}`;
+    footer.hidden = false;
+  }
+
   // ---- selection + floor state ----
   let selectedAreaId = null;
   let currentFloorId = model.defaultFloorId();
@@ -113,6 +123,29 @@ async function main() {
     panel.renderEmpty();
   });
 
+  // ---- undo (single level) ----
+  // Reverts the last single Save/Clear. Import replace/merge clears the undo, so
+  // this only ever unwinds one deliberate count edit.
+  function doUndo() {
+    if (!model.canUndo()) return;
+    const done = model.undo();
+    editor.refresh();
+    refresh();
+    if (done) {
+      const area = model.getArea(done.areaId);
+      setStatus(`Undid change to ${area ? area.name : done.areaId}.`);
+    }
+  }
+  $('#undo').addEventListener('click', doUndo);
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+      // Leave the count field's own text-undo alone while it's focused.
+      if (document.activeElement && document.activeElement.id === 'pallets') return;
+      e.preventDefault();
+      doUndo();
+    }
+  });
+
   // ---- import / export ----
   $('#exportCsv').addEventListener('click', () =>
     download(`${filePrefix}-dwelling-counts.csv`, exportCsv(model), 'text/csv'));
@@ -153,6 +186,7 @@ async function main() {
       model.replaceCounts(counts);
     } else {
       for (const [areaId, n] of Object.entries(counts)) model.setCount(areaId, n);
+      model.clearUndo(); // a bulk merge isn't a single undoable edit
     }
     setStatus(`Imported ${areaCount} area${areaCount === 1 ? '' : 's'}`
       + `${errs.length ? ` (${errs.length} skipped)` : ''}.`, 'success');
@@ -207,6 +241,11 @@ async function main() {
     breakdown.render();
     ioSummary.render();
     updateHeaderCount();
+    updateUndoButton();
+  }
+
+  function updateUndoButton() {
+    $('#undo').disabled = !model.canUndo();
   }
 
   function updateHeaderCount() {
