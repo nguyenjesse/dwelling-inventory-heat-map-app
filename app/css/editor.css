@@ -38,6 +38,13 @@
 .area-list li .dept { font-size: .72rem; color: var(--muted); }
 .area-list li.active .dept { color: #dbe4f5; }
 .area-list li .missing { color: var(--danger); font-size: .72rem; }
+.area-list li.dept-group-header {
+  cursor: default; font-size: .72rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--muted); padding: .5rem .5rem .2rem;
+  border-radius: 0; display: block;
+}
+.area-list li.dept-group-header:hover { background: none; }
+.area-list li.dept-group-header:first-child { padding-top: .2rem; }
 
 .editor-main { display: flex; flex-direction: column; min-width: 0; }
 .editor-controls { display: flex; align-items: center; gap: .8rem; padding: .5rem .8rem; border-bottom: 1px solid var(--border); background: #fff; flex-wrap: wrap; }

@@ -16,7 +16,8 @@ export function createBreakdown(root, model, { floorId } = {}) {
   function rows() {
     return model.seed.departments
       .map((d) => {
-        const areas = model.areasInDept(d.id).filter((a) => a.floorId === currentFloorId);
+        const areas = model.areasInDept(d.id).filter((a) => a.floorId === currentFloorId)
+          .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
         const total = areas.reduce((sum, a) => sum + model.getCount(a.id), 0);
         return { dept: d, areas, total };
       })

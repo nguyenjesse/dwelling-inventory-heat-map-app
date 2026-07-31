@@ -248,16 +248,39 @@ const DEFAULT_CATEGORIES = [
   function renderList(filter = '') {
     const f = filter.trim().toLowerCase();
     list.innerHTML = '';
-    for (const a of floorAreas()) {
-      if (f && !a.name.toLowerCase().includes(f) && !(a.iBeamLocation || '').toLowerCase().includes(f)) continue;
+    const matches = (a) =>
+      !f || a.name.toLowerCase().includes(f) || (a.iBeamLocation || '').toLowerCase().includes(f);
+    const onFloor = floorAreas().filter(matches);
+
+    const addRow = (a) => {
       const li = document.createElement('li');
       li.dataset.id = a.id;
       if (a.id === activeId) li.classList.add('active');
+      // Department is conveyed by the group header now; the row only flags a
+      // missing region.
       li.innerHTML = `<span>${a.name}</span>` +
-        (regions[a.id] ? `<span class="dept">${deptName(a.departmentId)}</span>` : '<span class="missing">no region</span>');
+        (regions[a.id] ? '' : '<span class="missing">no region</span>');
       li.addEventListener('click', () => setActive(a.id, true));
       list.appendChild(li);
+    };
+    // One header per department (in configured order), areas sorted A→Z within.
+    // Empty/filtered-out departments render nothing.
+    const addGroup = (label, group) => {
+      if (!group.length) return;
+      const header = document.createElement('li');
+      header.className = 'dept-group-header';
+      header.textContent = label;
+      list.appendChild(header);
+      group
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+        .forEach(addRow);
+    };
+
+    const known = new Set(departments.map((d) => d.id));
+    for (const d of departments) {
+      addGroup(d.name, onFloor.filter((a) => a.departmentId === d.id));
     }
+    addGroup('Unassigned', onFloor.filter((a) => !known.has(a.departmentId)));
   }
   $('#areaSearch').addEventListener('input', (e) => renderList(e.target.value));
 
@@ -413,6 +436,10 @@ const DEFAULT_CATEGORIES = [
     const label = svg.querySelector('.ed-label'); if (label) label.textContent = a.name || a.id;
     const li = list.querySelector('li.active span'); if (li) li.textContent = a.name;
   });
+  // On commit (blur / Enter) re-sort the list so the renamed area drops into its
+  // new alphabetical slot. Deferred off 'input' so a full re-render never steals
+  // the caret mid-typing.
+  aName.addEventListener('change', () => renderList($('#areaSearch').value));
   aPole.addEventListener('input', () => {
     const a = areas.find((x) => x.id === activeId); if (!a) return;
     a.iBeamLocation = aPole.value.trim();
