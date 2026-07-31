@@ -59,7 +59,8 @@ export function createCountEditor(root, model, { onChange, onSelectArea, floorId
     const onFloor = new Set(model.areasOnFloor(fid).map((a) => a.id));
     orderedIds = [];
     const optgroups = model.seed.departments.map((d) => {
-      const areas = model.areasInDept(d.id).filter((a) => onFloor.has(a.id));
+      const areas = model.areasInDept(d.id).filter((a) => onFloor.has(a.id))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
       areas.forEach((a) => orderedIds.push(a.id));
       const opts = areas
         .map((a) => `<option value="${a.id}">${a.name}</option>`).join('');
