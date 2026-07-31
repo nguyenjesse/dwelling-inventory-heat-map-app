@@ -1,26 +1,32 @@
 [
   {
     "id": "docksort",
-    "name": "Docksort"
+    "name": "Docksort",
+    "categoryId": "outbound"
   },
   {
     "id": "ib-dock",
-    "name": "IB Dock"
+    "name": "IB Dock",
+    "categoryId": "inbound"
   },
   {
     "id": "ob-dock",
-    "name": "OB Dock"
+    "name": "OB Dock",
+    "categoryId": "outbound"
   },
   {
     "id": "rpn",
-    "name": "RPN"
+    "name": "RPN",
+    "categoryId": "inbound"
   },
   {
     "id": "sort",
-    "name": "Sort"
+    "name": "Sort",
+    "categoryId": "outbound"
   },
   {
     "id": "fluid-load",
-    "name": "Fluid Load"
+    "name": "Fluid Load",
+    "categoryId": "outbound"
   }
 ]

@@ -5,6 +5,7 @@ import { createModel } from '../js/model.js';
 import { createBreakdown } from '../js/breakdown.js';
 import { createIoSummary } from '../js/iosummary.js';
 import { importCounts, exportCsv } from '../js/importexport.js';
+import { fillOperatorTemplate, SEED_TOKEN, BG_TOKEN } from '../js/opbuild.js';
 
 const results = [];
 function test(name, fn) {
@@ -23,7 +24,17 @@ const seed = {
   ibeamMappings: await loadJson('../data/ibeam-mappings.json'),
   regions: await loadJson('../data/regions.json'),
   floors: await loadJson('../data/floors.json'),
+  categories: await loadJson('../data/categories.json'),
 };
+
+// Counts are stored under a site-namespaced key; tests have no SEED_DATA global,
+// so they use the 'default' namespace. Clear it plus the legacy POC3 keys.
+const COUNTS_KEY = 'dwelling.counts.v1.default';
+function clearAllCountKeys() {
+  localStorage.removeItem(COUNTS_KEY);
+  localStorage.removeItem('poc3.counts.v1');
+  localStorage.removeItem('poc3.records.v1');
+}
 
 // ---------- heat map ----------
 test('zero count -> gray', () => eq(colorForCount(0, { min: 1, max: 10 }), ZERO_COLOR));
@@ -85,8 +96,7 @@ test('one-to-many I-beam mappings present', () => {
 
 // ---------- model counts & selection ----------
 function freshModel() {
-  localStorage.removeItem('poc3.counts.v1');
-  localStorage.removeItem('poc3.records.v1');
+  clearAllCountKeys();
   return createModel(seed);
 }
 test('setCount stores per-area count', () => {
@@ -210,6 +220,29 @@ test('every department is categorized: inbound + outbound = total', () => {
   m.setCount('end-of-line-a', 4);
   eq(m.categoryTotal('inbound') + m.categoryTotal('outbound'), m.totalPallets());
 });
+test('categories are derived from seed data (order + deptIds)', () => {
+  const cats = freshModel().categories();
+  eq(cats.length, 2);
+  eq(cats[0].id, 'outbound'); eq(cats[1].id, 'inbound'); // order follows categories.json
+  assert(cats[0].deptIds.includes('docksort') && cats[0].deptIds.includes('fluid-load'), 'outbound depts');
+  assert(cats[1].deptIds.includes('ib-dock') && cats[1].deptIds.includes('rpn'), 'inbound depts');
+});
+test('categories adapt to a different site grouping', () => {
+  const custom = {
+    ...seed,
+    departments: [
+      { id: 'recv', name: 'Receiving', categoryId: 'inbound' },
+      { id: 'ship', name: 'Shipping', categoryId: 'outbound' },
+    ],
+    areas: [], ibeamMappings: [], regions: { regions: {} },
+    floors: [{ id: 'f1', name: 'F', image: 'x.png', imageWidth: 10, imageHeight: 10 }],
+    categories: [{ id: 'inbound', name: 'Inbound' }, { id: 'outbound', name: 'Outbound' }],
+  };
+  const m = createModel(custom);
+  eq(m.categoryOfDept('recv').id, 'inbound');
+  eq(m.categoryOfDept('ship').id, 'outbound');
+  eq(m.categories()[0].id, 'inbound'); // order follows this site's categories list
+});
 test('io summary renders Outbound / Inbound / Total figures', () => {
   const m = freshModel();
   m.setCount('pid-1-2', 3);          // inbound
@@ -222,9 +255,26 @@ test('io summary renders Outbound / Inbound / Total figures', () => {
   eq(dd[2], '7'); // Total
 });
 
-// ---------- migration from legacy records ----------
+// ---------- storage: site namespace + legacy migration ----------
+test('counts persist under a site-namespaced key', () => {
+  clearAllCountKeys();
+  const m = createModel(seed);
+  m.setCount('presort-phase-1', 4);
+  const raw = localStorage.getItem(COUNTS_KEY);
+  assert(raw, 'writes the namespaced key');
+  eq(JSON.parse(raw)['presort-phase-1'], 4);
+  clearAllCountKeys();
+});
+test('adopts legacy poc3.counts.v1 on first load', () => {
+  clearAllCountKeys();
+  localStorage.setItem('poc3.counts.v1', JSON.stringify({ 'presort-phase-1': 6 }));
+  const m = createModel(seed);
+  eq(m.getCount('presort-phase-1'), 6);
+  assert(localStorage.getItem(COUNTS_KEY), 'copies legacy counts into the namespaced key');
+  clearAllCountKeys();
+});
 test('migrates legacy records into per-area counts', () => {
-  localStorage.removeItem('poc3.counts.v1');
+  clearAllCountKeys();
   localStorage.setItem('poc3.records.v1', JSON.stringify([
     { id: 'x1', containerId: 'A1', areaId: 'presort-phase-1' },
     { id: 'x2', containerId: 'A2', areaId: 'presort-phase-1' },
@@ -233,8 +283,7 @@ test('migrates legacy records into per-area counts', () => {
   const m = createModel(seed);
   eq(m.getCount('presort-phase-1'), 2);
   eq(m.getCount('pid-1-2'), 1);
-  localStorage.removeItem('poc3.counts.v1');
-  localStorage.removeItem('poc3.records.v1');
+  clearAllCountKeys();
 });
 
 // ---------- import / export round trip ----------
@@ -272,8 +321,24 @@ test('import requires Area and Pallets columns', () => {
   const { errors } = importCounts(m, 'Foo,Bar\n1,2', 'csv');
   assert(errors.some((e) => /Missing required columns/.test(e.message)));
 });
-localStorage.removeItem('poc3.counts.v1');
-localStorage.removeItem('poc3.records.v1');
+clearAllCountKeys();
+
+// ---------- operator-file generation (Building Area Manager) ----------
+test('operator template fill inserts JSON verbatim ($-safe)', () => {
+  const tmpl = `head ${SEED_TOKEN} mid ${BG_TOKEN} tail`;
+  // Values with regex-replacement metacharacters must survive intact.
+  const seedObj = { note: '$& $$ $1 $` end', siteCode: 'X1' };
+  const bg = { 'plan.png': 'data:image/png;base64,AAAA' };
+  const out = fillOperatorTemplate(tmpl, { seed: seedObj, bgUris: bg });
+  assert(out.includes(JSON.stringify(seedObj)), 'seed JSON inserted verbatim');
+  assert(out.includes('$& $$ $1 $` end'), 'dollar sequences preserved');
+  assert(out.includes('data:image/png;base64,AAAA'), 'background inserted');
+  assert(!out.includes(SEED_TOKEN) && !out.includes(BG_TOKEN), 'tokens consumed');
+});
+test('operator template fill defaults missing bgUris to {}', () => {
+  const out = fillOperatorTemplate(`${SEED_TOKEN}|${BG_TOKEN}`, { seed: { a: 1 } });
+  eq(out, '{"a":1}|{}');
+});
 
 // ---------- render ----------
 const passed = results.filter((r) => r.ok).length;

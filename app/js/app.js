@@ -29,6 +29,19 @@ async function main() {
 
   const model = createModel(seed);
 
+  // ---- site identity ----
+  // Generated per-site operator files carry a site code; reflect it in the page
+  // title + header so associates see their own site. The served dev app has no
+  // code and keeps index.html's default heading.
+  const siteCode = model.siteCode();
+  if (siteCode) {
+    const title = `${siteCode} Dwelling Inventory Map`;
+    document.title = title;
+    const h1 = $('.app-header .title h1');
+    if (h1) h1.textContent = title;
+  }
+  const filePrefix = (siteCode || 'dwelling').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'dwelling';
+
   // ---- selection + floor state ----
   let selectedAreaId = null;
   let currentFloorId = model.defaultFloorId();
@@ -101,9 +114,9 @@ async function main() {
 
   // ---- import / export ----
   $('#exportCsv').addEventListener('click', () =>
-    download('poc3-dwelling-counts.csv', exportCsv(model), 'text/csv'));
+    download(`${filePrefix}-dwelling-counts.csv`, exportCsv(model), 'text/csv'));
   $('#exportJson').addEventListener('click', () =>
-    download('poc3-dwelling-counts.json', exportJson(model), 'application/json'));
+    download(`${filePrefix}-dwelling-counts.json`, exportJson(model), 'application/json'));
   $('#importBtn').addEventListener('click', () => $('#importFile').click());
   $('#importFile').addEventListener('change', async (e) => {
     const file = e.target.files[0];

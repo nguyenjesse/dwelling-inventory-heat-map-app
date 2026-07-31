@@ -2,13 +2,27 @@
 // Single-user, offline, per-machine. Import/export moves data in and out.
 //
 // Shape: a plain object { areaId: count }. Areas at zero are simply absent.
+//
+// The key is namespaced by site code so two different sites' generated operator
+// files opened on the same browser (file:// shares one origin) keep separate
+// counts. The site code is baked into SEED_DATA by the build / the Building Area
+// Manager editor; the served dev app and unit tests have none, so they use
+// 'default'.
 
-const KEY = 'poc3.counts.v1';
-const LEGACY_RECORDS_KEY = 'poc3.records.v1'; // pre-count model: array of records
+const SITE = (typeof SEED_DATA !== 'undefined' && SEED_DATA && SEED_DATA.siteCode)
+  ? String(SEED_DATA.siteCode) : 'default';
+const KEY = `dwelling.counts.v1.${SITE}`;
+const LEGACY_COUNTS_KEY = 'poc3.counts.v1';   // pre-namespacing (POC3-only) key
+const LEGACY_RECORDS_KEY = 'poc3.records.v1';  // pre-count model: array of records
 
-function readObject() {
+// The legacy POC3 keys belong to the original single-site build. Only adopt them
+// for the user's own contexts (the POC3 standalone and the served dev app) — a
+// different site's file must never absorb POC3's counts.
+const ADOPT_LEGACY = SITE === 'POC3' || SITE === 'default';
+
+function readObject(key) {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
@@ -40,9 +54,15 @@ function migrateFromRecords() {
 }
 
 export function loadCounts() {
-  const existing = readObject();
+  const existing = readObject(KEY);
   if (existing) return existing;
-  return migrateFromRecords() || {};
+  if (ADOPT_LEGACY) {
+    // Adopt pre-namespacing POC3 counts, then fall back to the record model.
+    const legacyCounts = readObject(LEGACY_COUNTS_KEY);
+    if (legacyCounts) { saveCounts(legacyCounts); return legacyCounts; }
+    return migrateFromRecords() || {};
+  }
+  return {};
 }
 
 export function saveCounts(counts) {

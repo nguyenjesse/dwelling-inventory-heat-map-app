@@ -1,0 +1,1542 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Building Area Manager (BAM)</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%23e65100'/><rect x='3' y='3' width='10' height='10' fill='none' stroke='%23fff' stroke-width='1.5'/></svg>" />
+  <style>
+/* POC3 Dwelling Inventory Map — styles */
+:root {
+  --bg: #f4f6f8;
+  --panel-bg: #ffffff;
+  --border: #d9dee3;
+  --text: #1f2933;
+  --muted: #6b7680;
+  --accent: #2f528f;
+  --accent-dark: #24406f;
+  --danger: #d32f2f;
+  --success: #2e7d32;
+  --warn: #b26a00;
+  /* Selection outline colours (from the Excel original) */
+  --outline-default: #2f528f;
+  --outline-selected: #ff0000;
+  --outline-zone: #ffa500;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+  font-family: Arial, "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+
+/* ---------- header ---------- */
+.app-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: .6rem 1rem; background: var(--panel-bg); border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.title h1 { font-size: 1.15rem; margin: 0; }
+.subtitle { font-size: .8rem; color: var(--muted); }
+.header-tools { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.record-count { font-size: .82rem; color: var(--muted); margin-right: .25rem; }
+
+/* ---------- buttons ---------- */
+.btn {
+  font: inherit; font-size: .85rem; padding: .4rem .7rem; border: 1px solid var(--border);
+  background: #fff; color: var(--text); border-radius: 6px; cursor: pointer; text-decoration: none;
+  line-height: 1; display: inline-flex; align-items: center; transition: background .12s, border-color .12s;
+}
+.btn:hover { background: #eef1f4; }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-dark); }
+
+/* ---------- layout ---------- */
+.layout {
+  flex: 1; display: grid; grid-template-columns: 300px minmax(0, 1fr) 320px;
+  gap: 1rem; padding: 1rem; min-height: 0;
+}
+.col { background: var(--panel-bg); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1rem; box-shadow: var(--shadow); overflow: auto; }
+.col h2 { font-size: .95rem; margin: 0 0 .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.col-map { padding: .6rem; display: flex; flex-direction: column; }
+
+/* ---------- entry form ---------- */
+.entry-form .field { margin-bottom: .8rem; display: flex; flex-direction: column; gap: .25rem; }
+.entry-form label { font-size: .78rem; color: var(--muted); font-weight: 600; }
+.entry-form input, .entry-form select {
+  font: inherit; padding: .5rem .6rem; border: 1px solid var(--border); border-radius: 6px; background: #fff;
+}
+.entry-form input[readonly] { background: #f0f2f4; color: var(--muted); }
+.entry-form input:focus, .entry-form select:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+.form-actions { display: flex; gap: .5rem; margin-top: .3rem; }
+.form-msg { min-height: 1.2em; font-size: .82rem; margin: .6rem 0 0; }
+.form-msg.error { color: var(--danger); }
+.form-msg.success { color: var(--success); }
+
+/* ---------- map ---------- */
+.map-controls { display: flex; align-items: center; gap: .6rem; padding: .2rem .3rem .5rem; flex-wrap: wrap; font-size: .82rem; }
+.map-controls label { display: flex; align-items: center; gap: .3rem; color: var(--muted); }
+.map-controls select { font: inherit; padding: .3rem; border: 1px solid var(--border); border-radius: 6px; }
+.map-controls .inline { gap: .35rem; }
+.status { font-size: .8rem; color: var(--muted); margin-left: auto; }
+.status.success { color: var(--success); }
+.status.error { color: var(--danger); }
+
+.map-shell { position: relative; flex: 1; min-height: 420px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: #fff; }
+.map-toolbar { position: absolute; top: 8px; left: 8px; z-index: 3; display: flex; gap: 4px; align-items: center;
+  background: rgba(255,255,255,.9); border: 1px solid var(--border); border-radius: 6px; padding: 3px; }
+.map-toolbar button { width: 28px; height: 28px; border: none; background: transparent; cursor: pointer; font-size: 1rem; border-radius: 4px; }
+.map-toolbar button[data-act="fit"] { width: auto; padding: 0 8px; font-size: .8rem; }
+.map-toolbar button:hover { background: #eef1f4; }
+.map-toggle { font-size: .78rem; color: var(--muted); display: flex; align-items: center; gap: 3px; padding: 0 4px; }
+
+.map-viewport { position: absolute; inset: 0; overflow: hidden; touch-action: none; }
+.map-viewport.grabbing { cursor: grabbing; }
+.map-pan { position: absolute; inset: 0; transform-origin: 0 0; }
+.floor-plan { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+.map-overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.area {
+  fill: #808080; fill-opacity: .68; cursor: pointer;
+  stroke: var(--outline-default); stroke-width: 2.25px; vector-effect: non-scaling-stroke;
+  transition: fill-opacity .1s;
+}
+.area:hover { fill-opacity: .85; }
+.area:focus { outline: none; fill-opacity: .9; }
+.area.is-zone { stroke: var(--outline-zone); stroke-width: 3px; }
+.area.is-selected { stroke: var(--outline-selected); stroke-width: 4px; fill-opacity: .9; }
+.area.is-dimmed { fill-opacity: .12; stroke-opacity: .2; }
+.area.is-dimmed.is-selected, .area.is-dimmed.is-zone { fill-opacity: .68; stroke-opacity: 1; }
+
+.map-tooltip {
+  position: absolute; z-index: 5; pointer-events: none; background: rgba(31,41,51,.95); color: #fff;
+  font-size: .76rem; line-height: 1.35; padding: .4rem .55rem; border-radius: 6px; max-width: 220px; box-shadow: var(--shadow);
+}
+
+/* ---------- info panel ---------- */
+.panel { margin-bottom: 1rem; }
+.panel-empty { color: var(--muted); font-size: .85rem; padding: .5rem 0; }
+.panel-head h3 { margin: 0 0 .5rem; font-size: 1rem; }
+.panel-stats { display: grid; grid-template-columns: 1fr auto; gap: .2rem .5rem; margin: 0; font-size: .85rem; }
+.panel-stats > div { display: contents; }
+.panel-stats dt { color: var(--muted); }
+.panel-stats dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.panel-containers { margin-top: 1rem; }
+.panel-containers h4 { font-size: .8rem; margin: 0 0 .4rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.muted { color: var(--muted); font-size: .82rem; }
+.container-list { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow: auto; }
+.container-list li { display: flex; justify-content: space-between; align-items: center; padding: .3rem .1rem; border-bottom: 1px solid var(--border); font-size: .84rem; }
+.container-list .cid { font-variant-numeric: tabular-nums; }
+.row-actions button { border: none; background: none; cursor: pointer; color: var(--muted); font-size: .8rem; padding: .1rem .3rem; border-radius: 4px; }
+.row-actions button:hover { background: #eef1f4; color: var(--text); }
+
+/* ---------- inbound / outbound summary ---------- */
+.io-stats { font-size: .9rem; }
+.io-stats .io-total dt, .io-stats .io-total dd { border-top: 1px solid var(--border); padding-top: .3rem; margin-top: .15rem; }
+
+/* ---------- area breakdown ---------- */
+.breakdown-wrap { overflow-x: auto; }
+.breakdown { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.breakdown thead th { text-align: left; font-size: .72rem; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: .25rem .3rem; border-bottom: 1px solid var(--border); }
+.breakdown .bd-num { text-align: right; font-variant-numeric: tabular-nums; }
+.bd-dept { cursor: pointer; }
+.bd-dept:hover { background: #eef1f4; }
+.bd-dept:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.bd-dept td { padding: .35rem .3rem; border-bottom: 1px solid var(--border); font-weight: 600; }
+.bd-dept-name { display: flex; align-items: center; gap: .35rem; }
+.bd-caret { display: inline-block; width: .6em; color: var(--muted); transition: transform .12s; }
+.bd-caret::before { content: "\25B8"; } /* ▸ */
+.bd-group.is-open .bd-caret { transform: rotate(90deg); }
+/* sub-rows hidden until the group is expanded */
+.bd-sub { display: none; }
+.bd-group.is-open .bd-sub { display: table-row; }
+.bd-sub > td { padding: 0 0 .3rem .3rem; }
+.bd-inner { width: 100%; border-collapse: collapse; }
+.bd-inner th { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .03em;
+  color: var(--muted); font-weight: 600; padding: .2rem .3rem; }
+.bd-inner td { padding: .2rem .3rem; border-bottom: 1px solid var(--border); color: var(--text); }
+.bd-inner tr:last-child td { border-bottom: none; }
+
+/* ---------- legend ---------- */
+.legend { font-size: .82rem; }
+.legend-row { display: flex; align-items: center; gap: .5rem; margin-bottom: .4rem; }
+.legend-swatch { width: 20px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.15); }
+.legend-ramp-row { margin: .4rem 0 .2rem; }
+.legend-ramp { display: block; width: 100%; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.15); }
+.legend-scale { display: flex; justify-content: space-between; color: var(--muted); font-size: .74rem; }
+
+/* ---------- banners ---------- */
+.validation { padding: 0 1rem; }
+.banner { border-radius: 6px; padding: .6rem .8rem; margin: .5rem 0; font-size: .82rem; }
+.banner ul { margin: .3rem 0 0; padding-left: 1.1rem; }
+.banner-error { background: #fdecea; border: 1px solid #f5c6c0; color: #8a1c13; }
+.banner-warn { background: #fff6e5; border: 1px solid #f2d999; color: #7a5200; }
+
+.fatal { max-width: 640px; margin: 4rem auto; text-align: center; padding: 2rem; }
+.fatal h1 { color: var(--danger); }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: 1fr; }
+  .col-map { order: -1; }
+  .map-shell { min-height: 60vh; }
+}
+
+/* editor.css — region editor specific styles */
+.editor-layout { flex: 1; display: grid; grid-template-columns: 260px minmax(0,1fr); gap: 0; min-height: 0; }
+.editor-sidebar { border-right: 1px solid var(--border); background: #fff; padding: .8rem; overflow: auto; display: flex; flex-direction: column; gap: .5rem; }
+.editor-sidebar #areaSearch { font: inherit; padding: .45rem .6rem; border: 1px solid var(--border); border-radius: 6px; }
+/* area actions + attribute panel */
+.ed-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+.ed-actions .btn { flex: 1; justify-content: center; font-size: .8rem; padding: .4rem .5rem; }
+.btn-danger { color: #fff; background: var(--danger); border-color: var(--danger); }
+.btn-danger:hover { background: #b71c1c; }
+.btn-danger:disabled { opacity: .5; }
+
+.ed-attrs { display: flex; flex-direction: column; gap: .5rem; padding: .6rem; border: 1px solid var(--border); border-radius: 6px; background: #fafbfc; }
+.ed-field { display: flex; flex-direction: column; gap: .2rem; font-size: .72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.ed-field input, .ed-field select { font: inherit; font-weight: 400; text-transform: none; letter-spacing: 0; padding: .4rem .5rem; border: 1px solid var(--border); border-radius: 5px; background: #fff; }
+.ed-field input:disabled, .ed-field select:disabled { background: #f0f2f4; color: var(--muted); }
+.ed-dept-row { display: flex; gap: .3rem; align-items: stretch; }
+.ed-dept-row select { flex: 1; min-width: 0; }
+.btn.ed-mini { padding: .3rem .5rem; font-size: .85rem; line-height: 1; }
+
+/* site code field in the editor header */
+.site-field { display: inline-flex; align-items: center; gap: .35rem; font-size: .82rem; color: var(--muted); }
+.site-field input { font: inherit; width: 7rem; padding: .35rem .5rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; text-transform: uppercase; }
+.ed-field .ed-hint { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
+
+/* empty state shown when a site has no floors yet */
+.ed-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .4rem; padding: 2rem; text-align: center; color: var(--muted); }
+.ed-empty p { max-width: 30rem; margin: 0; line-height: 1.5; }
+
+/* floor selector in the editor header */
+.floor-group { display: inline-flex; align-items: center; gap: .3rem; }
+.floor-label { display: inline-flex; align-items: center; gap: .3rem; font-size: .82rem; color: var(--muted); }
+.floor-label select { font: inherit; padding: .35rem .4rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+
+.area-list { list-style: none; margin: 0; padding: 0; overflow: auto; }
+.area-list li { padding: .4rem .5rem; border-radius: 5px; cursor: pointer; font-size: .84rem; display: flex; justify-content: space-between; gap: .4rem; }
+.area-list li:hover { background: #eef1f4; }
+.area-list li.active { background: var(--accent); color: #fff; }
+.area-list li .dept { font-size: .72rem; color: var(--muted); }
+.area-list li.active .dept { color: #dbe4f5; }
+.area-list li .missing { color: var(--danger); font-size: .72rem; }
+
+.editor-main { display: flex; flex-direction: column; min-width: 0; }
+.editor-controls { display: flex; align-items: center; gap: .8rem; padding: .5rem .8rem; border-bottom: 1px solid var(--border); background: #fff; flex-wrap: wrap; }
+.sel-name { font-weight: 600; font-size: .9rem; }
+.coord { font-size: .78rem; color: var(--muted); display: flex; align-items: center; gap: .25rem; }
+.coord input { width: 66px; font: inherit; padding: .25rem .4rem; border: 1px solid var(--border); border-radius: 5px; }
+
+.editor-canvas { position: relative; flex: 1; overflow: auto; background: #eceff1; }
+.editor-canvas .stage { position: relative; }
+.editor-canvas img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
+.editor-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ed-area { fill: #2f528f; fill-opacity: .18; stroke: #2f528f; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: move; }
+svg.locked .ed-area { cursor: default; }
+.ed-area.active { fill: #ff9800; fill-opacity: .3; stroke: #e65100; stroke-width: 2px; }
+.ed-handle { fill: #fff; stroke: #e65100; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: nwse-resize; }
+.ed-label { font: 600 11px Arial, sans-serif; fill: #14213d; paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; }
+
+  </style>
+</head>
+<body>
+<header class="app-header">
+    <div class="title">
+      <h1>Building Area Manager</h1>
+      <span class="subtitle">Set up a site's floors, areas &amp; poles — then build its heat-map file</span>
+    </div>
+    <div class="header-tools">
+      <label class="site-field" title="Short site code — names the built file and keeps each site's counts separate">Site
+        <input id="siteCode" type="text" placeholder="e.g. MEM1" autocomplete="off" />
+      </label>
+      <span class="floor-group" title="Switch, add, rename or delete floors">
+        <label class="floor-label">Floor <select id="floorSelect"></select></label>
+        <button id="addFloor" class="btn ed-mini" title="Add floor (name it + load its background)">＋</button>
+        <button id="renameFloor" class="btn ed-mini" title="Rename this floor">✎</button>
+        <button id="delFloor" class="btn ed-mini" title="Delete this floor">🗑</button>
+      </span>
+      <label class="btn" title="Replace the current floor's background image">Load background…<input id="bgFile" type="file" accept="image/*" hidden /></label>
+      <label class="btn" title="Prevent accidental dragging — clicking still selects a region; edit x/y/w/h to reposition">🔒 <input id="lockRegions" type="checkbox" checked /> Lock regions</label>
+      <button id="buildOperator" class="btn btn-primary" title="Generate this site's operator heat-map file to hand to associates">Build operator file</button>
+      <button id="saveProject" class="btn" title="Save the current layout (with images) to a project file you can reload later">Save project</button>
+      <label class="btn" title="Reload a previously saved project file">Load project<input id="loadProject" type="file" accept=".json,application/json" hidden /></label>
+      <button id="newSite" class="btn" title="Clear the editor to start a fresh, empty site">New site</button>
+    </div>
+  </header>
+
+  <div class="editor-layout">
+    <aside class="editor-sidebar">
+      <div class="ed-actions">
+        <button id="newArea" class="btn">＋ New area</button>
+        <button id="dupArea" class="btn" disabled>Duplicate</button>
+        <button id="delArea" class="btn btn-danger" disabled>Delete</button>
+      </div>
+
+      <div class="ed-attrs">
+        <label class="ed-field">Name
+          <input id="aName" type="text" placeholder="Area name" disabled />
+        </label>
+        <label class="ed-field">Pole (I-Beam)
+          <input id="aPole" type="text" list="poleList" placeholder="e.g. J12" disabled />
+          <datalist id="poleList"></datalist>
+        </label>
+        <label class="ed-field">Department
+          <span class="ed-dept-row">
+            <select id="aDept" disabled></select>
+            <button id="deptAdd" class="btn ed-mini" title="Add department">＋</button>
+            <button id="deptRename" class="btn ed-mini" title="Rename department" disabled>✎</button>
+          </span>
+        </label>
+        <label class="ed-field">Flow category <span class="ed-hint">(of this department)</span>
+          <select id="aCat" disabled></select>
+        </label>
+      </div>
+
+      <input id="areaSearch" type="search" placeholder="Search areas…" />
+      <p class="muted" id="editorHint">Select an area to edit it. Regions are locked by default — uncheck “Lock regions” to drag its box or corners (arrow keys nudge; Shift+Arrow resizes), or edit x/y/w/h above to reposition while locked.</p>
+      <ul id="areaList" class="area-list"></ul>
+    </aside>
+
+    <div class="editor-main">
+      <div class="editor-controls">
+        <span id="selName" class="sel-name">No area selected</span>
+        <span class="coord">x <input id="fx" type="number" step="1" /></span>
+        <span class="coord">y <input id="fy" type="number" step="1" /></span>
+        <span class="coord">w <input id="fw" type="number" step="1" /></span>
+        <span class="coord">h <input id="fh" type="number" step="1" /></span>
+        <span id="editorStatus" class="status"></span>
+      </div>
+      <div id="editor" class="editor-canvas">
+        <div id="edEmpty" class="ed-empty" hidden>
+          <p><strong>No floors yet.</strong></p>
+          <p>Enter a <strong>Site</strong> code above, then click <strong>＋</strong> next to <em>Floor</em> to add your first floor and load its background image. From there, add areas and place their boxes, then <strong>Build operator file</strong>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+const SEED_DATA = {"siteCode": "", "siteName": "", "floors": [], "areas": [], "departments": [], "ibeamMappings": [], "regions": {"regions": {}}, "categories": [{"id": "outbound", "name": "Outbound"}, {"id": "inbound", "name": "Inbound"}]};
+const BG_IMAGE_DATA_URIS = {};
+const OPERATOR_TEMPLATE = "\u003c!doctype html>\n\u003chtml lang=\"en\">\n\u003chead>\n  \u003cmeta charset=\"utf-8\" />\n  \u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  \u003ctitle>Dwelling Inventory Map\u003c/title>\n  \u003clink rel=\"icon\" href=\"data:image/svg+xml,\u003csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'>\u003crect width='16' height='16' rx='3' fill='%232f528f'/>\u003crect x='3' y='3' width='4' height='4' fill='%232ca25f'/>\u003crect x='9' y='3' width='4' height='4' fill='%23ffd400'/>\u003crect x='3' y='9' width='4' height='4' fill='%23e60000'/>\u003crect x='9' y='9' width='4' height='4' fill='%23808080'/>\u003c/svg>\" />\n  \u003cstyle>\n/* POC3 Dwelling Inventory Map \u2014 styles */\n:root {\n  --bg: #f4f6f8;\n  --panel-bg: #ffffff;\n  --border: #d9dee3;\n  --text: #1f2933;\n  --muted: #6b7680;\n  --accent: #2f528f;\n  --accent-dark: #24406f;\n  --danger: #d32f2f;\n  --success: #2e7d32;\n  --warn: #b26a00;\n  /* Selection outline colours (from the Excel original) */\n  --outline-default: #2f528f;\n  --outline-selected: #ff0000;\n  --outline-zone: #ffa500;\n  --radius: 8px;\n  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);\n  font-family: Arial, \"Segoe UI\", system-ui, sans-serif;\n}\n\n* { box-sizing: border-box; }\nhtml, body { margin: 0; height: 100%; }\nbody { background: var(--bg); color: var(--text); display: flex; flex-direction: column; }\n\n/* ---------- header ---------- */\n.app-header {\n  display: flex; align-items: center; justify-content: space-between; gap: 1rem;\n  padding: .6rem 1rem; background: var(--panel-bg); border-bottom: 1px solid var(--border);\n  flex-wrap: wrap;\n}\n.title h1 { font-size: 1.15rem; margin: 0; }\n.subtitle { font-size: .8rem; color: var(--muted); }\n.header-tools { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }\n.record-count { font-size: .82rem; color: var(--muted); margin-right: .25rem; }\n\n/* ---------- buttons ---------- */\n.btn {\n  font: inherit; font-size: .85rem; padding: .4rem .7rem; border: 1px solid var(--border);\n  background: #fff; color: var(--text); border-radius: 6px; cursor: pointer; text-decoration: none;\n  line-height: 1; display: inline-flex; align-items: center; transition: background .12s, border-color .12s;\n}\n.btn:hover { background: #eef1f4; }\n.btn:disabled { opacity: .5; cursor: default; }\n.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }\n.btn-primary:hover { background: var(--accent-dark); }\n\n/* ---------- layout ---------- */\n.layout {\n  flex: 1; display: grid; grid-template-columns: 300px minmax(0, 1fr) 320px;\n  gap: 1rem; padding: 1rem; min-height: 0;\n}\n.col { background: var(--panel-bg); border: 1px solid var(--border); border-radius: var(--radius);\n  padding: 1rem; box-shadow: var(--shadow); overflow: auto; }\n.col h2 { font-size: .95rem; margin: 0 0 .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }\n.col-map { padding: .6rem; display: flex; flex-direction: column; }\n\n/* ---------- entry form ---------- */\n.entry-form .field { margin-bottom: .8rem; display: flex; flex-direction: column; gap: .25rem; }\n.entry-form label { font-size: .78rem; color: var(--muted); font-weight: 600; }\n.entry-form input, .entry-form select {\n  font: inherit; padding: .5rem .6rem; border: 1px solid var(--border); border-radius: 6px; background: #fff;\n}\n.entry-form input[readonly] { background: #f0f2f4; color: var(--muted); }\n.entry-form input:focus, .entry-form select:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }\n.form-actions { display: flex; gap: .5rem; margin-top: .3rem; }\n.form-msg { min-height: 1.2em; font-size: .82rem; margin: .6rem 0 0; }\n.form-msg.error { color: var(--danger); }\n.form-msg.success { color: var(--success); }\n\n/* ---------- map ---------- */\n.map-controls { display: flex; align-items: center; gap: .6rem; padding: .2rem .3rem .5rem; flex-wrap: wrap; font-size: .82rem; }\n.map-controls label { display: flex; align-items: center; gap: .3rem; color: var(--muted); }\n.map-controls select { font: inherit; padding: .3rem; border: 1px solid var(--border); border-radius: 6px; }\n.map-controls .inline { gap: .35rem; }\n.status { font-size: .8rem; color: var(--muted); margin-left: auto; }\n.status.success { color: var(--success); }\n.status.error { color: var(--danger); }\n\n.map-shell { position: relative; flex: 1; min-height: 420px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: #fff; }\n.map-toolbar { position: absolute; top: 8px; left: 8px; z-index: 3; display: flex; gap: 4px; align-items: center;\n  background: rgba(255,255,255,.9); border: 1px solid var(--border); border-radius: 6px; padding: 3px; }\n.map-toolbar button { width: 28px; height: 28px; border: none; background: transparent; cursor: pointer; font-size: 1rem; border-radius: 4px; }\n.map-toolbar button[data-act=\"fit\"] { width: auto; padding: 0 8px; font-size: .8rem; }\n.map-toolbar button:hover { background: #eef1f4; }\n.map-toggle { font-size: .78rem; color: var(--muted); display: flex; align-items: center; gap: 3px; padding: 0 4px; }\n\n.map-viewport { position: absolute; inset: 0; overflow: hidden; touch-action: none; }\n.map-viewport.grabbing { cursor: grabbing; }\n.map-pan { position: absolute; inset: 0; transform-origin: 0 0; }\n.floor-plan { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }\n.map-overlay { position: absolute; inset: 0; width: 100%; height: 100%; }\n\n.area {\n  fill: #808080; fill-opacity: .68; cursor: pointer;\n  stroke: var(--outline-default); stroke-width: 2.25px; vector-effect: non-scaling-stroke;\n  transition: fill-opacity .1s;\n}\n.area:hover { fill-opacity: .85; }\n.area:focus { outline: none; fill-opacity: .9; }\n.area.is-zone { stroke: var(--outline-zone); stroke-width: 3px; }\n.area.is-selected { stroke: var(--outline-selected); stroke-width: 4px; fill-opacity: .9; }\n.area.is-dimmed { fill-opacity: .12; stroke-opacity: .2; }\n.area.is-dimmed.is-selected, .area.is-dimmed.is-zone { fill-opacity: .68; stroke-opacity: 1; }\n\n.map-tooltip {\n  position: absolute; z-index: 5; pointer-events: none; background: rgba(31,41,51,.95); color: #fff;\n  font-size: .76rem; line-height: 1.35; padding: .4rem .55rem; border-radius: 6px; max-width: 220px; box-shadow: var(--shadow);\n}\n\n/* ---------- info panel ---------- */\n.panel { margin-bottom: 1rem; }\n.panel-empty { color: var(--muted); font-size: .85rem; padding: .5rem 0; }\n.panel-head h3 { margin: 0 0 .5rem; font-size: 1rem; }\n.panel-stats { display: grid; grid-template-columns: 1fr auto; gap: .2rem .5rem; margin: 0; font-size: .85rem; }\n.panel-stats > div { display: contents; }\n.panel-stats dt { color: var(--muted); }\n.panel-stats dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }\n.panel-containers { margin-top: 1rem; }\n.panel-containers h4 { font-size: .8rem; margin: 0 0 .4rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }\n.muted { color: var(--muted); font-size: .82rem; }\n.container-list { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow: auto; }\n.container-list li { display: flex; justify-content: space-between; align-items: center; padding: .3rem .1rem; border-bottom: 1px solid var(--border); font-size: .84rem; }\n.container-list .cid { font-variant-numeric: tabular-nums; }\n.row-actions button { border: none; background: none; cursor: pointer; color: var(--muted); font-size: .8rem; padding: .1rem .3rem; border-radius: 4px; }\n.row-actions button:hover { background: #eef1f4; color: var(--text); }\n\n/* ---------- inbound / outbound summary ---------- */\n.io-stats { font-size: .9rem; }\n.io-stats .io-total dt, .io-stats .io-total dd { border-top: 1px solid var(--border); padding-top: .3rem; margin-top: .15rem; }\n\n/* ---------- area breakdown ---------- */\n.breakdown-wrap { overflow-x: auto; }\n.breakdown { width: 100%; border-collapse: collapse; font-size: .82rem; }\n.breakdown thead th { text-align: left; font-size: .72rem; text-transform: uppercase;\n  letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: .25rem .3rem; border-bottom: 1px solid var(--border); }\n.breakdown .bd-num { text-align: right; font-variant-numeric: tabular-nums; }\n.bd-dept { cursor: pointer; }\n.bd-dept:hover { background: #eef1f4; }\n.bd-dept:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }\n.bd-dept td { padding: .35rem .3rem; border-bottom: 1px solid var(--border); font-weight: 600; }\n.bd-dept-name { display: flex; align-items: center; gap: .35rem; }\n.bd-caret { display: inline-block; width: .6em; color: var(--muted); transition: transform .12s; }\n.bd-caret::before { content: \"\\25B8\"; } /* \u25b8 */\n.bd-group.is-open .bd-caret { transform: rotate(90deg); }\n/* sub-rows hidden until the group is expanded */\n.bd-sub { display: none; }\n.bd-group.is-open .bd-sub { display: table-row; }\n.bd-sub > td { padding: 0 0 .3rem .3rem; }\n.bd-inner { width: 100%; border-collapse: collapse; }\n.bd-inner th { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .03em;\n  color: var(--muted); font-weight: 600; padding: .2rem .3rem; }\n.bd-inner td { padding: .2rem .3rem; border-bottom: 1px solid var(--border); color: var(--text); }\n.bd-inner tr:last-child td { border-bottom: none; }\n\n/* ---------- legend ---------- */\n.legend { font-size: .82rem; }\n.legend-row { display: flex; align-items: center; gap: .5rem; margin-bottom: .4rem; }\n.legend-swatch { width: 20px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.15); }\n.legend-ramp-row { margin: .4rem 0 .2rem; }\n.legend-ramp { display: block; width: 100%; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.15); }\n.legend-scale { display: flex; justify-content: space-between; color: var(--muted); font-size: .74rem; }\n\n/* ---------- banners ---------- */\n.validation { padding: 0 1rem; }\n.banner { border-radius: 6px; padding: .6rem .8rem; margin: .5rem 0; font-size: .82rem; }\n.banner ul { margin: .3rem 0 0; padding-left: 1.1rem; }\n.banner-error { background: #fdecea; border: 1px solid #f5c6c0; color: #8a1c13; }\n.banner-warn { background: #fff6e5; border: 1px solid #f2d999; color: #7a5200; }\n\n.fatal { max-width: 640px; margin: 4rem auto; text-align: center; padding: 2rem; }\n.fatal h1 { color: var(--danger); }\n\n/* ---------- responsive ---------- */\n@media (max-width: 1100px) {\n  .layout { grid-template-columns: 1fr; }\n  .col-map { order: -1; }\n  .map-shell { min-height: 60vh; }\n}\n\n  \u003c/style>\n\u003c/head>\n\u003cbody>\n\u003cheader class=\"app-header\">\n    \u003cdiv class=\"title\">\n      \u003ch1>Dwelling Inventory Map\u003c/h1>\n      \u003cspan class=\"subtitle\">Warehouse dwelling-pallet heat map\u003c/span>\n    \u003c/div>\n    \u003cdiv class=\"header-tools\">\n      \u003cspan id=\"recordCount\" class=\"record-count\">0 pallets across 0 areas\u003c/span>\n      \u003cbutton id=\"importBtn\" class=\"btn\">Import\u2026\u003c/button>\n      \u003cinput id=\"importFile\" type=\"file\" accept=\".csv,.json\" hidden />\n      \u003cbutton id=\"exportCsv\" class=\"btn\">Export CSV\u003c/button>\n      \u003cbutton id=\"exportJson\" class=\"btn\">Export JSON\u003c/button>\n      \n    \u003c/div>\n  \u003c/header>\n\n  \u003cdiv id=\"validation\" class=\"validation\" hidden>\u003c/div>\n\n  \u003cmain class=\"layout\">\n    \u003c!-- Left: entry form -->\n    \u003csection class=\"col col-entry\" aria-label=\"Pallet count entry\">\n      \u003ch2>Record pallet count\u003c/h2>\n      \u003cdiv id=\"entry\">\u003c/div>\n      \u003ch2>Inbound / Outbound\u003c/h2>\n      \u003cdiv id=\"io-summary\">\u003c/div>\n    \u003c/section>\n\n    \u003c!-- Center: map -->\n    \u003csection class=\"col col-map\" aria-label=\"Floor map\">\n      \u003cdiv class=\"map-controls\">\n        \u003clabel class=\"floor-control\">Floor\n          \u003cselect id=\"floorSelect\">\u003c/select>\n        \u003c/label>\n        \u003clabel>Department\n          \u003cselect id=\"deptFilter\">\u003c/select>\n        \u003c/label>\n        \u003clabel class=\"inline\">\u003cinput id=\"hideEmpty\" type=\"checkbox\" /> Hide empty\u003c/label>\n        \u003cbutton id=\"resetSelection\" class=\"btn\">Reset selection\u003c/button>\n        \u003cspan id=\"status\" class=\"status\" role=\"status\" aria-live=\"polite\">\u003c/span>\n      \u003c/div>\n      \u003cdiv id=\"map\" class=\"map-shell\">\u003c/div>\n    \u003c/section>\n\n    \u003c!-- Right: panel + legend -->\n    \u003csection class=\"col col-info\" aria-label=\"Area information\">\n      \u003ch2>Area details\u003c/h2>\n      \u003cdiv id=\"panel\" class=\"panel\">\u003c/div>\n      \u003ch2>Legend\u003c/h2>\n      \u003cdiv id=\"legend\">\u003c/div>\n      \u003ch2>Area Breakdown\u003c/h2>\n      \u003cdiv id=\"breakdown\" class=\"breakdown-wrap\">\u003c/div>\n    \u003c/section>\n  \u003c/main>\n  \u003cscript>\n// ---- inlined by build/build-standalone.py (no server needed) ----\nconst SEED_DATA = \"__BAM_SEED_DATA__\";\nconst BG_IMAGE_DATA_URIS = \"__BAM_BG_IMAGE_DATA_URIS__\";\n\n// storage.js \u2014 per-area pallet counts persisted in the browser (localStorage).\n// Single-user, offline, per-machine. Import/export moves data in and out.\n//\n// Shape: a plain object { areaId: count }. Areas at zero are simply absent.\n//\n// The key is namespaced by site code so two different sites' generated operator\n// files opened on the same browser (file:// shares one origin) keep separate\n// counts. The site code is baked into SEED_DATA by the build / the Building Area\n// Manager editor; the served dev app and unit tests have none, so they use\n// 'default'.\n\nconst SITE = (typeof SEED_DATA !== 'undefined' && SEED_DATA && SEED_DATA.siteCode)\n  ? String(SEED_DATA.siteCode) : 'default';\nconst KEY = `dwelling.counts.v1.${SITE}`;\nconst LEGACY_COUNTS_KEY = 'poc3.counts.v1';   // pre-namespacing (POC3-only) key\nconst LEGACY_RECORDS_KEY = 'poc3.records.v1';  // pre-count model: array of records\n\n// The legacy POC3 keys belong to the original single-site build. Only adopt them\n// for the user's own contexts (the POC3 standalone and the served dev app) \u2014 a\n// different site's file must never absorb POC3's counts.\nconst ADOPT_LEGACY = SITE === 'POC3' || SITE === 'default';\n\nfunction readObject(key) {\n  try {\n    const raw = localStorage.getItem(key);\n    if (!raw) return null;\n    const parsed = JSON.parse(raw);\n    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;\n  } catch (err) {\n    console.error('Failed to load counts from localStorage:', err);\n    return null;\n  }\n}\n\n// One-time migration: if there are no counts yet but the old per-container\n// records exist, tally them per area so existing associate data isn't lost.\n// The legacy key is left in place as a fallback; it is no longer read after this.\nfunction migrateFromRecords() {\n  try {\n    const raw = localStorage.getItem(LEGACY_RECORDS_KEY);\n    if (!raw) return null;\n    const records = JSON.parse(raw);\n    if (!Array.isArray(records) || records.length === 0) return null;\n    const counts = {};\n    for (const r of records) {\n      if (r && r.areaId) counts[r.areaId] = (counts[r.areaId] || 0) + 1;\n    }\n    saveCounts(counts);\n    return counts;\n  } catch (err) {\n    console.error('Failed to migrate legacy records:', err);\n    return null;\n  }\n}\n\nfunction loadCounts() {\n  const existing = readObject(KEY);\n  if (existing) return existing;\n  if (ADOPT_LEGACY) {\n    // Adopt pre-namespacing POC3 counts, then fall back to the record model.\n    const legacyCounts = readObject(LEGACY_COUNTS_KEY);\n    if (legacyCounts) { saveCounts(legacyCounts); return legacyCounts; }\n    return migrateFromRecords() || {};\n  }\n  return {};\n}\n\nfunction saveCounts(counts) {\n  try {\n    localStorage.setItem(KEY, JSON.stringify(counts));\n    return true;\n  } catch (err) {\n    console.error('Failed to save counts to localStorage:', err);\n    return false;\n  }\n}\n\nfunction clearCounts() {\n  try { localStorage.removeItem(KEY); } catch (_) { /* ignore */ }\n}\n\n\n// heatmap.js \u2014 corrected green -> yellow -> red heat scale.\n//\n// Fixes the two quirks the migration brief calls out:\n//  1. Zero counts are neutral gray and are EXCLUDED from normalization, so the\n//     smallest positive value is a true green rather than being dragged toward\n//     the midpoint by zeros.\n//  2. A genuine 3-stop green -> yellow -> red interpolation (the Excel RGB math\n//     produced an olive midpoint instead of yellow).\n\nconst ZERO_COLOR = '#808080'; // neutral gray for zero-pallet areas\n\n// Three colour stops. Vivid and clearly distinct in the legend.\nconst STOP_LOW = [0x2c, 0xa2, 0x5f];  // green  (low)\nconst STOP_MID = [0xff, 0xd4, 0x00];  // yellow (medium)\nconst STOP_HIGH = [0xe6, 0x00, 0x00]; // red    (high)\n\n// When every positive area holds the same count we can't say which is high or\n// low, so fall back to the midpoint (yellow) rather than the Excel behaviour of\n// painting them all red. Tunable in one place.\nconst EQUAL_FALLBACK_T = 0.5;\n\nfunction lerp(a, b, u) { return a + (b - a) * u; }\n\nfunction toHex(rgb) {\n  return '#' + rgb.map((v) => Math.max(0, Math.min(255, Math.round(v)))\n    .toString(16).padStart(2, '0')).join('');\n}\n\n// Interpolate a normalized value t in [0,1] across the 3 stops.\nfunction colorForRatio(t) {\n  t = Math.max(0, Math.min(1, t));\n  let from, to, u;\n  if (t \u003c= 0.5) { from = STOP_LOW; to = STOP_MID; u = t / 0.5; }\n  else { from = STOP_MID; to = STOP_HIGH; u = (t - 0.5) / 0.5; }\n  return toHex([0, 1, 2].map((i) => lerp(from[i], to[i], u)));\n}\n\n// Compute the min/max of POSITIVE counts only. Zeros are ignored.\nfunction positiveExtent(counts) {\n  const pos = counts.filter((c) => c > 0);\n  if (pos.length === 0) return null; // no positive data at all\n  return { min: Math.min(...pos), max: Math.max(...pos) };\n}\n\n// Map a single count -> fill color given the current positive extent.\n// `extent` is the result of positiveExtent() over ALL area counts.\nfunction colorForCount(count, extent) {\n  if (!count || count \u003c= 0) return ZERO_COLOR;\n  if (!extent) return colorForRatio(EQUAL_FALLBACK_T); // count>0 but no extent (shouldn't happen)\n  const { min, max } = extent;\n  if (max === min) return colorForRatio(EQUAL_FALLBACK_T); // all positives equal\n  const t = (count - min) / (max - min);\n  return colorForRatio(t);\n}\n\n// Convenience: build a { areaId -> color } map from a { areaId -> count } map.\nfunction colorMap(countsByArea) {\n  const counts = Object.values(countsByArea);\n  const extent = positiveExtent(counts);\n  const out = {};\n  for (const [areaId, count] of Object.entries(countsByArea)) {\n    out[areaId] = colorForCount(count, extent);\n  }\n  return out;\n}\n\n\n// validate.js \u2014 startup manifest validation. Replaces Excel's silent\n// `On Error Resume Next` shape lookups with explicit, visible reporting.\n\n// Returns { errors: [...], warnings: [...] }. Errors are integrity problems\n// that break the data\u003c->map contract; warnings are non-fatal notes.\nfunction validateManifest(seed) {\n  const errors = [];\n  const warnings = [];\n\n  const areaIds = seed.areas.map((a) => a.id);\n  const areaIdSet = new Set(areaIds);\n  const areaById = new Map(seed.areas.map((a) => [a.id, a]));\n\n  // Duplicate area IDs\n  const seen = new Set();\n  for (const id of areaIds) {\n    if (seen.has(id)) errors.push(`Duplicate area id: \"${id}\"`);\n    seen.add(id);\n  }\n\n  const deptIds = new Set(seed.departments.map((d) => d.id));\n  const floorIds = new Set((seed.floors || []).map((f) => f.id));\n  const regionIds = new Set(Object.keys(seed.regions.regions || seed.regions));\n\n  for (const a of seed.areas) {\n    // Every area needs a map region\n    if (!regionIds.has(a.mapRegionId || a.id)) {\n      errors.push(`Area \"${a.name}\" (${a.id}) has no map region.`);\n    }\n    // Every area needs a valid department\n    if (!deptIds.has(a.departmentId)) {\n      errors.push(`Area \"${a.name}\" (${a.id}) references unknown department \"${a.departmentId}\".`);\n    }\n    // Every area needs a valid floor (only when the manifest declares floors)\n    if (floorIds.size && !floorIds.has(a.floorId)) {\n      errors.push(`Area \"${a.name}\" (${a.id}) references unknown floor \"${a.floorId}\".`);\n    }\n    // Every area should have an I-beam location\n    if (!a.iBeamLocation) {\n      warnings.push(`Area \"${a.name}\" (${a.id}) has no I-beam location.`);\n    }\n  }\n\n  // Regions with no matching area (excluding known non-data shapes)\n  const IGNORED_SHAPES = new Set(['misships', 'rectangle-37']);\n  for (const rid of regionIds) {\n    if (!areaIdSet.has(rid) && !IGNORED_SHAPES.has(rid)) {\n      warnings.push(`Map region \"${rid}\" has no matching area record.`);\n    }\n  }\n\n  // I-beam mappings point at real areas that live on the mapping's own floor.\n  for (const m of seed.ibeamMappings) {\n    for (const aid of m.areaIds) {\n      const area = areaById.get(aid);\n      if (!area) {\n        errors.push(`I-beam \"${m.iBeamLocation}\" maps to unknown area \"${aid}\".`);\n      } else if (m.floorId && area.floorId !== m.floorId) {\n        errors.push(`I-beam \"${m.iBeamLocation}\" (floor ${m.floorId}) maps to area \"${aid}\" on floor ${area.floorId}.`);\n      }\n    }\n  }\n\n  // Every area's own I-beam should appear in the mapping table for its floor.\n  const mappedIBeams = new Set(seed.ibeamMappings.map((m) => `${m.floorId} ${m.iBeamLocation}`));\n  for (const a of seed.areas) {\n    if (a.iBeamLocation && !mappedIBeams.has(`${a.floorId} ${a.iBeamLocation}`)) {\n      warnings.push(`Area \"${a.name}\" I-beam \"${a.iBeamLocation}\" is not in the mapping table.`);\n    }\n  }\n\n  return { errors, warnings };\n}\n\n\n// importexport.js \u2014 per-area CSV/JSON import & export. Validated imports with\n// visible errors (no silent skips, unlike the Excel original).\n\n// ---------- CSV helpers ----------\nfunction csvEscape(v) {\n  const s = v == null ? '' : String(v);\n  return /[\",\\n\\r]/.test(s) ? '\"' + s.replace(/\"/g, '\"\"') + '\"' : s;\n}\n\n// Minimal RFC-4180-ish CSV parser (handles quotes, commas, newlines in quotes).\nfunction parseCsv(text) {\n  const rows = [];\n  let row = [], field = '', inQuotes = false;\n  const pushField = () => { row.push(field); field = ''; };\n  const pushRow = () => { rows.push(row); row = []; };\n  for (let i = 0; i \u003c text.length; i++) {\n    const c = text[i];\n    if (inQuotes) {\n      if (c === '\"') {\n        if (text[i + 1] === '\"') { field += '\"'; i++; } else inQuotes = false;\n      } else field += c;\n    } else if (c === '\"') inQuotes = true;\n    else if (c === ',') pushField();\n    else if (c === '\\n') { pushField(); pushRow(); }\n    else if (c === '\\r') { /* ignore, handled by \\n */ }\n    else field += c;\n  }\n  if (field.length > 0 || row.length > 0) { pushField(); pushRow(); }\n  return rows.filter((r) => r.some((c) => c !== ''));\n}\n\n// ---------- Export ----------\n// One row per area that currently holds pallets.\nfunction exportCsv(model) {\n  const header = ['Area', 'Department', 'I_Beam_Location', 'Pallets'];\n  const lines = [header.map(csvEscape).join(',')];\n  for (const area of model.seed.areas) {\n    const count = model.getCount(area.id);\n    if (count \u003c= 0) continue;\n    const dept = model.getDept(area.departmentId);\n    lines.push([\n      csvEscape(area.name),\n      csvEscape(dept ? dept.name : area.departmentId),\n      csvEscape(area.iBeamLocation),\n      csvEscape(count),\n    ].join(','));\n  }\n  return lines.join('\\r\\n');\n}\n\nfunction exportJson(model) {\n  const out = [];\n  for (const area of model.seed.areas) {\n    const count = model.getCount(area.id);\n    if (count > 0) out.push({ areaId: area.id, area: area.name, count });\n  }\n  return JSON.stringify(out, null, 2);\n}\n\n// ---------- Import ----------\n// Build name/id lookup indexes from the model's areas.\nfunction buildAreaIndex(model) {\n  const byId = new Map();\n  const byName = new Map();\n  for (const a of model.seed.areas) {\n    byId.set(a.id, a);\n    byName.set(a.name.trim().toLowerCase(), a);\n  }\n  return { byId, byName };\n}\n\nfunction resolveArea(model, idx, value) {\n  if (!value) return null;\n  const v = String(value).trim();\n  return idx.byId.get(v) || idx.byName.get(v.toLowerCase()) || null;\n}\n\n// Returns { counts: { areaId: n }, errors: [{line, message}], total }.\n// Each row must resolve to a known area and carry a non-negative integer count.\n// Duplicate areas within the file are rejected (no silent last-wins).\nfunction importCounts(model, text, format) {\n  const idx = buildAreaIndex(model);\n  const errors = [];\n  const counts = {};\n  const fmt = format || (text.trim().startsWith('[') || text.trim().startsWith('{') ? 'json' : 'csv');\n\n  let rawRows = [];\n  if (fmt === 'json') {\n    let parsed;\n    try { parsed = JSON.parse(text); }\n    catch (e) { return { counts: {}, errors: [{ line: 0, message: 'Invalid JSON: ' + e.message }], total: 0 }; }\n    const arr = Array.isArray(parsed) ? parsed : (parsed.counts || parsed.records || []);\n    rawRows = arr.map((o) => ({\n      area: o.areaId ?? o.area ?? o['Area'],\n      pallets: o.count ?? o.pallets ?? o['Pallets'],\n    }));\n  } else {\n    const rows = parseCsv(text);\n    if (rows.length === 0) return { counts: {}, errors: [{ line: 0, message: 'File is empty.' }], total: 0 };\n    const header = rows[0].map((h) => h.trim().toLowerCase());\n    const col = (names) => header.findIndex((h) => names.includes(h));\n    const ai = col(['area']);\n    const pi = col(['pallets', 'count', 'pallet count']);\n    if (ai \u003c 0 || pi \u003c 0) {\n      return { counts: {}, errors: [{ line: 1, message: 'Missing required columns \"Area\" and/or \"Pallets\".' }], total: 0 };\n    }\n    rawRows = rows.slice(1).map((r) => ({ area: r[ai], pallets: pi >= 0 ? r[pi] : '' }));\n  }\n\n  const total = rawRows.length;\n  const seenAreas = new Set();\n  rawRows.forEach((raw, i) => {\n    const line = i + 2; // account for header + 1-index\n    const area = resolveArea(model, idx, raw.area);\n    if (!area) { errors.push({ line, message: `Unknown area \"${raw.area}\".` }); return; }\n    const rawCount = String(raw.pallets ?? '').trim();\n    const n = Number(rawCount);\n    if (rawCount === '' || !Number.isFinite(n) || n \u003c 0 || !Number.isInteger(n)) {\n      errors.push({ line, message: `Invalid pallet count \"${raw.pallets}\" for \"${area.name}\" (whole number \u2265 0).` });\n      return;\n    }\n    if (seenAreas.has(area.id)) {\n      errors.push({ line, message: `Duplicate area \"${area.name}\" within import.` });\n      return;\n    }\n    seenAreas.add(area.id);\n    if (n > 0) counts[area.id] = n;\n  });\n\n  return { counts, errors, total };\n}\n\n// Trigger a browser download of text content.\nfunction download(filename, text, mime = 'text/plain') {\n  const blob = new Blob([text], { type: mime });\n  const url = URL.createObjectURL(blob);\n  const a = document.createElement('a');\n  a.href = url; a.download = filename;\n  document.body.appendChild(a); a.click(); a.remove();\n  setTimeout(() => URL.revokeObjectURL(url), 1000);\n}\n\n\n// model.js \u2014 domain layer: floors, areas, departments, I-beam mappings, and\n// per-area pallet counts. No DOM here.\n\n// Flow categories (Inbound / Outbound) are per-site data, not code: each site\n// tags its departments via a `categoryId`, and the ordered category name list\n// travels in the seed as `categories`. `deriveCategories` reassembles the\n// { id, name, deptIds } shape the app consumes from that data \u2014 so the same\n// codebase serves any site's grouping. See build/build-standalone.py + the\n// Building Area Manager editor, which write these fields.\nfunction deriveCategories(seed) {\n  const depts = seed.departments || [];\n  // Ordered category metadata: an explicit seed.categories list wins (it fixes\n  // display order); otherwise infer the set from the departments' categoryIds\n  // in first-seen order.\n  let metas = Array.isArray(seed.categories) && seed.categories.length\n    ? seed.categories.map((c) => ({ id: c.id, name: c.name || c.id }))\n    : [];\n  if (!metas.length) {\n    const seen = [];\n    for (const d of depts) {\n      if (d.categoryId && !seen.includes(d.categoryId)) seen.push(d.categoryId);\n    }\n    metas = seen.map((id) => ({ id, name: id.charAt(0).toUpperCase() + id.slice(1) }));\n  }\n  const byCat = new Map(metas.map((c) => [c.id, []]));\n  for (const d of depts) {\n    if (d.categoryId && byCat.has(d.categoryId)) byCat.get(d.categoryId).push(d.id);\n  }\n  return metas.map((c) => ({ id: c.id, name: c.name, deptIds: byCat.get(c.id) || [] }));\n}\n\n// Fetch and assemble the static seed manifest. In the single-file standalone\n// build the data is inlined as a global SEED_DATA, so no HTTP/fetch is needed\n// (that build opens straight from disk via file://).\nasync function loadSeed() {\n  if (typeof SEED_DATA !== 'undefined' && SEED_DATA) return normalizeSeed(SEED_DATA);\n  const base = new URL('./data/', document.baseURI);\n  const [areas, departments, ibeam, regions, floors, categories] = await Promise.all([\n    fetch(new URL('areas.json', base)).then((r) => r.json()),\n    fetch(new URL('departments.json', base)).then((r) => r.json()),\n    fetch(new URL('ibeam-mappings.json', base)).then((r) => r.json()),\n    fetch(new URL('regions.json', base)).then((r) => r.json()),\n    // floors.json is newer than the rest of the format; tolerate its absence.\n    fetch(new URL('floors.json', base)).then((r) => r.json()).catch(() => null),\n    // categories.json is newer still; tolerate absence (falls back to inferring).\n    fetch(new URL('categories.json', base)).then((r) => r.json()).catch(() => null),\n  ]);\n  return normalizeSeed({ areas, departments, ibeamMappings: ibeam, regions, floors, categories });\n}\n\n// Guarantee seed.floors exists and every area carries a floorId. Keeps\n// pre-floor data (single image described by regions.meta) working: it becomes\n// one implicit floor and all areas are assigned to it.\nfunction normalizeSeed(seed) {\n  let floors = Array.isArray(seed.floors) && seed.floors.length ? seed.floors.slice() : null;\n  if (!floors) {\n    // A genuinely empty manifest (a blank Building Area Manager project) has no\n    // floors, areas, or regions \u2014 leave it floor-less so the editor can show its\n    // \"add your first floor\" empty state rather than a phantom floor.\n    const regionMap = (seed.regions && (seed.regions.regions || seed.regions)) || {};\n    const hasLegacy = (seed.areas && seed.areas.length)\n      || (seed.regions && seed.regions.meta) || Object.keys(regionMap).length;\n    if (!hasLegacy) return { ...seed, floors: [], areas: seed.areas || [] };\n    const meta = (seed.regions && seed.regions.meta) || {};\n    floors = [{\n      id: 'floor-1',\n      name: meta.image ? meta.image.replace(/\\.[^.]+$/, '') : 'Floor 1',\n      image: meta.image || 'floor-plan.png',\n      imageWidth: meta.imageWidth || 1808,\n      imageHeight: meta.imageHeight || 1125,\n    }];\n  }\n  const defaultFloorId = floors[0].id;\n  const areas = seed.areas.map((a) => (a.floorId ? a : { ...a, floorId: defaultFloorId }));\n  return { ...seed, floors, areas };\n}\n\n// Resolve a floor's background image source. The standalone build inlines every\n// floor image as a base64 data: URI keyed by filename in BG_IMAGE_DATA_URIS; the\n// served build falls back to the file under assets/.\nfunction bgSrcFor(floor) {\n  const image = (floor && floor.image) || 'floor-plan.png';\n  if (typeof BG_IMAGE_DATA_URIS !== 'undefined' && BG_IMAGE_DATA_URIS && BG_IMAGE_DATA_URIS[image]) {\n    return BG_IMAGE_DATA_URIS[image];\n  }\n  return './assets/' + image;\n}\n\n// Coerce any user/import value to a non-negative integer count.\nfunction normalizeCount(n) {\n  const v = Math.floor(Number(n));\n  return Number.isFinite(v) && v > 0 ? v : 0;\n}\n\nfunction createModel(seed) {\n  // Tolerate a raw seed (e.g. from a direct caller/tests): guarantee floors +\n  // per-area floorId. Idempotent when the seed is already normalized.\n  seed = normalizeSeed(seed);\n  const areasById = new Map(seed.areas.map((a) => [a.id, a]));\n  const deptsById = new Map(seed.departments.map((d) => [d.id, d]));\n  const floorsById = new Map(seed.floors.map((f) => [f.id, f]));\n\n  // Flow categories, derived from the seed's per-department categoryId + the\n  // ordered category name list. Precompute the dept -> category lookup.\n  const categoryList = deriveCategories(seed);\n  const categoryById = new Map(categoryList.map((c) => [c.id, c]));\n  const categoryByDept = new Map();\n  for (const c of categoryList) for (const id of c.deptIds) categoryByDept.set(id, c);\n\n  // I-beam locations are per-floor now, so a code can repeat across floors;\n  // key the lookup by floor + location to keep them distinct.\n  const ibKey = (floorId, ib) => `${floorId}\u0000${ib}`;\n  const ibeamToAreas = new Map(\n    seed.ibeamMappings.map((m) => [ibKey(m.floorId, m.iBeamLocation), m.areaIds]));\n\n  const areasByDept = new Map();\n  const areasByFloor = new Map();\n  for (const a of seed.areas) {\n    if (!areasByDept.has(a.departmentId)) areasByDept.set(a.departmentId, []);\n    areasByDept.get(a.departmentId).push(a.id);\n    if (!areasByFloor.has(a.floorId)) areasByFloor.set(a.floorId, []);\n    areasByFloor.get(a.floorId).push(a.id);\n  }\n\n  // { areaId -> count }. Only positive areas are stored; zeros are absent.\n  // Counts are global by area id (area ids are unique across floors).\n  let counts = loadCounts();\n\n  const api = {\n    seed,\n    areasById,\n    deptsById,\n    regions: seed.regions,\n\n    // ---- floors ----\n    floors: () => seed.floors.slice(),\n    getFloor: (id) => floorsById.get(id) || null,\n    defaultFloorId: () => (seed.floors[0] || {}).id || null,\n    areasOnFloor: (floorId) =>\n      (areasByFloor.get(floorId) || []).map((id) => areasById.get(id)).filter(Boolean),\n\n    // ---- lookups ----\n    getArea: (id) => areasById.get(id) || null,\n    getDept: (id) => deptsById.get(id) || null,\n    uniqueIBeams: (floorId) => {\n      const ibs = seed.ibeamMappings\n        .filter((m) => !floorId || m.floorId === floorId)\n        .map((m) => m.iBeamLocation);\n      return [...new Set(ibs)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));\n    },\n    // With a floorId, look up that floor's poles; without one, union across\n    // floors (an I-beam code may exist on more than one floor).\n    areasForIBeam: (ib, floorId) => {\n      const ids = floorId != null\n        ? (ibeamToAreas.get(ibKey(floorId, ib)) || [])\n        : seed.ibeamMappings.filter((m) => m.iBeamLocation === ib).flatMap((m) => m.areaIds);\n      return ids.map((id) => areasById.get(id)).filter(Boolean);\n    },\n    areasInDept: (deptId) =>\n      (areasByDept.get(deptId) || []).map((id) => areasById.get(id)).filter(Boolean),\n    isValidAreaForIBeam: (ib, areaId, floorId) => {\n      const ids = floorId != null\n        ? (ibeamToAreas.get(ibKey(floorId, ib)) || [])\n        : seed.ibeamMappings.filter((m) => m.iBeamLocation === ib).flatMap((m) => m.areaIds);\n      return ids.includes(areaId);\n    },\n\n    // ---- counts ----\n    getCount: (areaId) => counts[areaId] || 0,\n    areasWithCount: () => Object.keys(counts).filter((id) => counts[id] > 0).length,\n\n    // Set an area's absolute pallet count. Non-positive clears the entry.\n    setCount(areaId, n) {\n      if (!areasById.has(areaId)) throw new Error(`Unknown area: ${areaId}`);\n      const v = normalizeCount(n);\n      if (v > 0) counts[areaId] = v;\n      else delete counts[areaId];\n      saveCounts(counts);\n      return v;\n    },\n\n    // Replace the entire count map (used by import). Assumes validated input;\n    // keys are filtered to known areas and values normalized.\n    replaceCounts(newCounts) {\n      const next = {};\n      for (const [areaId, n] of Object.entries(newCounts || {})) {\n        if (!areasById.has(areaId)) continue;\n        const v = normalizeCount(n);\n        if (v > 0) next[areaId] = v;\n      }\n      counts = next;\n      saveCounts(counts);\n    },\n\n    // ---- derived ----\n    // { areaId -> count } for EVERY area (zero-filled).\n    countsByArea() {\n      const out = {};\n      for (const a of seed.areas) out[a.id] = counts[a.id] || 0;\n      return out;\n    },\n\n    // { areaId -> count } for one floor's areas only (zero-filled). Feeds the\n    // per-visible-floor heat-map normalization.\n    countsForFloor(floorId) {\n      const out = {};\n      for (const a of seed.areas) if (a.floorId === floorId) out[a.id] = counts[a.id] || 0;\n      return out;\n    },\n\n    departmentTotal(deptId) {\n      return (areasByDept.get(deptId) || []).reduce((sum, id) => sum + (counts[id] || 0), 0);\n    },\n\n    totalPallets: () => Object.values(counts).reduce((sum, n) => sum + n, 0),\n\n    // ---- site identity ----\n    // Drives the per-site localStorage namespace and the operator title.\n    siteCode: () => seed.siteCode || '',\n    siteName: () => seed.siteName || seed.siteCode || '',\n\n    // ---- flow categories (Inbound / Outbound), derived from seed data ----\n    categories: () => categoryList.map((c) => ({ ...c, deptIds: c.deptIds.slice() })),\n    categoryOfDept: (deptId) => categoryByDept.get(deptId) || null,\n    // Total pallets across a category's departments (global, all floors \u2014 matches\n    // totalPallets()).\n    categoryTotal(catId) {\n      const c = categoryById.get(catId);\n      return c ? c.deptIds.reduce((sum, id) => sum + api.departmentTotal(id), 0) : 0;\n    },\n  };\n\n  return api;\n}\n\n\n// panel.js \u2014 area information panel. Read-only summary of the selected area:\n// its pallet count plus department and overall totals.\n\nconst EMPTY = 'Select an area to view details.';\n\nfunction createPanel(root, model) {\n  function renderEmpty() {\n    root.innerHTML = `\u003cdiv class=\"panel-empty\">${EMPTY}\u003c/div>`;\n  }\n\n  function render(areaId) {\n    const area = model.getArea(areaId);\n    if (!area) { renderEmpty(); return; }\n    const dept = model.getDept(area.departmentId);\n    const areaCount = model.getCount(area.id);\n    const deptTotal = model.departmentTotal(area.departmentId);\n    const grandTotal = model.totalPallets();\n    const pct = grandTotal ? Math.round((areaCount / grandTotal) * 100) : 0;\n\n    root.innerHTML = `\n      \u003cdiv class=\"panel-head\">\n        \u003ch3>${area.name}\u003c/h3>\n        \u003cdl class=\"panel-stats\">\n          \u003cdiv>\u003cdt>I-Beam\u003c/dt>\u003cdd>${area.iBeamLocation}\u003c/dd>\u003c/div>\n          \u003cdiv>\u003cdt>Pallets\u003c/dt>\u003cdd>${areaCount}\u003c/dd>\u003c/div>\n          \u003cdiv>\u003cdt>Department\u003c/dt>\u003cdd>${dept.name}\u003c/dd>\u003c/div>\n          \u003cdiv>\u003cdt>Dept total\u003c/dt>\u003cdd>${deptTotal}\u003c/dd>\u003c/div>\n          \u003cdiv>\u003cdt>% of all pallets\u003c/dt>\u003cdd>${pct}%\u003c/dd>\u003c/div>\n        \u003c/dl>\n      \u003c/div>`;\n  }\n\n  renderEmpty();\n  return { render, renderEmpty };\n}\n\n\n// legend.js \u2014 heat-map legend. Reflects the actual scale (gray zero + a\n// continuous green->yellow->red ramp) and the current positive range.\n\nfunction createLegend(root) {\n  root.innerHTML = `\n    \u003cdiv class=\"legend\">\n      \u003cdiv class=\"legend-row\">\n        \u003cspan class=\"legend-swatch\" style=\"background:${ZERO_COLOR}\">\u003c/span>\n        \u003cspan>Zero pallets\u003c/span>\n      \u003c/div>\n      \u003cdiv class=\"legend-row legend-ramp-row\">\n        \u003cspan class=\"legend-ramp\" style=\"background:linear-gradient(to right, ${colorForRatio(0)}, ${colorForRatio(0.5)}, ${colorForRatio(1)})\">\u003c/span>\n      \u003c/div>\n      \u003cdiv class=\"legend-scale\">\u003cspan data-lo>low\u003c/span>\u003cspan>medium\u003c/span>\u003cspan data-hi>high\u003c/span>\u003c/div>\n    \u003c/div>`;\n\n  // Update the numeric low/high labels from the current positive extent.\n  function update(extent) {\n    const lo = root.querySelector('[data-lo]');\n    const hi = root.querySelector('[data-hi]');\n    if (extent) { lo.textContent = `low (${extent.min})`; hi.textContent = `high (${extent.max})`; }\n    else { lo.textContent = 'low'; hi.textContent = 'high'; }\n  }\n  return { update };\n}\n\n\n// breakdown.js \u2014 \"Area Breakdown\" table. A per-department roll-up of pallet\n// counts (business \"Area\" = department here), each row expandable to its areas\n// (business \"Physical Location\"), showing Area, Pole Location (I-Beam), and\n// Pallet Count. Read-only; mirrors the factory pattern of panel.js.\n\nfunction createBreakdown(root, model, { floorId } = {}) {\n  let currentFloorId = floorId || model.defaultFloorId();\n  // Departments the user has expanded \u2014 kept across re-renders so a count edit\n  // doesn't collapse an open section.\n  const openDepts = new Set();\n\n  // Departments that have at least one area on the current floor, each with its\n  // floor-filtered areas and subtotal. Preserves data order (departments.json,\n  // areas.json). Every such department and every one of its areas is listed,\n  // including zero counts.\n  function rows() {\n    return model.seed.departments\n      .map((d) => {\n        const areas = model.areasInDept(d.id).filter((a) => a.floorId === currentFloorId);\n        const total = areas.reduce((sum, a) => sum + model.getCount(a.id), 0);\n        return { dept: d, areas, total };\n      })\n      .filter((r) => r.areas.length > 0);\n  }\n\n  function render() {\n    const groups = rows();\n    if (!groups.length) {\n      root.innerHTML = '\u003cdiv class=\"panel-empty\">No areas on this floor.\u003c/div>';\n      return;\n    }\n    const bodies = groups.map(({ dept, areas, total }) => {\n      const open = openDepts.has(dept.id);\n      const areaRows = areas.map((a) => `\n        \u003ctr>\n          \u003ctd>${a.name}\u003c/td>\n          \u003ctd>${a.iBeamLocation}\u003c/td>\n          \u003ctd class=\"bd-num\">${model.getCount(a.id)}\u003c/td>\n        \u003c/tr>`).join('');\n      return `\n      \u003ctbody class=\"bd-group${open ? ' is-open' : ''}\" data-dept=\"${dept.id}\">\n        \u003ctr class=\"bd-dept\" role=\"button\" tabindex=\"0\" aria-expanded=\"${open}\">\n          \u003ctd class=\"bd-dept-name\">\u003cspan class=\"bd-caret\" aria-hidden=\"true\">\u003c/span>${dept.name}\u003c/td>\n          \u003ctd class=\"bd-num\">${total}\u003c/td>\n        \u003c/tr>\n        \u003ctr class=\"bd-sub\">\n          \u003ctd colspan=\"2\">\n            \u003ctable class=\"bd-inner\">\n              \u003cthead>\u003ctr>\u003cth>Area\u003c/th>\u003cth>Pole Location\u003c/th>\u003cth class=\"bd-num\">Pallet Count\u003c/th>\u003c/tr>\u003c/thead>\n              \u003ctbody>${areaRows}\u003c/tbody>\n            \u003c/table>\n          \u003c/td>\n        \u003c/tr>\n      \u003c/tbody>`;\n    }).join('');\n\n    root.innerHTML = `\n      \u003ctable class=\"breakdown\">\n        \u003cthead>\u003ctr>\u003cth>Area\u003c/th>\u003cth class=\"bd-num\">Pallet Count\u003c/th>\u003c/tr>\u003c/thead>\n        ${bodies}\n      \u003c/table>`;\n  }\n\n  function toggle(deptId) {\n    if (openDepts.has(deptId)) openDepts.delete(deptId);\n    else openDepts.add(deptId);\n    const group = root.querySelector(`.bd-group[data-dept=\"${deptId}\"]`);\n    if (!group) return;\n    const open = openDepts.has(deptId);\n    group.classList.toggle('is-open', open);\n    group.querySelector('.bd-dept').setAttribute('aria-expanded', String(open));\n  }\n\n  root.addEventListener('click', (e) => {\n    const deptRow = e.target.closest('.bd-dept');\n    if (deptRow && root.contains(deptRow)) toggle(deptRow.closest('.bd-group').dataset.dept);\n  });\n  root.addEventListener('keydown', (e) => {\n    if (e.key !== 'Enter' && e.key !== ' ') return;\n    const deptRow = e.target.closest('.bd-dept');\n    if (deptRow && root.contains(deptRow)) {\n      e.preventDefault();\n      toggle(deptRow.closest('.bd-group').dataset.dept);\n    }\n  });\n\n  render();\n\n  return {\n    render,\n    setFloor(fid) { currentFloorId = fid; render(); },\n  };\n}\n\n\n// iosummary.js \u2014 flow-category pallet roll-up. A compact read-only summary of the\n// site's flow categories (Inbound / Outbound) plus the grand total. Categories\n// come from the seed (model.categories()), so this adapts to each site's own\n// department grouping rather than assuming fixed ids. Mirrors panel.js.\n\nfunction esc(s) {\n  return String(s).replace(/[&\u003c>]/g, (c) => ({ '&': '&amp;', '\u003c': '&lt;', '>': '&gt;' }[c]));\n}\n\nfunction createIoSummary(root, model) {\n  function render() {\n    const rows = model.categories()\n      .map((c) => `\u003cdiv>\u003cdt>${esc(c.name)}\u003c/dt>\u003cdd>${model.categoryTotal(c.id)}\u003c/dd>\u003c/div>`)\n      .join('');\n    const total = model.totalPallets();\n    root.innerHTML = `\n      \u003cdl class=\"panel-stats io-stats\">\n        ${rows}\n        \u003cdiv class=\"io-total\">\u003cdt>Total\u003c/dt>\u003cdd>${total}\u003c/dd>\u003c/div>\n      \u003c/dl>`;\n  }\n  render();\n  return { render };\n}\n\n\n// form.js \u2014 area pallet-count editor. Pick an area (dropdown, grouped by\n// department) or have one pushed in from a map-region click, then type the\n// area's pallet count directly. Replaces the old scan-one-container form.\n\nfunction createCountEditor(root, model, { onChange, onSelectArea, floorId } = {}) {\n  root.innerHTML = `\n    \u003cform class=\"entry-form\" autocomplete=\"off\" novalidate>\n      \u003cdiv class=\"field\">\n        \u003clabel for=\"areaSelect\">Area\u003c/label>\n        \u003cselect id=\"areaSelect\" name=\"areaSelect\">\n          \u003coption value=\"\">Select an area\u2026\u003c/option>\n        \u003c/select>\n      \u003c/div>\n      \u003cdiv class=\"field\">\n        \u003clabel for=\"iBeam\">I-Beam Location\u003c/label>\n        \u003cinput id=\"iBeam\" name=\"iBeam\" type=\"text\" readonly tabindex=\"-1\" placeholder=\"\u2014\" />\n      \u003c/div>\n      \u003cdiv class=\"field\">\n        \u003clabel for=\"dept\">Department\u003c/label>\n        \u003cinput id=\"dept\" name=\"dept\" type=\"text\" readonly tabindex=\"-1\" placeholder=\"\u2014\" />\n      \u003c/div>\n      \u003cdiv class=\"field\">\n        \u003clabel for=\"pallets\">Pallets\u003c/label>\n        \u003cinput id=\"pallets\" name=\"pallets\" type=\"number\" min=\"0\" step=\"1\"\n               inputmode=\"numeric\" placeholder=\"0\" disabled />\n      \u003c/div>\n      \u003cdiv class=\"form-actions\">\n        \u003cbutton type=\"submit\" class=\"btn btn-primary\" disabled data-act=\"save\">Save count\u003c/button>\n        \u003cbutton type=\"button\" class=\"btn\" data-act=\"clear\" disabled>Clear\u003c/button>\n      \u003c/div>\n      \u003cp class=\"form-msg\" role=\"status\" aria-live=\"polite\">\u003c/p>\n    \u003c/form>`;\n\n  const form = root.querySelector('form');\n  const areaEl = form.areaSelect;\n  const ibeamEl = form.iBeam;\n  const deptEl = form.dept;\n  const palletsEl = form.pallets;\n  const saveBtn = form.querySelector('[data-act=\"save\"]');\n  const clearBtn = form.querySelector('[data-act=\"clear\"]');\n  const msgEl = form.querySelector('.form-msg');\n\n  function setMsg(text, kind = '') {\n    msgEl.textContent = text || '';\n    msgEl.className = 'form-msg' + (kind ? ' ' + kind : '');\n  }\n\n  // Rebuild the area dropdown for one floor (departments are global; only that\n  // floor's areas are listed). Clears the current selection.\n  function buildOptions(fid) {\n    const onFloor = new Set(model.areasOnFloor(fid).map((a) => a.id));\n    const optgroups = model.seed.departments.map((d) => {\n      const opts = model.areasInDept(d.id)\n        .filter((a) => onFloor.has(a.id))\n        .map((a) => `\u003coption value=\"${a.id}\">${a.name}\u003c/option>`).join('');\n      return opts ? `\u003coptgroup label=\"${d.name}\">${opts}\u003c/optgroup>` : '';\n    }).join('');\n    areaEl.innerHTML = `\u003coption value=\"\">Select an area\u2026\u003c/option>${optgroups}`;\n    areaEl.value = '';\n    setMsg('');\n    populate();\n  }\n\n  // Populate the read-only fields + count for the currently selected area.\n  function populate() {\n    const area = model.getArea(areaEl.value);\n    if (!area) {\n      ibeamEl.value = '';\n      deptEl.value = '';\n      palletsEl.value = '';\n      palletsEl.disabled = true;\n      saveBtn.disabled = true;\n      clearBtn.disabled = true;\n      return;\n    }\n    ibeamEl.value = area.iBeamLocation;\n    deptEl.value = model.getDept(area.departmentId).name;\n    palletsEl.value = model.getCount(area.id);\n    palletsEl.disabled = false;\n    saveBtn.disabled = false;\n    clearBtn.disabled = false;\n  }\n\n  areaEl.addEventListener('change', () => {\n    setMsg('');\n    populate();\n    if (areaEl.value && onSelectArea) onSelectArea(areaEl.value);\n  });\n\n  form.addEventListener('submit', (e) => {\n    e.preventDefault();\n    const area = model.getArea(areaEl.value);\n    if (!area) { setMsg('Select an area first.', 'error'); areaEl.focus(); return; }\n    const raw = palletsEl.value.trim();\n    if (raw === '') { setMsg('Enter a pallet count.', 'error'); palletsEl.focus(); return; }\n    const n = Number(raw);\n    if (!Number.isFinite(n) || n \u003c 0 || !Number.isInteger(n)) {\n      setMsg('Pallet count must be a whole number of 0 or more.', 'error');\n      palletsEl.focus();\n      return;\n    }\n    const saved = model.setCount(area.id, n);\n    palletsEl.value = saved;\n    setMsg(`Set ${area.name} to ${saved} pallet${saved === 1 ? '' : 's'}.`, 'success');\n    if (onChange) onChange();\n  });\n\n  clearBtn.addEventListener('click', () => {\n    const area = model.getArea(areaEl.value);\n    if (!area) return;\n    model.setCount(area.id, 0);\n    palletsEl.value = 0;\n    setMsg(`Cleared ${area.name}.`, '');\n    if (onChange) onChange();\n  });\n\n  // Programmatically select an area (e.g. from a map-region click). Populates\n  // the fields and focuses the count input, but does NOT fire onSelectArea \u2014\n  // the caller already owns the selection state.\n  function selectArea(areaId) {\n    if (areaId && model.getArea(areaId)) {\n      areaEl.value = areaId;\n      populate();\n      setMsg('');\n      palletsEl.focus();\n      palletsEl.select();\n    } else {\n      areaEl.value = '';\n      populate();\n    }\n  }\n\n  // initial population for the starting floor\n  buildOptions(floorId || model.defaultFloorId());\n\n  return {\n    selectArea,\n    getAreaId: () => areaEl.value || null,\n    // Re-read the current area's stored count (after external changes/import).\n    refresh: () => populate(),\n    // Repopulate the dropdown for a different floor.\n    setFloor: (fid) => buildOptions(fid),\n  };\n}\n\n\n// map.js \u2014 interactive SVG map overlay: heat fills, selection/zone outlines,\n// hover tooltip, keyboard support, and zoom/pan. Renders one floor at a time;\n// call setFloor() to switch which floor's plan + boxes are shown.\n\nconst SVGNS = 'http://www.w3.org/2000/svg';\n\nfunction createMapView(root, model, { onSelect, floorId } = {}) {\n  const regions = model.regions.regions || model.regions;\n  let currentFloorId = floorId || model.defaultFloorId();\n\n  root.innerHTML = `\n    \u003cdiv class=\"map-toolbar\">\n      \u003cbutton type=\"button\" data-act=\"zoom-in\" title=\"Zoom in\" aria-label=\"Zoom in\">+\u003c/button>\n      \u003cbutton type=\"button\" data-act=\"zoom-out\" title=\"Zoom out\" aria-label=\"Zoom out\">&minus;\u003c/button>\n      \u003cbutton type=\"button\" data-act=\"fit\" title=\"Fit to screen\">Fit\u003c/button>\n    \u003c/div>\n    \u003cdiv class=\"map-viewport\" tabindex=\"0\">\n      \u003cdiv class=\"map-pan\">\n        \u003cimg class=\"floor-plan\" src=\"\" alt=\"Warehouse floor plan\" draggable=\"false\" />\n        \u003csvg class=\"map-overlay\" viewBox=\"0 0 100 100\" preserveAspectRatio=\"xMidYMid meet\">\u003c/svg>\n      \u003c/div>\n    \u003c/div>\n    \u003cdiv class=\"map-tooltip\" hidden>\u003c/div>`;\n\n  const viewport = root.querySelector('.map-viewport');\n  const pan = root.querySelector('.map-pan');\n  const img = root.querySelector('.floor-plan');\n  const svg = root.querySelector('.map-overlay');\n  const tooltip = root.querySelector('.map-tooltip');\n\n  const rectByArea = new Map();\n  let counts = {};\n  let lastColorMap = {};\n\n  // --- (re)build rects + background for one floor ---\n  function renderFloor(fid) {\n    currentFloorId = fid;\n    const floor = model.getFloor(fid) || { imageWidth: 1808, imageHeight: 1125 };\n    img.src = bgSrcFor(floor);\n    svg.setAttribute('viewBox', `0 0 ${floor.imageWidth} ${floor.imageHeight}`);\n    svg.innerHTML = '';\n    rectByArea.clear();\n    for (const area of model.areasOnFloor(fid)) {\n      const g = regions[area.mapRegionId || area.id];\n      if (!g) continue;\n      const rect = document.createElementNS(SVGNS, 'rect');\n      rect.setAttribute('x', g.x); rect.setAttribute('y', g.y);\n      rect.setAttribute('width', Math.max(1, g.w)); rect.setAttribute('height', Math.max(1, g.h));\n      rect.setAttribute('rx', 2);\n      rect.classList.add('area');\n      rect.dataset.areaId = area.id;\n      rect.setAttribute('tabindex', '0');\n      rect.setAttribute('role', 'button');\n      rect.setAttribute('aria-label', area.name);\n      svg.appendChild(rect);\n      rectByArea.set(area.id, rect);\n    }\n    applyColors();\n  }\n\n  function applyColors() {\n    for (const [areaId, rect] of rectByArea) {\n      rect.style.fill = lastColorMap[areaId] || '#808080';\n    }\n  }\n\n  // --- selection ---\n  function select(areaId) { if (onSelect) onSelect(areaId); }\n\n  svg.addEventListener('click', (e) => {\n    const r = e.target.closest('.area');\n    if (r) select(r.dataset.areaId);\n  });\n  svg.addEventListener('keydown', (e) => {\n    const r = e.target.closest('.area');\n    if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(r.dataset.areaId); }\n  });\n\n  // --- hover tooltip ---\n  svg.addEventListener('mousemove', (e) => {\n    const r = e.target.closest('.area');\n    if (!r) { tooltip.hidden = true; return; }\n    const area = model.getArea(r.dataset.areaId);\n    const c = counts[area.id] || 0;\n    tooltip.innerHTML = `\u003cstrong>${area.name}\u003c/strong>\u003cbr>${model.getDept(area.departmentId).name} \u00b7 ${area.iBeamLocation}\u003cbr>${c} pallet${c === 1 ? '' : 's'}`;\n    tooltip.hidden = false;\n    const rootRect = root.getBoundingClientRect();\n    let x = e.clientX - rootRect.left + 14;\n    let y = e.clientY - rootRect.top + 14;\n    if (x + tooltip.offsetWidth > rootRect.width) x = e.clientX - rootRect.left - tooltip.offsetWidth - 14;\n    tooltip.style.left = x + 'px';\n    tooltip.style.top = y + 'px';\n  });\n  svg.addEventListener('mouseleave', () => { tooltip.hidden = true; });\n\n  // --- heat colors ---\n  function setColors(colorMap, countsByArea) {\n    counts = countsByArea || {};\n    lastColorMap = colorMap || {};\n    applyColors();\n  }\n\n  // --- selection outlines ---\n  function setSelection(selectedId, zoneIds) {\n    const zone = new Set(zoneIds || []);\n    for (const [areaId, rect] of rectByArea) {\n      rect.classList.toggle('is-selected', areaId === selectedId);\n      rect.classList.toggle('is-zone', areaId !== selectedId && zone.has(areaId));\n    }\n  }\n  function clearSelection() { setSelection(null, []); }\n\n  // --- zoom / pan ---\n  let scale = 1, tx = 0, ty = 0;\n  function apply() { pan.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`; }\n  function zoomAt(factor, cx, cy) {\n    const rect = viewport.getBoundingClientRect();\n    const px = (cx - rect.left - tx) / scale;\n    const py = (cy - rect.top - ty) / scale;\n    scale = Math.max(1, Math.min(6, scale * factor));\n    tx = cx - rect.left - px * scale;\n    ty = cy - rect.top - py * scale;\n    constrain(); apply();\n  }\n  function constrain() {\n    const rect = viewport.getBoundingClientRect();\n    const maxX = 0, minX = rect.width - rect.width * scale;\n    const maxY = 0, minY = rect.height - rect.height * scale;\n    tx = Math.min(maxX, Math.max(minX, tx));\n    ty = Math.min(maxY, Math.max(minY, ty));\n  }\n  function fit() { scale = 1; tx = 0; ty = 0; apply(); }\n\n  root.querySelector('[data-act=\"zoom-in\"]').addEventListener('click', () => {\n    const r = viewport.getBoundingClientRect(); zoomAt(1.25, r.left + r.width / 2, r.top + r.height / 2);\n  });\n  root.querySelector('[data-act=\"zoom-out\"]').addEventListener('click', () => {\n    const r = viewport.getBoundingClientRect(); zoomAt(0.8, r.left + r.width / 2, r.top + r.height / 2);\n  });\n  root.querySelector('[data-act=\"fit\"]').addEventListener('click', fit);\n\n  viewport.addEventListener('wheel', (e) => {\n    if (!e.ctrlKey && Math.abs(e.deltaY) \u003c 1) return;\n    e.preventDefault();\n    zoomAt(e.deltaY \u003c 0 ? 1.12 : 0.89, e.clientX, e.clientY);\n  }, { passive: false });\n\n  // drag to pan (only when zoomed in)\n  let dragging = false, sx = 0, sy = 0;\n  viewport.addEventListener('pointerdown', (e) => {\n    if (scale \u003c= 1) return;\n    dragging = true; sx = e.clientX - tx; sy = e.clientY - ty;\n    viewport.setPointerCapture(e.pointerId); viewport.classList.add('grabbing');\n  });\n  viewport.addEventListener('pointermove', (e) => {\n    if (!dragging) return;\n    tx = e.clientX - sx; ty = e.clientY - sy; constrain(); apply();\n  });\n  const endDrag = () => { dragging = false; viewport.classList.remove('grabbing'); };\n  viewport.addEventListener('pointerup', endDrag);\n  viewport.addEventListener('pointercancel', endDrag);\n\n  // Switch which floor is shown: rebuild boxes + background, reset zoom, and\n  // drop any selection (the selected area may not live on the new floor).\n  function setFloor(fid) {\n    renderFloor(fid);\n    fit();\n    clearSelection();\n  }\n\n  // initial paint\n  renderFloor(currentFloorId);\n\n  return { setColors, setSelection, clearSelection, fit, setFloor };\n}\n\n\n// app.js \u2014 bootstrap & wiring for the main operator app.\n\n\n\n\n\n\n\n\n\n\nconst $ = (sel) => document.querySelector(sel);\n\nasync function main() {\n  let seed;\n  try {\n    seed = await loadSeed();\n  } catch (err) {\n    showFatal('Could not load map data. The app must be served over HTTP (e.g. '\n      + '`python3 -m http.server` in the app folder), not opened directly from disk.', err);\n    return;\n  }\n\n  // ---- startup validation (no silent failures) ----\n  const { errors, warnings } = validateManifest(seed);\n  renderBanner(errors, warnings);\n  if (errors.length) return; // integrity broken; stop before wiring UI\n\n  const model = createModel(seed);\n\n  // ---- site identity ----\n  // Generated per-site operator files carry a site code; reflect it in the page\n  // title + header so associates see their own site. The served dev app has no\n  // code and keeps index.html's default heading.\n  const siteCode = model.siteCode();\n  if (siteCode) {\n    const title = `${siteCode} Dwelling Inventory Map`;\n    document.title = title;\n    const h1 = $('.app-header .title h1');\n    if (h1) h1.textContent = title;\n  }\n  const filePrefix = (siteCode || 'dwelling').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'dwelling';\n\n  // ---- selection + floor state ----\n  let selectedAreaId = null;\n  let currentFloorId = model.defaultFloorId();\n\n  const legend = createLegend($('#legend'));\n  const panel = createPanel($('#panel'), model);\n  const breakdown = createBreakdown($('#breakdown'), model, { floorId: currentFloorId });\n  const ioSummary = createIoSummary($('#io-summary'), model);\n\n  const map = createMapView($('#map'), model, {\n    onSelect: (areaId) => setSelected(areaId), // map click drives editor too\n    floorId: currentFloorId,\n  });\n\n  const editor = createCountEditor($('#entry'), model, {\n    onChange: refresh,\n    onSelectArea: (areaId) => setSelected(areaId, { syncEditor: false }),\n    floorId: currentFloorId,\n  });\n\n  // Single source of truth for the selected area. `syncEditor` pushes the\n  // selection into the editor (used for map clicks); the editor's own dropdown\n  // already holds it, so it opts out to avoid a redundant repopulate.\n  function setSelected(areaId, { syncEditor = true } = {}) {\n    selectedAreaId = areaId;\n    if (syncEditor) editor.selectArea(areaId);\n    renderSelection();\n  }\n\n  // ---- floor selector ----\n  const floorSelect = $('#floorSelect');\n  const floors = model.floors();\n  floorSelect.innerHTML = floors.map((f) => `\u003coption value=\"${f.id}\">${f.name}\u003c/option>`).join('');\n  floorSelect.value = currentFloorId;\n  // Hide the control entirely when there's only one floor \u2014 nothing to switch.\n  floorSelect.closest('.floor-control').style.display = floors.length \u003c 2 ? 'none' : '';\n  floorSelect.addEventListener('change', () => {\n    currentFloorId = floorSelect.value;\n    selectedAreaId = null;\n    map.setFloor(currentFloorId);   // rebuilds boxes + background, clears selection\n    editor.setFloor(currentFloorId); // repopulates the area dropdown\n    breakdown.setFloor(currentFloorId); // re-rolls the per-department table\n    panel.renderEmpty();\n    refresh();\n  });\n\n  // ---- department filter (dims non-matching areas) ----\n  // Departments are grouped by flow category, and each group offers a\n  // \"\u003cCategory> (all)\" option (value `cat:\u003cid>`) to filter the whole category.\n  const deptFilter = $('#deptFilter');\n  deptFilter.innerHTML = '\u003coption value=\"\">All departments\u003c/option>' +\n    model.categories().map((c) => {\n      const opts = c.deptIds\n        .map((id) => model.getDept(id))\n        .filter(Boolean)\n        .map((d) => `\u003coption value=\"${d.id}\">${d.name}\u003c/option>`).join('');\n      return `\u003coptgroup label=\"${c.name}\">`\n        + `\u003coption value=\"cat:${c.id}\">${c.name} (all)\u003c/option>${opts}\u003c/optgroup>`;\n    }).join('');\n  deptFilter.addEventListener('change', renderSelection);\n  $('#hideEmpty').addEventListener('change', renderSelection);\n\n  // ---- reset selection ----\n  $('#resetSelection').addEventListener('click', () => {\n    selectedAreaId = null;\n    editor.selectArea(null);\n    renderSelection();\n    panel.renderEmpty();\n  });\n\n  // ---- import / export ----\n  $('#exportCsv').addEventListener('click', () =>\n    download(`${filePrefix}-dwelling-counts.csv`, exportCsv(model), 'text/csv'));\n  $('#exportJson').addEventListener('click', () =>\n    download(`${filePrefix}-dwelling-counts.json`, exportJson(model), 'application/json'));\n  $('#importBtn').addEventListener('click', () => $('#importFile').click());\n  $('#importFile').addEventListener('change', async (e) => {\n    const file = e.target.files[0];\n    if (!file) return;\n    const text = await file.text();\n    const fmt = file.name.toLowerCase().endsWith('.json') ? 'json' : 'csv';\n    const { counts, errors: errs, total } = importCounts(model, text, fmt);\n    e.target.value = '';\n    const areaCount = Object.keys(counts).length;\n    if (errs.length) {\n      const preview = errs.slice(0, 8).map((x) => `\u2022 line ${x.line}: ${x.message}`).join('\\n');\n      const more = errs.length > 8 ? `\\n\u2026and ${errs.length - 8} more.` : '';\n      const proceed = confirm(\n        `${errs.length} of ${total} rows are invalid and will be skipped:\\n\\n${preview}${more}\\n\\n`\n        + `Import the ${areaCount} valid area${areaCount === 1 ? '' : 's'}?`);\n      if (!proceed) { setStatus('Import cancelled.'); return; }\n    }\n    if (areaCount === 0) { setStatus('Nothing imported \u2014 no valid rows.', 'error'); return; }\n    const replace = confirm(`Import counts for ${areaCount} area${areaCount === 1 ? '' : 's'}.\\n\\n`\n      + `OK = replace current data, Cancel = merge into existing.`);\n    if (replace) {\n      model.replaceCounts(counts);\n    } else {\n      for (const [areaId, n] of Object.entries(counts)) model.setCount(areaId, n);\n    }\n    setStatus(`Imported ${areaCount} area${areaCount === 1 ? '' : 's'}`\n      + `${errs.length ? ` (${errs.length} skipped)` : ''}.`, 'success');\n    editor.refresh();\n    refresh();\n  });\n\n  // ---- render helpers ----\n  function renderColors() {\n    // Heat scale normalizes per visible floor: only this floor's counts feed the\n    // color map and legend extent.\n    const counts = model.countsForFloor(currentFloorId);\n    const cmap = colorMap(counts);\n    map.setColors(cmap, counts);\n    legend.update(positiveExtent(Object.values(counts)));\n    return counts;\n  }\n\n  function renderSelection() {\n    // Zone = other areas in the same department as the selected area.\n    let zoneIds = [];\n    if (selectedAreaId) {\n      const area = model.getArea(selectedAreaId);\n      zoneIds = model.areasInDept(area.departmentId).map((a) => a.id).filter((id) => id !== selectedAreaId);\n    }\n    map.setSelection(selectedAreaId, zoneIds);\n    applyFilterDim();\n    if (selectedAreaId) panel.render(selectedAreaId);\n  }\n\n  function applyFilterDim() {\n    const sel = deptFilter.value;\n    const hideEmpty = $('#hideEmpty').checked;\n    const counts = model.countsByArea();\n    // \"\" = all; \"cat:\u003cid>\" = a flow category; anything else = a single department.\n    let deptMatch;\n    if (!sel) deptMatch = () => true;\n    else if (sel.startsWith('cat:')) {\n      const catId = sel.slice(4);\n      deptMatch = (a) => { const c = model.categoryOfDept(a.departmentId); return !!c && c.id === catId; };\n    } else deptMatch = (a) => a.departmentId === sel;\n    document.querySelectorAll('#map .area').forEach((rect) => {\n      const a = model.getArea(rect.dataset.areaId);\n      const emptyOk = !hideEmpty || counts[a.id] > 0;\n      rect.classList.toggle('is-dimmed', !(deptMatch(a) && emptyOk));\n    });\n  }\n\n  function refresh() {\n    renderColors();\n    renderSelection();\n    breakdown.render();\n    ioSummary.render();\n    updateHeaderCount();\n  }\n\n  function updateHeaderCount() {\n    const total = model.totalPallets();\n    const areas = model.areasWithCount();\n    $('#recordCount').textContent =\n      `${total} pallet${total === 1 ? '' : 's'} across ${areas} area${areas === 1 ? '' : 's'}`;\n  }\n\n  function setStatus(text, kind = '') {\n    const el = $('#status');\n    el.textContent = text || '';\n    el.className = 'status' + (kind ? ' ' + kind : '');\n  }\n\n  // initial paint\n  refresh();\n  setStatus('');\n}\n\nfunction renderBanner(errors, warnings) {\n  const el = $('#validation');\n  if (!errors.length && !warnings.length) { el.hidden = true; return; }\n  el.hidden = false;\n  const block = (title, items, cls) => items.length\n    ? `\u003cdiv class=\"banner ${cls}\">\u003cstrong>${title} (${items.length})\u003c/strong>\u003cul>${\n        items.slice(0, 12).map((m) => `\u003cli>${m}\u003c/li>`).join('')}${\n        items.length > 12 ? `\u003cli>\u2026and ${items.length - 12} more\u003c/li>` : ''}\u003c/ul>\u003c/div>`\n    : '';\n  el.innerHTML = block('Data errors', errors, 'banner-error') + block('Warnings', warnings, 'banner-warn');\n}\n\nfunction showFatal(msg, err) {\n  console.error(err);\n  document.body.innerHTML = `\u003cdiv class=\"fatal\">\u003ch1>Unable to start\u003c/h1>\u003cp>${msg}\u003c/p>\u003c/div>`;\n}\n\nmain();\n\n  \u003c/script>\n\u003c/body>\n\u003c/html>\n";
+
+// storage.js — per-area pallet counts persisted in the browser (localStorage).
+// Single-user, offline, per-machine. Import/export moves data in and out.
+//
+// Shape: a plain object { areaId: count }. Areas at zero are simply absent.
+//
+// The key is namespaced by site code so two different sites' generated operator
+// files opened on the same browser (file:// shares one origin) keep separate
+// counts. The site code is baked into SEED_DATA by the build / the Building Area
+// Manager editor; the served dev app and unit tests have none, so they use
+// 'default'.
+
+const SITE = (typeof SEED_DATA !== 'undefined' && SEED_DATA && SEED_DATA.siteCode)
+  ? String(SEED_DATA.siteCode) : 'default';
+const KEY = `dwelling.counts.v1.${SITE}`;
+const LEGACY_COUNTS_KEY = 'poc3.counts.v1';   // pre-namespacing (POC3-only) key
+const LEGACY_RECORDS_KEY = 'poc3.records.v1';  // pre-count model: array of records
+
+// The legacy POC3 keys belong to the original single-site build. Only adopt them
+// for the user's own contexts (the POC3 standalone and the served dev app) — a
+// different site's file must never absorb POC3's counts.
+const ADOPT_LEGACY = SITE === 'POC3' || SITE === 'default';
+
+function readObject(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch (err) {
+    console.error('Failed to load counts from localStorage:', err);
+    return null;
+  }
+}
+
+// One-time migration: if there are no counts yet but the old per-container
+// records exist, tally them per area so existing associate data isn't lost.
+// The legacy key is left in place as a fallback; it is no longer read after this.
+function migrateFromRecords() {
+  try {
+    const raw = localStorage.getItem(LEGACY_RECORDS_KEY);
+    if (!raw) return null;
+    const records = JSON.parse(raw);
+    if (!Array.isArray(records) || records.length === 0) return null;
+    const counts = {};
+    for (const r of records) {
+      if (r && r.areaId) counts[r.areaId] = (counts[r.areaId] || 0) + 1;
+    }
+    saveCounts(counts);
+    return counts;
+  } catch (err) {
+    console.error('Failed to migrate legacy records:', err);
+    return null;
+  }
+}
+
+function loadCounts() {
+  const existing = readObject(KEY);
+  if (existing) return existing;
+  if (ADOPT_LEGACY) {
+    // Adopt pre-namespacing POC3 counts, then fall back to the record model.
+    const legacyCounts = readObject(LEGACY_COUNTS_KEY);
+    if (legacyCounts) { saveCounts(legacyCounts); return legacyCounts; }
+    return migrateFromRecords() || {};
+  }
+  return {};
+}
+
+function saveCounts(counts) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(counts));
+    return true;
+  } catch (err) {
+    console.error('Failed to save counts to localStorage:', err);
+    return false;
+  }
+}
+
+function clearCounts() {
+  try { localStorage.removeItem(KEY); } catch (_) { /* ignore */ }
+}
+
+
+// importexport.js — per-area CSV/JSON import & export. Validated imports with
+// visible errors (no silent skips, unlike the Excel original).
+
+// ---------- CSV helpers ----------
+function csvEscape(v) {
+  const s = v == null ? '' : String(v);
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+// Minimal RFC-4180-ish CSV parser (handles quotes, commas, newlines in quotes).
+function parseCsv(text) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  const pushField = () => { row.push(field); field = ''; };
+  const pushRow = () => { rows.push(row); row = []; };
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === ',') pushField();
+    else if (c === '\n') { pushField(); pushRow(); }
+    else if (c === '\r') { /* ignore, handled by \n */ }
+    else field += c;
+  }
+  if (field.length > 0 || row.length > 0) { pushField(); pushRow(); }
+  return rows.filter((r) => r.some((c) => c !== ''));
+}
+
+// ---------- Export ----------
+// One row per area that currently holds pallets.
+function exportCsv(model) {
+  const header = ['Area', 'Department', 'I_Beam_Location', 'Pallets'];
+  const lines = [header.map(csvEscape).join(',')];
+  for (const area of model.seed.areas) {
+    const count = model.getCount(area.id);
+    if (count <= 0) continue;
+    const dept = model.getDept(area.departmentId);
+    lines.push([
+      csvEscape(area.name),
+      csvEscape(dept ? dept.name : area.departmentId),
+      csvEscape(area.iBeamLocation),
+      csvEscape(count),
+    ].join(','));
+  }
+  return lines.join('\r\n');
+}
+
+function exportJson(model) {
+  const out = [];
+  for (const area of model.seed.areas) {
+    const count = model.getCount(area.id);
+    if (count > 0) out.push({ areaId: area.id, area: area.name, count });
+  }
+  return JSON.stringify(out, null, 2);
+}
+
+// ---------- Import ----------
+// Build name/id lookup indexes from the model's areas.
+function buildAreaIndex(model) {
+  const byId = new Map();
+  const byName = new Map();
+  for (const a of model.seed.areas) {
+    byId.set(a.id, a);
+    byName.set(a.name.trim().toLowerCase(), a);
+  }
+  return { byId, byName };
+}
+
+function resolveArea(model, idx, value) {
+  if (!value) return null;
+  const v = String(value).trim();
+  return idx.byId.get(v) || idx.byName.get(v.toLowerCase()) || null;
+}
+
+// Returns { counts: { areaId: n }, errors: [{line, message}], total }.
+// Each row must resolve to a known area and carry a non-negative integer count.
+// Duplicate areas within the file are rejected (no silent last-wins).
+function importCounts(model, text, format) {
+  const idx = buildAreaIndex(model);
+  const errors = [];
+  const counts = {};
+  const fmt = format || (text.trim().startsWith('[') || text.trim().startsWith('{') ? 'json' : 'csv');
+
+  let rawRows = [];
+  if (fmt === 'json') {
+    let parsed;
+    try { parsed = JSON.parse(text); }
+    catch (e) { return { counts: {}, errors: [{ line: 0, message: 'Invalid JSON: ' + e.message }], total: 0 }; }
+    const arr = Array.isArray(parsed) ? parsed : (parsed.counts || parsed.records || []);
+    rawRows = arr.map((o) => ({
+      area: o.areaId ?? o.area ?? o['Area'],
+      pallets: o.count ?? o.pallets ?? o['Pallets'],
+    }));
+  } else {
+    const rows = parseCsv(text);
+    if (rows.length === 0) return { counts: {}, errors: [{ line: 0, message: 'File is empty.' }], total: 0 };
+    const header = rows[0].map((h) => h.trim().toLowerCase());
+    const col = (names) => header.findIndex((h) => names.includes(h));
+    const ai = col(['area']);
+    const pi = col(['pallets', 'count', 'pallet count']);
+    if (ai < 0 || pi < 0) {
+      return { counts: {}, errors: [{ line: 1, message: 'Missing required columns "Area" and/or "Pallets".' }], total: 0 };
+    }
+    rawRows = rows.slice(1).map((r) => ({ area: r[ai], pallets: pi >= 0 ? r[pi] : '' }));
+  }
+
+  const total = rawRows.length;
+  const seenAreas = new Set();
+  rawRows.forEach((raw, i) => {
+    const line = i + 2; // account for header + 1-index
+    const area = resolveArea(model, idx, raw.area);
+    if (!area) { errors.push({ line, message: `Unknown area "${raw.area}".` }); return; }
+    const rawCount = String(raw.pallets ?? '').trim();
+    const n = Number(rawCount);
+    if (rawCount === '' || !Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
+      errors.push({ line, message: `Invalid pallet count "${raw.pallets}" for "${area.name}" (whole number ≥ 0).` });
+      return;
+    }
+    if (seenAreas.has(area.id)) {
+      errors.push({ line, message: `Duplicate area "${area.name}" within import.` });
+      return;
+    }
+    seenAreas.add(area.id);
+    if (n > 0) counts[area.id] = n;
+  });
+
+  return { counts, errors, total };
+}
+
+// Trigger a browser download of text content.
+function download(filename, text, mime = 'text/plain') {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+
+// opbuild.js — helpers for generating a standalone operator file from inside the
+// Building Area Manager editor, in the browser (no Python/build step). The editor
+// build embeds the operator HTML as a string with two placeholder tokens; here we
+// fill them with the current site's seed data + inlined background images, and we
+// read loaded image files into base64 data URIs (down-scaling oversized ones).
+
+// Placeholder tokens the build writes into OPERATOR_TEMPLATE in place of the real
+// SEED_DATA / BG_IMAGE_DATA_URIS values. Quoted so the un-filled template stays
+// valid JS; the whole quoted token (quotes included) is replaced.
+const SEED_TOKEN = '"__BAM_SEED_DATA__"';
+const BG_TOKEN = '"__BAM_BG_IMAGE_DATA_URIS__"';
+
+// Fill the operator template with a site's seed + background data URIs.
+// IMPORTANT: the replacement values are passed as *functions*, not strings, so
+// JSON containing `$&`, `$$`, `$1`, … is inserted verbatim (String.prototype
+// .replace gives `$` special meaning only in a string replacement).
+function fillOperatorTemplate(template, { seed, bgUris }) {
+  return template
+    .replace(SEED_TOKEN, () => JSON.stringify(seed))
+    .replace(BG_TOKEN, () => JSON.stringify(bgUris || {}));
+}
+
+// Read an image File into a base64 data: URI. Images wider than maxWidth are
+// down-scaled through a canvas to keep the generated operator file small enough
+// to email; smaller images keep their original bytes (and compression).
+// Resolves { dataUri, width, height } (width/height are the natural, pre-scale
+// dimensions — the region grid is defined against those).
+function readImageDataUrl(file, maxWidth = 2000) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      try {
+        if (w <= maxWidth) {
+          // Keep original bytes/mime — best fidelity for line-art floor plans.
+          const reader = new FileReader();
+          reader.onload = () => { URL.revokeObjectURL(url); resolve({ dataUri: reader.result, width: w, height: h }); };
+          reader.onerror = () => { URL.revokeObjectURL(url); reject(reader.error || new Error('read failed')); };
+          reader.readAsDataURL(file);
+          return;
+        }
+        const scale = maxWidth / w;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(w * scale);
+        canvas.height = Math.round(h * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        const mime = (file.type && file.type.startsWith('image/')) ? file.type : 'image/png';
+        const dataUri = canvas.toDataURL(mime);
+        URL.revokeObjectURL(url);
+        resolve({ dataUri, width: w, height: h });
+      } catch (err) { URL.revokeObjectURL(url); reject(err); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not decode image')); };
+    img.src = url;
+  });
+}
+
+// Rough byte size of a base64 data: URI's payload (for user-facing size hints).
+function dataUriBytes(dataUri) {
+  const i = String(dataUri).indexOf(',');
+  if (i < 0) return 0;
+  const b64 = dataUri.slice(i + 1);
+  return Math.floor(b64.length * 3 / 4);
+}
+
+
+// model.js — domain layer: floors, areas, departments, I-beam mappings, and
+// per-area pallet counts. No DOM here.
+
+// Flow categories (Inbound / Outbound) are per-site data, not code: each site
+// tags its departments via a `categoryId`, and the ordered category name list
+// travels in the seed as `categories`. `deriveCategories` reassembles the
+// { id, name, deptIds } shape the app consumes from that data — so the same
+// codebase serves any site's grouping. See build/build-standalone.py + the
+// Building Area Manager editor, which write these fields.
+function deriveCategories(seed) {
+  const depts = seed.departments || [];
+  // Ordered category metadata: an explicit seed.categories list wins (it fixes
+  // display order); otherwise infer the set from the departments' categoryIds
+  // in first-seen order.
+  let metas = Array.isArray(seed.categories) && seed.categories.length
+    ? seed.categories.map((c) => ({ id: c.id, name: c.name || c.id }))
+    : [];
+  if (!metas.length) {
+    const seen = [];
+    for (const d of depts) {
+      if (d.categoryId && !seen.includes(d.categoryId)) seen.push(d.categoryId);
+    }
+    metas = seen.map((id) => ({ id, name: id.charAt(0).toUpperCase() + id.slice(1) }));
+  }
+  const byCat = new Map(metas.map((c) => [c.id, []]));
+  for (const d of depts) {
+    if (d.categoryId && byCat.has(d.categoryId)) byCat.get(d.categoryId).push(d.id);
+  }
+  return metas.map((c) => ({ id: c.id, name: c.name, deptIds: byCat.get(c.id) || [] }));
+}
+
+// Fetch and assemble the static seed manifest. In the single-file standalone
+// build the data is inlined as a global SEED_DATA, so no HTTP/fetch is needed
+// (that build opens straight from disk via file://).
+async function loadSeed() {
+  if (typeof SEED_DATA !== 'undefined' && SEED_DATA) return normalizeSeed(SEED_DATA);
+  const base = new URL('./data/', document.baseURI);
+  const [areas, departments, ibeam, regions, floors, categories] = await Promise.all([
+    fetch(new URL('areas.json', base)).then((r) => r.json()),
+    fetch(new URL('departments.json', base)).then((r) => r.json()),
+    fetch(new URL('ibeam-mappings.json', base)).then((r) => r.json()),
+    fetch(new URL('regions.json', base)).then((r) => r.json()),
+    // floors.json is newer than the rest of the format; tolerate its absence.
+    fetch(new URL('floors.json', base)).then((r) => r.json()).catch(() => null),
+    // categories.json is newer still; tolerate absence (falls back to inferring).
+    fetch(new URL('categories.json', base)).then((r) => r.json()).catch(() => null),
+  ]);
+  return normalizeSeed({ areas, departments, ibeamMappings: ibeam, regions, floors, categories });
+}
+
+// Guarantee seed.floors exists and every area carries a floorId. Keeps
+// pre-floor data (single image described by regions.meta) working: it becomes
+// one implicit floor and all areas are assigned to it.
+function normalizeSeed(seed) {
+  let floors = Array.isArray(seed.floors) && seed.floors.length ? seed.floors.slice() : null;
+  if (!floors) {
+    // A genuinely empty manifest (a blank Building Area Manager project) has no
+    // floors, areas, or regions — leave it floor-less so the editor can show its
+    // "add your first floor" empty state rather than a phantom floor.
+    const regionMap = (seed.regions && (seed.regions.regions || seed.regions)) || {};
+    const hasLegacy = (seed.areas && seed.areas.length)
+      || (seed.regions && seed.regions.meta) || Object.keys(regionMap).length;
+    if (!hasLegacy) return { ...seed, floors: [], areas: seed.areas || [] };
+    const meta = (seed.regions && seed.regions.meta) || {};
+    floors = [{
+      id: 'floor-1',
+      name: meta.image ? meta.image.replace(/\.[^.]+$/, '') : 'Floor 1',
+      image: meta.image || 'floor-plan.png',
+      imageWidth: meta.imageWidth || 1808,
+      imageHeight: meta.imageHeight || 1125,
+    }];
+  }
+  const defaultFloorId = floors[0].id;
+  const areas = seed.areas.map((a) => (a.floorId ? a : { ...a, floorId: defaultFloorId }));
+  return { ...seed, floors, areas };
+}
+
+// Resolve a floor's background image source. The standalone build inlines every
+// floor image as a base64 data: URI keyed by filename in BG_IMAGE_DATA_URIS; the
+// served build falls back to the file under assets/.
+function bgSrcFor(floor) {
+  const image = (floor && floor.image) || 'floor-plan.png';
+  if (typeof BG_IMAGE_DATA_URIS !== 'undefined' && BG_IMAGE_DATA_URIS && BG_IMAGE_DATA_URIS[image]) {
+    return BG_IMAGE_DATA_URIS[image];
+  }
+  return './assets/' + image;
+}
+
+// Coerce any user/import value to a non-negative integer count.
+function normalizeCount(n) {
+  const v = Math.floor(Number(n));
+  return Number.isFinite(v) && v > 0 ? v : 0;
+}
+
+function createModel(seed) {
+  // Tolerate a raw seed (e.g. from a direct caller/tests): guarantee floors +
+  // per-area floorId. Idempotent when the seed is already normalized.
+  seed = normalizeSeed(seed);
+  const areasById = new Map(seed.areas.map((a) => [a.id, a]));
+  const deptsById = new Map(seed.departments.map((d) => [d.id, d]));
+  const floorsById = new Map(seed.floors.map((f) => [f.id, f]));
+
+  // Flow categories, derived from the seed's per-department categoryId + the
+  // ordered category name list. Precompute the dept -> category lookup.
+  const categoryList = deriveCategories(seed);
+  const categoryById = new Map(categoryList.map((c) => [c.id, c]));
+  const categoryByDept = new Map();
+  for (const c of categoryList) for (const id of c.deptIds) categoryByDept.set(id, c);
+
+  // I-beam locations are per-floor now, so a code can repeat across floors;
+  // key the lookup by floor + location to keep them distinct.
+  const ibKey = (floorId, ib) => `${floorId} ${ib}`;
+  const ibeamToAreas = new Map(
+    seed.ibeamMappings.map((m) => [ibKey(m.floorId, m.iBeamLocation), m.areaIds]));
+
+  const areasByDept = new Map();
+  const areasByFloor = new Map();
+  for (const a of seed.areas) {
+    if (!areasByDept.has(a.departmentId)) areasByDept.set(a.departmentId, []);
+    areasByDept.get(a.departmentId).push(a.id);
+    if (!areasByFloor.has(a.floorId)) areasByFloor.set(a.floorId, []);
+    areasByFloor.get(a.floorId).push(a.id);
+  }
+
+  // { areaId -> count }. Only positive areas are stored; zeros are absent.
+  // Counts are global by area id (area ids are unique across floors).
+  let counts = loadCounts();
+
+  const api = {
+    seed,
+    areasById,
+    deptsById,
+    regions: seed.regions,
+
+    // ---- floors ----
+    floors: () => seed.floors.slice(),
+    getFloor: (id) => floorsById.get(id) || null,
+    defaultFloorId: () => (seed.floors[0] || {}).id || null,
+    areasOnFloor: (floorId) =>
+      (areasByFloor.get(floorId) || []).map((id) => areasById.get(id)).filter(Boolean),
+
+    // ---- lookups ----
+    getArea: (id) => areasById.get(id) || null,
+    getDept: (id) => deptsById.get(id) || null,
+    uniqueIBeams: (floorId) => {
+      const ibs = seed.ibeamMappings
+        .filter((m) => !floorId || m.floorId === floorId)
+        .map((m) => m.iBeamLocation);
+      return [...new Set(ibs)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    },
+    // With a floorId, look up that floor's poles; without one, union across
+    // floors (an I-beam code may exist on more than one floor).
+    areasForIBeam: (ib, floorId) => {
+      const ids = floorId != null
+        ? (ibeamToAreas.get(ibKey(floorId, ib)) || [])
+        : seed.ibeamMappings.filter((m) => m.iBeamLocation === ib).flatMap((m) => m.areaIds);
+      return ids.map((id) => areasById.get(id)).filter(Boolean);
+    },
+    areasInDept: (deptId) =>
+      (areasByDept.get(deptId) || []).map((id) => areasById.get(id)).filter(Boolean),
+    isValidAreaForIBeam: (ib, areaId, floorId) => {
+      const ids = floorId != null
+        ? (ibeamToAreas.get(ibKey(floorId, ib)) || [])
+        : seed.ibeamMappings.filter((m) => m.iBeamLocation === ib).flatMap((m) => m.areaIds);
+      return ids.includes(areaId);
+    },
+
+    // ---- counts ----
+    getCount: (areaId) => counts[areaId] || 0,
+    areasWithCount: () => Object.keys(counts).filter((id) => counts[id] > 0).length,
+
+    // Set an area's absolute pallet count. Non-positive clears the entry.
+    setCount(areaId, n) {
+      if (!areasById.has(areaId)) throw new Error(`Unknown area: ${areaId}`);
+      const v = normalizeCount(n);
+      if (v > 0) counts[areaId] = v;
+      else delete counts[areaId];
+      saveCounts(counts);
+      return v;
+    },
+
+    // Replace the entire count map (used by import). Assumes validated input;
+    // keys are filtered to known areas and values normalized.
+    replaceCounts(newCounts) {
+      const next = {};
+      for (const [areaId, n] of Object.entries(newCounts || {})) {
+        if (!areasById.has(areaId)) continue;
+        const v = normalizeCount(n);
+        if (v > 0) next[areaId] = v;
+      }
+      counts = next;
+      saveCounts(counts);
+    },
+
+    // ---- derived ----
+    // { areaId -> count } for EVERY area (zero-filled).
+    countsByArea() {
+      const out = {};
+      for (const a of seed.areas) out[a.id] = counts[a.id] || 0;
+      return out;
+    },
+
+    // { areaId -> count } for one floor's areas only (zero-filled). Feeds the
+    // per-visible-floor heat-map normalization.
+    countsForFloor(floorId) {
+      const out = {};
+      for (const a of seed.areas) if (a.floorId === floorId) out[a.id] = counts[a.id] || 0;
+      return out;
+    },
+
+    departmentTotal(deptId) {
+      return (areasByDept.get(deptId) || []).reduce((sum, id) => sum + (counts[id] || 0), 0);
+    },
+
+    totalPallets: () => Object.values(counts).reduce((sum, n) => sum + n, 0),
+
+    // ---- site identity ----
+    // Drives the per-site localStorage namespace and the operator title.
+    siteCode: () => seed.siteCode || '',
+    siteName: () => seed.siteName || seed.siteCode || '',
+
+    // ---- flow categories (Inbound / Outbound), derived from seed data ----
+    categories: () => categoryList.map((c) => ({ ...c, deptIds: c.deptIds.slice() })),
+    categoryOfDept: (deptId) => categoryByDept.get(deptId) || null,
+    // Total pallets across a category's departments (global, all floors — matches
+    // totalPallets()).
+    categoryTotal(catId) {
+      const c = categoryById.get(catId);
+      return c ? c.deptIds.reduce((sum, id) => sum + api.departmentTotal(id), 0) : 0;
+    },
+  };
+
+  return api;
+}
+
+
+// editor.js — Building Area Manager (BAM). Load the seed, draw editable
+// rectangles over each floor's background, and manage a site end-to-end: floors
+// (add / rename / delete, each with its own image), areas (create / rename /
+// delete / duplicate, with Pole + Department), and departments (create / rename,
+// each tagged into a flow category). Then generate the site's standalone operator
+// heat-map file in the browser — no server or build step — plus save/load the
+// whole layout (images included) as a project file.
+
+
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+const $ = (s) => document.querySelector(s);
+
+// slug from a display name; stable machine id, never changes on rename.
+function slugify(s) {
+  return String(s || '').toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'area';
+}
+function uniqueId(base, existing) {
+  if (!existing.has(base)) return base;
+  let i = 2;
+  while (existing.has(`${base}-${i}`)) i++;
+  return `${base}-${i}`;
+}
+// A filesystem-ish code for built filenames (e.g. "MEM 1" -> "MEM-1").
+function fileCode(code) {
+  return slugify(code).toUpperCase() || 'SITE';
+}
+// [{ iBeamLocation, floorId, areaIds }], derived from areas so it never goes
+// stale. I-beam locations are scoped per floor, so group by (floorId, pole).
+function deriveIbeamMappings(areas) {
+  const byKey = new Map();
+  for (const a of areas) {
+    const p = (a.iBeamLocation || '').trim();
+    if (!p) continue;
+    const key = `${a.floorId} ${p}`;
+    if (!byKey.has(key)) byKey.set(key, { iBeamLocation: p, floorId: a.floorId, areaIds: [] });
+    byKey.get(key).areaIds.push(a.id);
+  }
+  return [...byKey.values()].sort((x, y) =>
+    x.floorId.localeCompare(y.floorId) ||
+    x.iBeamLocation.localeCompare(y.iBeamLocation, undefined, { numeric: true }));
+}
+
+const DEFAULT_CATEGORIES = [
+  { id: 'outbound', name: 'Outbound' },
+  { id: 'inbound', name: 'Inbound' },
+];
+
+(async function main() {
+  let seed;
+  try { seed = await loadSeed(); }
+  catch { $('#editor').innerHTML = '<p class="fatal">Serve the app over HTTP to use the editor.</p>'; return; }
+
+  // Mutable working copies — everything below edits these; build/save serialize them.
+  const regions = { ...(seed.regions.regions || seed.regions) };
+  let areas = seed.areas.map((a) => ({ ...a }));
+  let departments = seed.departments.map((d) => ({ ...d }));
+  let floors = seed.floors.map((f) => ({ ...f }));
+  let categories = (Array.isArray(seed.categories) && seed.categories.length ? seed.categories : DEFAULT_CATEGORIES)
+    .map((c) => ({ ...c }));
+  let currentFloorId = (floors[0] || {}).id || null;
+  const deptName = (id) => (departments.find((d) => d.id === id) || {}).name || id;
+
+  // Background sources. Freshly loaded images are held as File objects (keyed by
+  // floorId) so their bytes can be inlined at build/save time; already-baked or
+  // project-loaded images live as data URIs keyed by image filename. objUrlCache
+  // holds one object URL per floor for on-screen display.
+  const bgFiles = new Map();      // floorId -> File
+  const bgUriByName = new Map();  // image filename -> data: URI
+  const objUrlCache = new Map();  // floorId -> object URL
+  if (typeof BG_IMAGE_DATA_URIS !== 'undefined' && BG_IMAGE_DATA_URIS) {
+    for (const [k, v] of Object.entries(BG_IMAGE_DATA_URIS)) bgUriByName.set(k, v);
+  }
+
+  const currentFloor = () => floors.find((f) => f.id === currentFloorId) || floors[0] || null;
+  const hasFloor = () => !!currentFloor();
+  const floorAreas = () => areas.filter((a) => a.floorId === currentFloorId);
+
+  function displaySrc(f) {
+    if (!f) return '';
+    if (bgFiles.has(f.id)) {
+      if (!objUrlCache.has(f.id)) objUrlCache.set(f.id, URL.createObjectURL(bgFiles.get(f.id)));
+      return objUrlCache.get(f.id);
+    }
+    return bgUriByName.get(f.image) || bgSrcFor(f);
+  }
+  // A background filename unique across floors, so two loaded images never share
+  // a key in the operator file's image map. Optionally excludes one floor's own.
+  function uniqueImageName(name, exceptFloorId) {
+    const used = new Set(floors.filter((f) => f.id !== exceptFloorId).map((f) => f.image).filter(Boolean));
+    if (!used.has(name)) return name;
+    const dot = name.lastIndexOf('.');
+    const base = dot >= 0 ? name.slice(0, dot) : name;
+    const ext = dot >= 0 ? name.slice(dot) : '';
+    let i = 2;
+    while (used.has(`${base}-${i}${ext}`)) i++;
+    return `${base}-${i}${ext}`;
+  }
+
+  // ---- stage ----
+  const stage = document.createElement('div');
+  stage.className = 'stage';
+  stage.innerHTML = `<img id="edImg" alt="" />
+    <svg id="edSvg" preserveAspectRatio="none"></svg>`;
+  $('#editor').appendChild(stage);
+  const svg = $('#edSvg');
+  const edImg = $('#edImg');
+
+  let W = 1808, H = 1125; // current floor's pixel dimensions
+  function applyFloorStage() {
+    const f = currentFloor();
+    $('#edEmpty').hidden = !!f;
+    stage.hidden = !f;
+    if (!f) { svg.innerHTML = ''; return; }
+    W = f.imageWidth; H = f.imageHeight;
+    edImg.src = displaySrc(f);
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  }
+
+  let activeId = null;
+  const rectEls = new Map();
+
+  function drawAll() {
+    svg.innerHTML = '';
+    rectEls.clear();
+    for (const a of floorAreas()) {
+      const g = regions[a.id];
+      if (!g) continue;
+      const r = document.createElementNS(SVGNS, 'rect');
+      r.setAttribute('class', 'ed-area' + (a.id === activeId ? ' active' : ''));
+      r.setAttribute('x', g.x); r.setAttribute('y', g.y);
+      r.setAttribute('width', g.w); r.setAttribute('height', g.h);
+      r.dataset.id = a.id;
+      svg.appendChild(r);
+      rectEls.set(a.id, r);
+    }
+    if (activeId && regions[activeId]) drawHandles(activeId);
+  }
+
+  function drawHandles(id) {
+    const g = regions[id];
+    // Skip the resize handles when locked — nothing should be grabbable.
+    if (!locked) {
+      const corners = [['nw', g.x, g.y], ['ne', g.x + g.w, g.y], ['sw', g.x, g.y + g.h], ['se', g.x + g.w, g.y + g.h]];
+      const s = Math.max(6, W / 160);
+      for (const [pos, cx, cy] of corners) {
+        const h = document.createElementNS(SVGNS, 'rect');
+        h.setAttribute('class', 'ed-handle');
+        h.setAttribute('x', cx - s / 2); h.setAttribute('y', cy - s / 2);
+        h.setAttribute('width', s); h.setAttribute('height', s);
+        h.dataset.handle = pos; h.dataset.id = id;
+        svg.appendChild(h);
+      }
+    }
+    const label = document.createElementNS(SVGNS, 'text');
+    label.setAttribute('class', 'ed-label');
+    label.setAttribute('x', g.x + 3); label.setAttribute('y', g.y - 4);
+    label.textContent = (areas.find((a) => a.id === id) || {}).name || id;
+    svg.appendChild(label);
+  }
+
+  // ---- coordinate mapping (screen px -> viewBox units) ----
+  function toUnits(clientX, clientY) {
+    const rect = svg.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) / rect.width * W,
+      y: (clientY - rect.top) / rect.height * H,
+    };
+  }
+
+  // ---- interaction ----
+  let drag = null; // {mode:'move'|handle, id, start:{x,y}, orig:{...}}
+  let locked = true; // in-memory; boots locked to prevent accidental drags
+  svg.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('.ed-handle');
+    const area = e.target.closest('.ed-area');
+    // When locked, still select on click but never arm a drag/resize.
+    if (locked) {
+      if (handle) setActive(handle.dataset.id);
+      else if (area) setActive(area.dataset.id);
+      return;
+    }
+    if (handle) {
+      setActive(handle.dataset.id);
+      drag = { mode: handle.dataset.handle, id: handle.dataset.id, start: toUnits(e.clientX, e.clientY), orig: { ...regions[handle.dataset.id] } };
+    } else if (area) {
+      setActive(area.dataset.id);
+      drag = { mode: 'move', id: area.dataset.id, start: toUnits(e.clientX, e.clientY), orig: { ...regions[area.dataset.id] } };
+    } else { return; }
+    svg.setPointerCapture(e.pointerId);
+  });
+
+  svg.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const p = toUnits(e.clientX, e.clientY);
+    const dx = p.x - drag.start.x, dy = p.y - drag.start.y;
+    const o = drag.orig;
+    let g = { ...regions[drag.id] };
+    if (drag.mode === 'move') { g.x = o.x + dx; g.y = o.y + dy; }
+    else {
+      let x0 = o.x, y0 = o.y, x1 = o.x + o.w, y1 = o.y + o.h;
+      if (drag.mode.includes('w')) x0 = o.x + dx;
+      if (drag.mode.includes('e')) x1 = o.x + o.w + dx;
+      if (drag.mode.includes('n')) y0 = o.y + dy;
+      if (drag.mode.includes('s')) y1 = o.y + o.h + dy;
+      g = { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
+    }
+    regions[drag.id] = round(clampBox(g));
+    updateActiveRect();
+  });
+  const end = () => { if (drag) { drag = null; drawAll(); syncFields(); } };
+  svg.addEventListener('pointerup', end);
+  svg.addEventListener('pointercancel', end);
+
+  function clampBox(g) {
+    g.w = Math.max(4, g.w); g.h = Math.max(4, g.h);
+    g.x = Math.max(0, Math.min(W - g.w, g.x));
+    g.y = Math.max(0, Math.min(H - g.h, g.y));
+    return g;
+  }
+  function round(g) { return { x: +g.x.toFixed(1), y: +g.y.toFixed(1), w: +g.w.toFixed(1), h: +g.h.toFixed(1) }; }
+
+  function updateActiveRect() {
+    const g = regions[activeId];
+    const r = rectEls.get(activeId);
+    if (r && g) { r.setAttribute('x', g.x); r.setAttribute('y', g.y); r.setAttribute('width', g.w); r.setAttribute('height', g.h); }
+    svg.querySelectorAll('.ed-handle, .ed-label').forEach((n) => n.remove());
+    if (activeId) drawHandles(activeId);
+    syncFields();
+  }
+
+  // ---- sidebar list ----
+  const list = $('#areaList');
+  function renderList(filter = '') {
+    const f = filter.trim().toLowerCase();
+    list.innerHTML = '';
+    for (const a of floorAreas()) {
+      if (f && !a.name.toLowerCase().includes(f) && !(a.iBeamLocation || '').toLowerCase().includes(f)) continue;
+      const li = document.createElement('li');
+      li.dataset.id = a.id;
+      if (a.id === activeId) li.classList.add('active');
+      li.innerHTML = `<span>${a.name}</span>` +
+        (regions[a.id] ? `<span class="dept">${deptName(a.departmentId)}</span>` : '<span class="missing">no region</span>');
+      li.addEventListener('click', () => setActive(a.id, true));
+      list.appendChild(li);
+    }
+  }
+  $('#areaSearch').addEventListener('input', (e) => renderList(e.target.value));
+
+  function setActive(id, _scrollMap = false) {
+    activeId = id;
+    if (id && !regions[id]) regions[id] = { x: W / 2 - 40, y: H / 2 - 20, w: 80, h: 40 }; // seed a default box
+    drawAll();
+    renderList($('#areaSearch').value);
+    syncFields();
+    syncAttrs();
+    $('#selName').textContent = (areas.find((a) => a.id === id) || {}).name || 'No area selected';
+  }
+
+  // ---- numeric x/y/w/h fields ----
+  const fx = $('#fx'), fy = $('#fy'), fw = $('#fw'), fh = $('#fh');
+  function syncFields() {
+    const g = regions[activeId];
+    if (!g) { [fx, fy, fw, fh].forEach((el) => (el.value = '')); return; }
+    fx.value = g.x; fy.value = g.y; fw.value = g.w; fh.value = g.h;
+  }
+  [fx, fy, fw, fh].forEach((el) => el.addEventListener('input', () => {
+    if (!activeId) return;
+    regions[activeId] = round(clampBox({ x: +fx.value || 0, y: +fy.value || 0, w: +fw.value || 4, h: +fh.value || 4 }));
+    updateActiveRect();
+  }));
+
+  // ---- region lock toggle (in-memory; boots locked) ----
+  const lockToggle = $('#lockRegions');
+  function applyLock() {
+    locked = lockToggle.checked;
+    svg.classList.toggle('locked', locked);
+    drawAll(); // re-render so resize handles appear/disappear
+  }
+  lockToggle.addEventListener('change', applyLock);
+  svg.classList.toggle('locked', locked); // reflect initial state
+
+  // ---- floor selector + management ----
+  const floorSelect = $('#floorSelect');
+  function fillFloorSelect() {
+    if (!floors.length) { floorSelect.innerHTML = '<option value="">(no floors)</option>'; return; }
+    floorSelect.innerHTML = floors.map((f) =>
+      `<option value="${f.id}"${f.id === currentFloorId ? ' selected' : ''}>${f.name}</option>`).join('');
+  }
+  function switchFloor(fid) {
+    currentFloorId = fid;
+    activeId = null;
+    applyFloorStage();
+    drawAll();
+    renderList($('#areaSearch').value);
+    syncFields();
+    syncAttrs();
+    $('#selName').textContent = 'No area selected';
+    fillFloorSelect();
+    updateControls();
+  }
+  floorSelect.addEventListener('change', () => switchFloor(floorSelect.value));
+
+  // Prompt for a local image and report its natural dimensions.
+  function pickImage(cb) {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*';
+    inp.addEventListener('change', () => {
+      const file = inp.files[0];
+      if (!file) return;
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => { URL.revokeObjectURL(url); cb(file, img.naturalWidth, img.naturalHeight); };
+      img.src = url;
+    });
+    inp.click();
+  }
+
+  $('#addFloor').addEventListener('click', () => {
+    const name = (prompt('New floor name:') || '').trim();
+    if (!name) return;
+    status('Pick a background image for the new floor…');
+    pickImage((file, natW, natH) => {
+      const id = uniqueId('floor-' + slugify(name), new Set(floors.map((f) => f.id)));
+      const image = uniqueImageName(file.name);
+      floors.push({ id, name, image, imageWidth: natW, imageHeight: natH });
+      bgFiles.set(id, file);
+      switchFloor(id);
+      status(`Added floor "${name}" (${natW}×${natH}). Create areas and place their boxes; the image is baked into the operator file you build.`);
+    });
+  });
+
+  $('#renameFloor').addEventListener('click', () => {
+    const f = currentFloor();
+    if (!f) { status('No floor to rename — add one first.'); return; }
+    const name = (prompt('Rename floor:', f.name) || '').trim();
+    if (!name) return;
+    f.name = name;
+    fillFloorSelect();
+    status(`Renamed floor to "${name}".`);
+  });
+
+  $('#delFloor').addEventListener('click', () => {
+    const f = currentFloor();
+    if (!f) { status('No floor to delete.'); return; }
+    if (floors.length <= 1) {
+      // Allow clearing the last floor back to the empty state.
+      if (!confirm(`Delete the only floor "${f.name}"? The site will have no floors.`)) return;
+    } else if (!confirm(`Delete floor "${f.name}"?`)) return;
+    const owned = areas.filter((a) => a.floorId === f.id);
+    if (owned.length) {
+      status(`Floor "${f.name}" still has ${owned.length} area${owned.length === 1 ? '' : 's'} — delete or reassign them first.`);
+      return;
+    }
+    floors = floors.filter((x) => x.id !== f.id);
+    bgFiles.delete(f.id);
+    if (objUrlCache.has(f.id)) { URL.revokeObjectURL(objUrlCache.get(f.id)); objUrlCache.delete(f.id); }
+    switchFloor((floors[0] || {}).id || null);
+    status(`Deleted floor "${f.name}".`);
+  });
+
+  // ---- area attribute panel (name / pole / department / category) ----
+  const aName = $('#aName'), aPole = $('#aPole'), aDept = $('#aDept'), aCat = $('#aCat'), poleList = $('#poleList');
+  const btnDup = $('#dupArea'), btnDel = $('#delArea'), btnDeptAdd = $('#deptAdd'), btnDeptRename = $('#deptRename');
+
+  function fillDeptOptions(selectedId) {
+    aDept.innerHTML = departments.map((d) =>
+      `<option value="${d.id}"${d.id === selectedId ? ' selected' : ''}>${d.name}</option>`).join('');
+  }
+  function fillCatOptions(selectedId) {
+    aCat.innerHTML = categories.map((c) =>
+      `<option value="${c.id}"${c.id === selectedId ? ' selected' : ''}>${c.name}</option>`).join('');
+  }
+  function fillPoleList() {
+    // I-beam locations are per floor; suggest only the current floor's poles.
+    const poles = [...new Set(floorAreas().map((a) => (a.iBeamLocation || '').trim()).filter(Boolean))]
+      .sort((x, y) => x.localeCompare(y, undefined, { numeric: true }));
+    poleList.innerHTML = poles.map((p) => `<option value="${p}"></option>`).join('');
+  }
+  function syncAttrs() {
+    const a = areas.find((x) => x.id === activeId);
+    const on = !!a;
+    [aName, aPole, aDept, btnDup, btnDel, btnDeptRename].forEach((el) => (el.disabled = !on));
+    aCat.disabled = !on;
+    fillPoleList();
+    if (!a) { aName.value = ''; aPole.value = ''; aDept.innerHTML = ''; aCat.innerHTML = ''; return; }
+    aName.value = a.name;
+    aPole.value = a.iBeamLocation || '';
+    fillDeptOptions(a.departmentId);
+    const dept = departments.find((d) => d.id === a.departmentId);
+    fillCatOptions(dept ? dept.categoryId : (categories[0] || {}).id);
+  }
+
+  aName.addEventListener('input', () => {
+    const a = areas.find((x) => x.id === activeId); if (!a) return;
+    a.name = aName.value;
+    $('#selName').textContent = a.name || 'No area selected';
+    // update label + active list row without a full redraw
+    const label = svg.querySelector('.ed-label'); if (label) label.textContent = a.name || a.id;
+    const li = list.querySelector('li.active span'); if (li) li.textContent = a.name;
+  });
+  aPole.addEventListener('input', () => {
+    const a = areas.find((x) => x.id === activeId); if (!a) return;
+    a.iBeamLocation = aPole.value.trim();
+  });
+  aDept.addEventListener('change', () => {
+    const a = areas.find((x) => x.id === activeId); if (!a) return;
+    a.departmentId = aDept.value;
+    const dept = departments.find((d) => d.id === a.departmentId);
+    fillCatOptions(dept ? dept.categoryId : (categories[0] || {}).id);
+    renderList($('#areaSearch').value);
+  });
+  // The category belongs to the department; changing it here retags the whole
+  // department (all its areas), matching how the operator app groups them.
+  aCat.addEventListener('change', () => {
+    const a = areas.find((x) => x.id === activeId); if (!a) return;
+    const dept = departments.find((d) => d.id === a.departmentId);
+    if (!dept) return;
+    dept.categoryId = aCat.value;
+    status(`Department "${dept.name}" set to ${(categories.find((c) => c.id === aCat.value) || {}).name || aCat.value}.`);
+  });
+
+  // ---- department create / rename ----
+  btnDeptAdd.addEventListener('click', () => {
+    const name = (prompt('New department name:') || '').trim();
+    if (!name) return;
+    const id = uniqueId(slugify(name), new Set(departments.map((d) => d.id)));
+    // Default the new department's flow category to the one currently shown (or
+    // the first category); the user can retag it via the Flow category selector.
+    const categoryId = (aCat.value || (categories[0] || {}).id || 'outbound');
+    departments.push({ id, name, categoryId });
+    const a = areas.find((x) => x.id === activeId);
+    if (a) a.departmentId = id;
+    fillDeptOptions(a ? a.departmentId : id);
+    fillCatOptions(categoryId);
+    renderList($('#areaSearch').value);
+    status(`Added department "${name}" (${(categories.find((c) => c.id === categoryId) || {}).name || categoryId}).`);
+  });
+  btnDeptRename.addEventListener('click', () => {
+    const d = departments.find((x) => x.id === aDept.value);
+    if (!d) return;
+    const name = (prompt('Rename department:', d.name) || '').trim();
+    if (!name) return;
+    d.name = name;
+    fillDeptOptions(d.id);
+    renderList($('#areaSearch').value);
+    status(`Renamed department to "${name}".`);
+  });
+
+  // ---- new / duplicate / delete area ----
+  function nextName(base) {
+    const taken = new Set(areas.map((a) => a.name));
+    if (!taken.has(base)) return base;
+    let i = 2; while (taken.has(`${base} ${i}`)) i++;
+    return `${base} ${i}`;
+  }
+  $('#newArea').addEventListener('click', () => {
+    if (!hasFloor()) { status('Add a floor first — click ＋ next to Floor.'); return; }
+    const name = nextName('New area');
+    const id = uniqueId(slugify(name), new Set(areas.map((a) => a.id)));
+    areas.push({ id, name, departmentId: (departments[0] || {}).id || '', iBeamLocation: '', mapRegionId: id, floorId: currentFloorId });
+    setActive(id);                 // seeds a default centered box
+    updateControls();
+    aName.focus(); aName.select();
+    status(`Created "${name}" on this floor — name it, set Pole + Department, then place its box.`);
+  });
+  btnDup.addEventListener('click', () => {
+    const src = areas.find((x) => x.id === activeId);
+    const g = regions[activeId];
+    if (!src || !g) return;
+    const name = nextName(`Copy of ${src.name}`);
+    const id = uniqueId(slugify(name), new Set(areas.map((a) => a.id)));
+    areas.push({ id, name, departmentId: src.departmentId, iBeamLocation: src.iBeamLocation, mapRegionId: id, floorId: src.floorId });
+    // identical size (w/h), nudged position so it's visible and not exactly overlapping
+    regions[id] = round(clampBox({ x: g.x + 12, y: g.y + 12, w: g.w, h: g.h }));
+    setActive(id);
+    status(`Duplicated "${src.name}" (same size ${g.w}×${g.h}).`);
+  });
+  btnDel.addEventListener('click', () => {
+    const a = areas.find((x) => x.id === activeId);
+    if (!a) return;
+    if (!confirm(`Delete area "${a.name}"? This removes it and its region box.`)) return;
+    areas = areas.filter((x) => x.id !== activeId);
+    delete regions[activeId];
+    activeId = null;
+    drawAll(); renderList($('#areaSearch').value); syncFields(); syncAttrs();
+    updateControls();
+    $('#selName').textContent = 'No area selected';
+    status(`Deleted "${a.name}".`);
+  });
+
+  // ---- keyboard nudge (skips when typing in a field, or when locked) ----
+  document.addEventListener('keydown', (e) => {
+    if (locked) return; // lock also freezes arrow-key nudging; use the x/y/w/h fields instead
+    if (!activeId || !regions[activeId]) return;
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+    const step = e.shiftKey ? 0 : (e.altKey ? 1 : 4);
+    const rstep = e.shiftKey ? (e.altKey ? 1 : 4) : 0;
+    let g = { ...regions[activeId] };
+    if (e.key === 'ArrowLeft') { g.x -= step; g.w -= rstep; }
+    else if (e.key === 'ArrowRight') { g.x += step; g.w += rstep; }
+    else if (e.key === 'ArrowUp') { g.y -= step; g.h -= rstep; }
+    else if (e.key === 'ArrowDown') { g.y += step; g.h += rstep; }
+    else return;
+    e.preventDefault();
+    regions[activeId] = round(clampBox(g));
+    drawAll(); syncFields();
+  });
+
+  // ---- background swap for the current floor ----
+  $('#bgFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const f = currentFloor();
+    if (!f) { status('Add a floor first, then load its background.'); return; }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      f.image = uniqueImageName(file.name, f.id);   // export references this filename
+      bgFiles.set(f.id, file);
+      if (objUrlCache.has(f.id)) { URL.revokeObjectURL(objUrlCache.get(f.id)); objUrlCache.delete(f.id); }
+      edImg.src = displaySrc(f);
+      status(`Floor "${f.name}" background set (${img.naturalWidth}×${img.naturalHeight}). ` +
+        (img.naturalWidth === W && img.naturalHeight === H
+          ? 'Matches the region grid.'
+          : `Region grid stays ${W}×${H}.`));
+    };
+    img.src = url;
+  });
+
+  // ---- site code ----
+  const siteInput = $('#siteCode');
+  siteInput.value = seed.siteCode || '';
+  siteInput.addEventListener('input', updateControls);
+
+  // ---- collect background data URIs for build/save (async) ----
+  // Fresh loads come from their File bytes (down-scaled if huge); already-baked or
+  // project-loaded images come from the data-URI cache. Throws if a floor has no
+  // image available at all.
+  async function collectBgUris() {
+    const out = {};
+    for (const f of floors) {
+      const name = f.image;
+      if (!name || out[name]) continue;
+      if (bgFiles.has(f.id)) {
+        const { dataUri } = await readImageDataUrl(bgFiles.get(f.id));
+        out[name] = dataUri;
+        bgUriByName.set(name, dataUri);
+      } else if (bgUriByName.has(name)) {
+        out[name] = bgUriByName.get(name);
+      } else {
+        throw new Error(`floor "${f.name}" has no background image loaded`);
+      }
+    }
+    return out;
+  }
+
+  function assembleSeed(code) {
+    return {
+      siteCode: code,
+      siteName: code,
+      floors: floors.map((f) => ({ ...f })),
+      areas: areas.map((a) => ({ ...a })),
+      departments: departments.map((d) => ({ ...d })),
+      categories: categories.map((c) => ({ ...c })),
+      regions: { regions },
+      ibeamMappings: deriveIbeamMappings(areas),
+    };
+  }
+
+  // ---- build the site's operator heat-map file ----
+  $('#buildOperator').addEventListener('click', async () => {
+    if (typeof OPERATOR_TEMPLATE === 'undefined' || !OPERATOR_TEMPLATE) {
+      status('This build of the editor can’t generate operator files — use the packaged Building Area Manager.'); return;
+    }
+    const code = siteInput.value.trim();
+    if (!code) { status('Enter a Site code first.'); siteInput.focus(); return; }
+    if (!floors.length) { status('Add at least one floor before building.'); return; }
+    if (!areas.length) { status('Add at least one area before building.'); return; }
+    status('Building operator file…');
+    let bgUris;
+    try { bgUris = await collectBgUris(); }
+    catch (err) { status('Cannot build: ' + err.message + '.'); return; }
+    const html = fillOperatorTemplate(OPERATOR_TEMPLATE, { seed: assembleSeed(code), bgUris });
+    const fname = `${fileCode(code)}-Dwelling-Inventory-Map.html`;
+    download(fname, html, 'text/html');
+    const mb = (new Blob([html]).size / (1024 * 1024)).toFixed(1);
+    status(`Built ${fname} (${mb} MB) — hand this one file to ${code} associates (double-click, offline).`);
+  });
+
+  // ---- save / load the whole project (layout + images) ----
+  $('#saveProject').addEventListener('click', async () => {
+    const code = siteInput.value.trim() || 'site';
+    status('Reading images to save…');
+    let bgImageDataUris;
+    try { bgImageDataUris = await collectBgUris(); }
+    catch (err) { status('Cannot save: ' + err.message + '.'); return; }
+    const bundle = {
+      version: 1,
+      siteCode: code,
+      floors, areas, departments, categories,
+      regions: { regions },
+      ibeamMappings: deriveIbeamMappings(areas),
+      bgImageDataUris,
+    };
+    download(`${fileCode(code)}-bam-project.json`, JSON.stringify(bundle), 'application/json');
+    status('Saved project — reload it any time with “Load project”.');
+  });
+
+  $('#loadProject').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let b;
+      try { b = JSON.parse(reader.result); }
+      catch { status('That file isn’t a valid project (.json).'); return; }
+      applyBundle(b);
+      status(`Loaded project “${b.siteCode || ''}”. Review, then Build operator file.`);
+    };
+    reader.readAsText(file);
+  });
+
+  function applyBundle(b) {
+    floors = (b.floors || []).map((f) => ({ ...f }));
+    areas = (b.areas || []).map((a) => ({ ...a }));
+    departments = (b.departments || []).map((d) => ({ ...d }));
+    categories = (Array.isArray(b.categories) && b.categories.length ? b.categories : DEFAULT_CATEGORIES).map((c) => ({ ...c }));
+    const rmap = (b.regions && (b.regions.regions || b.regions)) || {};
+    for (const k of Object.keys(regions)) delete regions[k];
+    Object.assign(regions, rmap);
+    bgFiles.clear();
+    objUrlCache.forEach((u) => URL.revokeObjectURL(u)); objUrlCache.clear();
+    if (b.bgImageDataUris) for (const [k, v] of Object.entries(b.bgImageDataUris)) bgUriByName.set(k, v);
+    siteInput.value = b.siteCode || '';
+    currentFloorId = (floors[0] || {}).id || null;
+    activeId = null;
+    refreshAll();
+  }
+
+  // ---- new (empty) site ----
+  $('#newSite').addEventListener('click', () => {
+    if (!confirm('Start a new, empty site? This clears the areas, departments and floors in the editor. Saved project files and already-built operator files are not affected.')) return;
+    floors = []; areas = []; departments = [];
+    categories = DEFAULT_CATEGORIES.map((c) => ({ ...c }));
+    for (const k of Object.keys(regions)) delete regions[k];
+    bgFiles.clear();
+    objUrlCache.forEach((u) => URL.revokeObjectURL(u)); objUrlCache.clear();
+    currentFloorId = null; activeId = null;
+    siteInput.value = '';
+    refreshAll();
+    siteInput.focus();
+    status('New site — enter a Site code, then add your first floor (＋ next to Floor).');
+  });
+
+  function status(msg) { $('#editorStatus').textContent = msg; }
+
+  // Enable/disable controls that need a floor or areas.
+  function updateControls() {
+    const floored = hasFloor();
+    $('#newArea').disabled = !floored;
+    $('#buildOperator').disabled = !(floored && areas.length > 0 && siteInput.value.trim());
+    $('#saveProject').disabled = !floored;
+  }
+
+  function refreshAll() {
+    applyFloorStage();
+    fillFloorSelect();
+    renderList();
+    drawAll();
+    syncFields();
+    syncAttrs();
+    updateControls();
+    $('#selName').textContent = 'No area selected';
+  }
+
+  // init
+  refreshAll();
+})();
+
+  </script>
+</body>
+</html>
