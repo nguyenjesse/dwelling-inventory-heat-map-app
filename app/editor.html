@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Region Editor — POC3 Map</title>
+  <title>Building Area Manager (BAM)</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%23e65100'/><rect x='3' y='3' width='10' height='10' fill='none' stroke='%23fff' stroke-width='1.5'/></svg>" />
   <link rel="stylesheet" href="./css/styles.css" />
   <link rel="stylesheet" href="./css/editor.css" />
@@ -11,10 +11,13 @@
 <body>
   <header class="app-header">
     <div class="title">
-      <h1>Region Editor</h1>
-      <span class="subtitle">Create, name &amp; place areas · assign Pole + Department · export the data</span>
+      <h1>Building Area Manager</h1>
+      <span class="subtitle">Set up a site's floors, areas &amp; poles — then build its heat-map file</span>
     </div>
     <div class="header-tools">
+      <label class="site-field" title="Short site code — names the built file and keeps each site's counts separate">Site
+        <input id="siteCode" type="text" placeholder="e.g. MEM1" autocomplete="off" />
+      </label>
       <span class="floor-group" title="Switch, add, rename or delete floors">
         <label class="floor-label">Floor <select id="floorSelect"></select></label>
         <button id="addFloor" class="btn ed-mini" title="Add floor (name it + load its background)">＋</button>
@@ -23,8 +26,10 @@
       </span>
       <label class="btn" title="Replace the current floor's background image">Load background…<input id="bgFile" type="file" accept="image/*" hidden /></label>
       <label class="btn" title="Prevent accidental dragging — clicking still selects a region; edit x/y/w/h to reposition">🔒 <input id="lockRegions" type="checkbox" checked /> Lock regions</label>
-      <button id="exportData" class="btn btn-primary">Export data</button>
-      <a class="btn" href="./index.html">← Back to app</a>
+      <button id="buildOperator" class="btn btn-primary" title="Generate this site's operator heat-map file to hand to associates">Build operator file</button>
+      <button id="saveProject" class="btn" title="Save the current layout (with images) to a project file you can reload later">Save project</button>
+      <label class="btn" title="Reload a previously saved project file">Load project<input id="loadProject" type="file" accept=".json,application/json" hidden /></label>
+      <button id="newSite" class="btn" title="Clear the editor to start a fresh, empty site">New site</button>
     </div>
   </header>
 
@@ -51,6 +56,9 @@
             <button id="deptRename" class="btn ed-mini" title="Rename department" disabled>✎</button>
           </span>
         </label>
+        <label class="ed-field">Flow category <span class="ed-hint">(of this department)</span>
+          <select id="aCat" disabled></select>
+        </label>
       </div>
 
       <input id="areaSearch" type="search" placeholder="Search areas…" />
@@ -67,7 +75,12 @@
         <span class="coord">h <input id="fh" type="number" step="1" /></span>
         <span id="editorStatus" class="status"></span>
       </div>
-      <div id="editor" class="editor-canvas"></div>
+      <div id="editor" class="editor-canvas">
+        <div id="edEmpty" class="ed-empty" hidden>
+          <p><strong>No floors yet.</strong></p>
+          <p>Enter a <strong>Site</strong> code above, then click <strong>＋</strong> next to <em>Floor</em> to add your first floor and load its background image. From there, add areas and place their boxes, then <strong>Build operator file</strong>.</p>
+        </div>
+      </div>
     </div>
   </div>
 

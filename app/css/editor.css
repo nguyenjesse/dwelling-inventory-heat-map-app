@@ -17,6 +17,15 @@
 .ed-dept-row select { flex: 1; min-width: 0; }
 .btn.ed-mini { padding: .3rem .5rem; font-size: .85rem; line-height: 1; }
 
+/* site code field in the editor header */
+.site-field { display: inline-flex; align-items: center; gap: .35rem; font-size: .82rem; color: var(--muted); }
+.site-field input { font: inherit; width: 7rem; padding: .35rem .5rem; border: 1px solid var(--border); border-radius: 6px; background: #fff; text-transform: uppercase; }
+.ed-field .ed-hint { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
+
+/* empty state shown when a site has no floors yet */
+.ed-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .4rem; padding: 2rem; text-align: center; color: var(--muted); }
+.ed-empty p { max-width: 30rem; margin: 0; line-height: 1.5; }
+
 /* floor selector in the editor header */
 .floor-group { display: inline-flex; align-items: center; gap: .3rem; }
 .floor-label { display: inline-flex; align-items: center; gap: .3rem; font-size: .82rem; color: var(--muted); }

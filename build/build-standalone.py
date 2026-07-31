@@ -2,15 +2,22 @@
 """Build single self-contained HTML files from the modular app/ source.
 
 The served app loads its data and image over HTTP with ES modules + fetch,
-which browsers block on file://. This script inlines everything — the four data
-JSON files, the CSS, the background image (as a base64 data: URI), and the JS
-modules (import/export stripped, merged into one classic <script>) — so the
-result opens by double-click, works fully offline, and can be emailed/shared as
-one file. Each user's data lives in their own browser localStorage.
+which browsers block on file://. This script inlines everything — the data JSON
+files, the CSS, the background image (as a base64 data: URI), and the JS modules
+(import/export stripped, merged into one classic <script>) — so the result opens
+by double-click, works fully offline, and can be emailed/shared as one file.
+Each user's data lives in their own browser localStorage.
 
-Two files are produced at the repo root:
-  POC3-Dwelling-Inventory-Map.html   the operator app (the deliverable)
-  POC3-Region-Editor.html            the admin region editor (double-click too)
+Files produced at the repo root:
+  POC3-Dwelling-Inventory-Map.html   the operator app for THIS site (POC3)
+  POC3-Building-Area-Manager.html    the editor pre-loaded with POC3's layout
+  Building-Area-Manager.html         a BLANK editor to hand to other sites
+
+Building Area Manager (BAM) can generate a site's operator file itself, in the
+browser: its build embeds the operator page as a string template (OPERATOR_TEMPLATE)
+with placeholder tokens where the per-site SEED_DATA / BG_IMAGE_DATA_URIS go, and
+fills them from the current layout on "Build operator file". So a receiving site
+never needs Python, a terminal, or this repo — just the one HTML file.
 
 Run:  python3 build/build-standalone.py
 """
@@ -23,8 +30,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 APP = ROOT / "app"
 
-APP_OUT = ROOT / "POC3-Dwelling-Inventory-Map.html"
-EDITOR_OUT = ROOT / "POC3-Region-Editor.html"
+# Outputs
+OPERATOR_OUT = ROOT / "POC3-Dwelling-Inventory-Map.html"   # this site's operator app
+BAM_POC3_OUT = ROOT / "POC3-Building-Area-Manager.html"    # editor seeded with POC3
+BAM_BLANK_OUT = ROOT / "Building-Area-Manager.html"        # blank editor (distributable)
+
+# This repo's own site identity, baked into the POC3 builds.
+SITE_CODE = "POC3"
+
+# Tokens the editor's opbuild.js replaces inside OPERATOR_TEMPLATE. Keep in sync
+# with SEED_TOKEN / BG_TOKEN in app/js/opbuild.js.
+SEED_TOKEN = '"__BAM_SEED_DATA__"'
+BG_TOKEN = '"__BAM_BG_IMAGE_DATA_URIS__"'
 
 # JS modules in dependency order. Everything lands in one scope, so anything
 # referenced at load time must be defined before its first use.
@@ -44,13 +61,31 @@ APP_JS_ORDER = [
     "app.js",
 ]
 
-# The editor only needs loadSeed (model -> storage) and download (importexport).
+# The editor needs the seed/model/storage, the download + operator-template
+# helpers, and its own logic.
 EDITOR_JS_ORDER = [
     "storage.js",
     "importexport.js",
+    "opbuild.js",
     "model.js",
     "editor.js",
 ]
+
+# A genuinely empty manifest for the distributable editor — no floors/areas/depts,
+# just the two fixed flow categories a site tags its departments into.
+BLANK_SEED = {
+    "siteCode": "",
+    "siteName": "",
+    "floors": [],
+    "areas": [],
+    "departments": [],
+    "ibeamMappings": [],
+    "regions": {"regions": {}},
+    "categories": [
+        {"id": "outbound", "name": "Outbound"},
+        {"id": "inbound", "name": "Inbound"},
+    ],
+}
 
 IMPORT_RE = re.compile(r"^\s*import\s.*?;\s*$", re.MULTILINE)
 EXPORT_RE = re.compile(r"^(\s*)export\s+(?=(?:async\s+)?function|const|let|class)", re.MULTILINE)
@@ -65,13 +100,19 @@ def strip_module_syntax(src: str) -> str:
 
 def load_seed() -> dict:
     data = APP / "data"
-    return {
+    seed = {
+        "siteCode": SITE_CODE,
+        "siteName": SITE_CODE,
         "floors": json.loads((data / "floors.json").read_text()),
         "areas": json.loads((data / "areas.json").read_text()),
         "departments": json.loads((data / "departments.json").read_text()),
         "ibeamMappings": json.loads((data / "ibeam-mappings.json").read_text()),
         "regions": json.loads((data / "regions.json").read_text()),
     }
+    cats = data / "categories.json"
+    if cats.exists():
+        seed["categories"] = json.loads(cats.read_text())
+    return seed
 
 
 def _data_uri(name: str) -> str:
@@ -95,13 +136,22 @@ def image_data_uris(seed: dict) -> dict:
     return {name: _data_uri(name) for name in names}
 
 
-def body_from(html: str) -> str:
-    """Pull the inner <body> markup, minus the module <script> and CSS <link>."""
+def body_from(html: str, *, editor_link_target=None, as_template=False) -> str:
+    """Pull the inner <body> markup, minus the module <script>.
+
+    - editor_link_target: retarget the operator's "Region editor" link to this
+      standalone filename (the served relative href won't resolve).
+    - as_template: producing the site-agnostic operator template embedded in the
+      editor — strip the editor link entirely (associates have no editor sibling)
+      and neutralize the hard-coded site title.
+    """
     body = re.search(r"<body>(.*)</body>", html, re.DOTALL).group(1)
     body = re.sub(r'<script\s+type="module".*?</script>', "", body, flags=re.DOTALL)
-    # Cross-link the two standalones (their served relative hrefs won't resolve).
-    body = body.replace('href="./index.html"', f'href="{APP_OUT.name}"')
-    body = body.replace('href="./editor.html"', f'href="{EDITOR_OUT.name}"')
+    if as_template:
+        body = re.sub(r'<a[^>]*href="\./editor\.html"[^>]*>.*?</a>', "", body, flags=re.DOTALL)
+        body = body.replace("<h1>POC3 Dwelling Inventory Map</h1>", "<h1>Dwelling Inventory Map</h1>")
+    elif editor_link_target:
+        body = body.replace('href="./editor.html"', f'href="{editor_link_target}"')
     return body.strip()
 
 
@@ -111,23 +161,13 @@ def favicon_from(html: str) -> str:
     return re.search(r'<link rel="icon"[^\n]*>', html).group(0)
 
 
-def build(out: Path, title: str, source_html_name: str, js_order, css_names,
-          seed: dict, bg_uris: dict) -> None:
-    source_html = (APP / source_html_name).read_text()
-    css = "\n".join((APP / "css" / name).read_text() for name in css_names)
-    body = body_from(source_html)
-    favicon = favicon_from(source_html)
-
-    bundle = "\n\n".join(
+def js_bundle(js_order) -> str:
+    return "\n\n".join(
         strip_module_syntax((APP / "js" / name).read_text()) for name in js_order)
 
-    inlined_data = (
-        "// ---- inlined by build/build-standalone.py (no server needed) ----\n"
-        f"const SEED_DATA = {json.dumps(seed)};\n"
-        f"const BG_IMAGE_DATA_URIS = {json.dumps(bg_uris)};\n"
-    )
 
-    out.write_text(f"""<!doctype html>
+def page(title: str, favicon: str, css: str, body: str, script_body: str) -> str:
+    return f"""<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -141,26 +181,90 @@ def build(out: Path, title: str, source_html_name: str, js_order, css_names,
 <body>
 {body}
   <script>
-{inlined_data}
-{bundle}
+{script_body}
   </script>
 </body>
 </html>
-""")
+"""
+
+
+def operator_script(seed_literal: str, bg_literal: str, bundle: str) -> str:
+    return (
+        "// ---- inlined by build/build-standalone.py (no server needed) ----\n"
+        f"const SEED_DATA = {seed_literal};\n"
+        f"const BG_IMAGE_DATA_URIS = {bg_literal};\n\n"
+        f"{bundle}"
+    )
+
+
+def build_operator_template(css: str) -> str:
+    """The site-agnostic operator page, as a string with placeholder tokens for
+    SEED_DATA / BG_IMAGE_DATA_URIS, to embed in the editor for in-browser builds."""
+    index_html = (APP / "index.html").read_text()
+    body = body_from(index_html, as_template=True)
+    favicon = favicon_from(index_html)
+    bundle = js_bundle(APP_JS_ORDER)
+    script_body = operator_script(SEED_TOKEN, BG_TOKEN, bundle)
+    # Title is set at runtime from SEED_DATA.siteCode; keep a generic static one.
+    return page("Dwelling Inventory Map", favicon, css, body, script_body)
+
+
+def write(out: Path, html: str) -> None:
+    out.write_text(html)
     size_mb = out.stat().st_size / (1024 * 1024)
     print(f"Wrote {out.relative_to(ROOT)} ({size_mb:.1f} MB)")
 
 
 def main() -> None:
+    app_css = (APP / "css" / "styles.css").read_text()
+    editor_css = app_css + "\n" + (APP / "css" / "editor.css").read_text()
+
     seed = load_seed()
     bg_uris = image_data_uris(seed)
 
-    build(APP_OUT, "POC3 Dwelling Inventory Map", "index.html",
-          APP_JS_ORDER, ["styles.css"], seed, bg_uris)
-    build(EDITOR_OUT, "Region Editor — POC3 Map", "editor.html",
-          EDITOR_JS_ORDER, ["styles.css", "editor.css"], seed, bg_uris)
+    # 1) This site's operator app.
+    index_html = (APP / "index.html").read_text()
+    operator_html = page(
+        f"{SITE_CODE} Dwelling Inventory Map",
+        favicon_from(index_html),
+        app_css,
+        body_from(index_html, editor_link_target=BAM_POC3_OUT.name),
+        operator_script(json.dumps(seed), json.dumps(bg_uris), js_bundle(APP_JS_ORDER)),
+    )
+    write(OPERATOR_OUT, operator_html)
 
-    print("Double-click either file to run — no server required.")
+    # 2) The operator template the editor embeds to generate other sites' files.
+    operator_template = build_operator_template(app_css)
+
+    # 3) Editor standalones (POC3-seeded for our own use + a blank distributable).
+    editor_html = (APP / "editor.html").read_text()
+    editor_favicon = favicon_from(editor_html)
+    editor_body = body_from(editor_html)
+    editor_bundle = js_bundle(EDITOR_JS_ORDER)
+
+    # The operator template is a full HTML document embedded as a JS string inside
+    # the editor's own <script>. Its literal "</script>" (and other "<" markup)
+    # would otherwise close that script tag early, so escape every "<" as < —
+    # valid JSON that decodes back to real markup at runtime.
+    template_literal = json.dumps(operator_template).replace("<", "\\u003c")
+
+    def editor_script(seed_literal: str, bg_literal: str) -> str:
+        return (
+            f"const SEED_DATA = {seed_literal};\n"
+            f"const BG_IMAGE_DATA_URIS = {bg_literal};\n"
+            f"const OPERATOR_TEMPLATE = {template_literal};\n\n"
+            f"{editor_bundle}"
+        )
+
+    write(BAM_POC3_OUT, page(
+        "Building Area Manager — POC3", editor_favicon, editor_css, editor_body,
+        editor_script(json.dumps(seed), json.dumps(bg_uris))))
+
+    write(BAM_BLANK_OUT, page(
+        "Building Area Manager (BAM)", editor_favicon, editor_css, editor_body,
+        editor_script(json.dumps(BLANK_SEED), "{}")))
+
+    print("Double-click any file to run — no server required.")
 
 
 if __name__ == "__main__":

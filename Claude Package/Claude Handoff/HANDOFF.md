@@ -1,72 +1,97 @@
-# HANDOFF — Code → Code · 2026-07-30 17:30 PT
+# HANDOFF — Code → Code · 2026-07-31 01:15 PT
 
 ## What happened this session
-Acted on **user testing feedback** with three operator-app changes, plus a
-README/doc refresh, all on branch `claude/startup-skill-83lity` and opened as
-**PR #8** (base `main`) — **not yet merged; awaiting the user's review/merge**.
+Built **Building Area Manager (BAM)** — the region editor reworked into a single
+double-click file the user can hand to *another warehouse* so that site sets up
+its own map and generates its own operator heat-map file, entirely in the browser
+(no Python, terminal, or repo). Committed as **`2676abd`** and **pushed** to
+`claude/startup-skill-e9mcuv`. **Not yet reviewed and no PR opened** — see next
+steps; the user explicitly wants the repo reviewed before anything merges.
 
-## Changes on disk (branch `claude/startup-skill-83lity`, PR #8)
-- **`app/js/modal.js`** (new) — `chooseAction({title, message, actions, cancelValue})`
-  promise-based dialog. Native `confirm()` only does OK/Cancel; the import
-  replace-vs-merge step needed **three** labelled choices.
-- **`app/js/app.js`** — import handler now `await`s `chooseAction(...)` and
-  branches on `'replace'` / `'merge'` / `'cancel'` instead of the old
-  OK=replace/Cancel=merge `confirm`. Added `import { chooseAction }`.
-- **`app/js/model.js`** — **bug fix.** `totalPallets()` now sums **known seed
-  areas only** (`seed.areas.reduce(...)`), not `Object.values(counts)`. A stale
-  areaId lingering in `localStorage` (legacy migration / import of a removed
-  area) was inflating **only** the IO-summary "Total" — hence the user's "Total
-  stuck at 4 while Outbound/Inbound + Area Breakdown all read 0."
-- **`app/js/form.js`** — count field restricted to whole numbers ≥ 0: `keydown`
-  blocks `. , e E + -`; `input` strips non-digits (handles paste).
-- **`app/css/styles.css`** — `.modal-overlay/.modal/.modal-*` styles.
-- **`build/build-standalone.py`** — `modal.js` added to `APP_JS_ORDER`
-  (before `form.js`). Both `POC3-*.html` standalones regenerated.
-- **`app/tests/tests.js`** — +2 tests (totalPallets ignores unknown areas;
-  all-zero drives Total to 0).
-- **`README.md`, `app/README.md`** — documented the Inbound/Outbound summary,
-  Area Breakdown, and category filter (were undocumented), the whole-number
-  input rule, and the import replace/merge/cancel choice; test count → 43/43.
+## Changes on disk (commit `2676abd`, branch `claude/startup-skill-e9mcuv`)
+Point to the diff, don't re-read all of it. Key pieces:
+- **`app/js/opbuild.js`** (new) — in-browser operator-file generation: `fillOperatorTemplate`
+  (token replace via *replacer functions* so `$`-sequences in base64/JSON aren't mangled)
+  and `readImageDataUrl` (File → base64, down-scales >2000px wide via canvas).
+- **`app/js/editor.js`** (rewritten) — BAM: Site-code field, per-department flow-category
+  picker, capture of loaded image **bytes** (`bgFiles` Map), **Build operator file**,
+  **Save/Load project** (JSON incl. `bgImageDataUris`), **New site**, zero-floor empty state.
+- **`app/js/model.js`** — categories now **derived from seed** (`deriveCategories`) instead of
+  a hard-coded const; added `siteCode()`/`siteName()`; `normalizeSeed` now leaves a truly-empty
+  manifest floor-less (for BAM's blank start).
+- **`app/js/storage.js`** — counts key namespaced by site (`dwelling.counts.v1.<code>`); adopts
+  legacy `poc3.counts.v1` only for POC3/dev.
+- **`app/js/iosummary.js`**, **`app/js/app.js`** — iterate `model.categories()`; app sets the
+  operator title/h1 + export filenames from the site code.
+- **`app/data/departments.json`** (+`categoryId`), **`app/data/categories.json`** (new).
+- **`app/editor.html`** + **`app/css/editor.css`** — BAM rebrand + new controls/empty state.
+- **`build/build-standalone.py`** — emits 3 files (below); embeds the operator page as a
+  token-placeholder `OPERATOR_TEMPLATE` in the editor.
+- **`POC3-Region-Editor.html` → `POC3-Building-Area-Manager.html`** (renamed/superseded).
+  Build outputs: `POC3-Dwelling-Inventory-Map.html` (operator), `POC3-Building-Area-Manager.html`
+  (POC3-seeded editor), **`Building-Area-Manager.html`** (blank — the file to send other sites).
+- READMEs updated (root + `app/`).
+
+## Decisions taken and why (don't re-litigate)
+- **In-browser "Build operator file" button, NOT a Python script** — the whole point is that a
+  receiving site needs no repo/terminal. A browser can't run Python, so the build logic was
+  reimplemented in JS; `build-standalone.py` embeds the operator HTML as a string template that
+  BAM fills at runtime.
+- **Send ONE file** (`Building-Area-Manager.html`) to other sites — no folder. The only thing a
+  site supplies is its own floor-plan image.
+- **Categories = fixed Inbound/Outbound** (user picked "like it is now" over site-defined custom
+  names) — but stored as **per-site seed data** so each site's grouping travels into its file.
+- **POC3 layout preserved** — `app/data/*.json` only got an additive `categoryId`; the user is
+  still mid-work on POC3, so its editor + operator map keep building unchanged.
+- **Counts namespaced by site code** so two sites' files can't clash localStorage on one browser.
 
 ## Verification status
-- **Test suite 43/43 green** in real headless Chromium — use the **headless_shell**
-  binary (`/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell`),
-  NOT the full `chromium` (which refuses `--headless=old`). Serve `app/` with
-  `python3 -m http.server`.
-- Live-checked all three in the browser: modal shows exactly `Fully replace /
-  Merge / Cancel` and dismisses on choice; count field turned `1.2.3`→`123` and
-  `12e-3`→`123`; IO Total ignored a planted stale entry (showed 3 not 7) and
-  reached 0 after zeroing the real area. Zero console errors.
-
-## Decisions taken this session
-- **3-button modal, not chained confirms** — a native `confirm()` can't express
-  three labelled actions; a tiny custom dialog (`modal.js`) was the clean fix.
-- **`totalPallets` counts known areas only** — makes the grand total consistent
-  with `categoryTotal` / `departmentTotal` / Area Breakdown, which already filter
-  to real areas. Root-cause fix, not a patch on the IO summary.
-- **Input hardening at the keystroke level** (block + strip), on top of the
-  existing submit-time validation — prevents the bad char ever landing.
+- Test suite **47/47 green** (added: seed-derived categories, namespaced-storage + legacy
+  adoption, `$`-safe template fill). Run served: `python3 -m http.server` in `app/`, open
+  `tests/tests.html`.
+- **Full end-to-end passed in real Chromium**: blank BAM → Load project → Build operator file →
+  the generated `<CODE>-Dwelling-Inventory-Map.html` opens from `file://` with correct title,
+  Inbound/Outbound summary, map areas, and **inlined background**; POC3 operator + POC3-seeded
+  BAM both unchanged (74 areas, green-mile, "POC3…" title). Screenshots eyeballed.
+- **What still needs the USER's eyes**: (1) a **code review of the branch** — nothing has been
+  reviewed; (2) a real-world dry run in their own browser with an actual second-site floor plan
+  (multi-floor, a large image to confirm down-scaling, Save→reload→Build).
+- Verification harness (`verify.mjs`, screenshots, `project.json`) lives in the **session
+  scratchpad only** — ephemeral, not on the repo disk, will vanish with the session.
 
 ## Dead ends & gotchas
-- The Total fix stops a stale count from being *summed*, but the phantom entry
-  still physically sits in that browser's `localStorage`. It's inert now; a
-  **Fully replace** import or clearing site data flushes it entirely.
-- **`app/js/model.js` contains an intentional NUL byte** (`\x00`) as a composite
-  key separator in `ibKey` — `file` reports the file as "data"/binary and grep
-  treats it as binary. **Do not "fix" it**; edit around it with the Read/Edit
-  tools (works fine) rather than shell text tools.
-- Same standing gotchas as before: full `chromium` won't run headless (use
-  headless_shell); Playwright harness lives in the **session scratchpad**
-  (`playwright-core` installed there) — never commit `node_modules`/`package*.json`;
-  **do NOT gitignore `Claude Package/`** (fresh web sessions clone the repo and
-  need the tracked baton); branch deletion still fails through the git proxy —
-  the **user deletes merged branches themselves** in the GitHub UI.
+- **`</script>` in the embedded template breaks the editor page.** The operator HTML is embedded
+  as a JS string inside BAM's own `<script>`; its literal `</script>` closed the tag early and
+  blanked the editor. Fixed by escaping every `<` → `<` in `build-standalone.py`
+  (`template_literal`). First build hit exactly this — **don't remove that escape.**
+- **`chromium` (full) won't run headless** here ("Old Headless mode removed"). Use
+  **headless_shell** at `/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell`,
+  served over HTTP. (Carried from last session — still true.)
+- **`pkill -f "http.server 8137"` killed the shell** mid-verify — `-f` matched the pkill command's
+  own line. Use `fuser -k <port>/tcp` instead.
+- Playwright ran from the **scratchpad** (`playwright-core` installed there). Never commit
+  `node_modules`/`package*.json` — this stays a dependency-free static project.
+- **Do NOT gitignore `Claude Package/`** — fresh Code-on-web sessions clone the repo and see only
+  committed files, so the handoff must stay tracked. (Standing decision; overrides the generic
+  advice.)
+- Background bytes: fresh loads come from `File`→`readAsDataURL`; already-baked/project images
+  fall back to `BG_IMAGE_DATA_URIS` / the project's `bgImageDataUris`. `uniqueImageName` de-dupes
+  filenames so two floors can't collide on one image key.
 
 ## Suggested next steps
-1. **User reviews and merges PR #8** to `main` (docs + this handoff included).
-   Nothing else is queued.
-2. After merge, branch fresh off `origin/main` for any new work (reusing the
-   branch name is fine per the workflow).
+1. **Review the repo — this is the priority the user called out.** Review the `2676abd` diff on
+   `claude/startup-skill-e9mcuv` (run `/code-review`, and/or read the rewritten `app/js/editor.js`
+   + `build/build-standalone.py` closely). Nothing here has been reviewed yet.
+2. **Real-world dry run**: open `Building-Area-Manager.html` by double-click, build a small
+   fake site with a genuine floor-plan PNG, Save project → New site → Load project → Build
+   operator file; open the result and confirm it looks right. Especially exercise a **multi-floor**
+   site and a **large image** (down-scale path) — the automated e2e used a tiny synthetic PNG.
+3. **Decide on a PR / merge** once reviewed (user must confirm — no PR was opened this session).
+4. Optional follow-ups if wanted: localStorage **autosave** in BAM (today only explicit
+   Save/Load guards against a tab close); a build-time check that warns if `OPERATOR_TEMPLATE`
+   is missing.
 
 ## Open questions
-- None outstanding.
+- Open a PR for this branch, or hold at the pushed commit pending review? (Not decided.)
+- OK that `POC3-Region-Editor.html` was removed/renamed to `POC3-Building-Area-Manager.html`?
+  (Assumed yes — it's the same tool, now BAM-branded and able to Build operator files.)

@@ -1,0 +1,10 @@
+[
+  {
+    "id": "outbound",
+    "name": "Outbound"
+  },
+  {
+    "id": "inbound",
+    "name": "Inbound"
+  }
+]
