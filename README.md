@@ -64,6 +64,12 @@ Rebuild after **any** change to `app/` source or `app/data/`:
 python3 build/build-standalone.py
 ```
 
+The build **fails loudly** if the operator page embedded in the editor
+standalones (`OPERATOR_TEMPLATE`) would be broken — too short (inlining failed), a
+missing placeholder token, no `<script>` block, or a raw `</script` that survived
+escaping — so a mis-built manager can never ship a blank heat map to a receiving
+site.
+
 **Building Area Manager (BAM)** is the double-click editor. It manages a site's
 **floors** (add / rename / delete, each with its own background image), **areas**
 (create / rename / delete / duplicate, place the region box, assign **Pole**
