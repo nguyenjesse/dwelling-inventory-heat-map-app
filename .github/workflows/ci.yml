@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Playwright + Chromium
+        run: |
+          pip install playwright
+          python3 -m playwright install --with-deps chromium
+
+      - name: Run test suite (headless)
+        run: python3 tests/run_ci.py
+
+      - name: Standalones are up to date with app/ source
+        # Rebuild and compare against the committed files, ignoring only the
+        # build timestamp (it floats by design). Any other diff means someone
+        # changed app/ without running build/build-standalone.py.
+        run: |
+          python3 build/build-standalone.py
+          status=0
+          for f in POC3-Dwelling-Inventory-Map.html \
+                   POC3-Building-Area-Manager.html \
+                   Building-Area-Manager.html; do
+            norm='s/"builtAt": "[^"]*"/"builtAt": "X"/g'
+            git show "HEAD:$f" | sed -E "$norm" > /tmp/committed.html
+            sed -E "$norm" "$f" > /tmp/rebuilt.html
+            if ! diff -q /tmp/committed.html /tmp/rebuilt.html > /dev/null; then
+              echo "::error::$f is stale — run: python3 build/build-standalone.py"
+              diff /tmp/committed.html /tmp/rebuilt.html | head -40
+              status=1
+            fi
+          done
+          exit $status

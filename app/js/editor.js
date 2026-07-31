@@ -27,6 +27,18 @@ function uniqueId(base, existing) {
 function fileCode(code) {
   return slugify(code).toUpperCase() || 'SITE';
 }
+// Local build timestamp for a generated operator file: "YYYY-MM-DD HH:MM UTC±H".
+// (toISOString is UTC-only, so format the local parts by hand + the offset.)
+function buildStamp(d = new Date()) {
+  const p = (n) => String(n).padStart(2, '0');
+  const offMin = -d.getTimezoneOffset(); // minutes east of UTC
+  const sign = offMin >= 0 ? '+' : '-';
+  const offH = Math.floor(Math.abs(offMin) / 60);
+  const offRem = Math.abs(offMin) % 60;
+  const off = `UTC${sign}${offH}${offRem ? ':' + p(offRem) : ''}`;
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} `
+    + `${p(d.getHours())}:${p(d.getMinutes())} ${off}`;
+}
 // [{ iBeamLocation, floorId, areaIds }], derived from areas so it never goes
 // stale. I-beam locations are scoped per floor, so group by (floorId, pole).
 function deriveIbeamMappings(areas) {
@@ -563,6 +575,7 @@ const DEFAULT_CATEGORIES = [
     return {
       siteCode: code,
       siteName: code,
+      builtAt: buildStamp(), // local time this operator file was generated
       floors: floors.map((f) => ({ ...f })),
       areas: areas.map((a) => ({ ...a })),
       departments: departments.map((d) => ({ ...d })),

@@ -23,6 +23,7 @@ Run:  python3 build/build-standalone.py
 """
 
 import base64
+import datetime
 import json
 import re
 from pathlib import Path
@@ -98,11 +99,22 @@ def strip_module_syntax(src: str) -> str:
     return src
 
 
+def build_stamp() -> str:
+    """Local build timestamp 'YYYY-MM-DD HH:MM UTC±H', matching editor.js buildStamp."""
+    now = datetime.datetime.now().astimezone()
+    off_min = int(now.utcoffset().total_seconds() // 60)
+    sign = "+" if off_min >= 0 else "-"
+    off_h, off_rem = divmod(abs(off_min), 60)
+    off = f"UTC{sign}{off_h}" + (f":{off_rem:02d}" if off_rem else "")
+    return now.strftime("%Y-%m-%d %H:%M ") + off
+
+
 def load_seed() -> dict:
     data = APP / "data"
     seed = {
         "siteCode": SITE_CODE,
         "siteName": SITE_CODE,
+        "builtAt": build_stamp(),
         "floors": json.loads((data / "floors.json").read_text()),
         "areas": json.loads((data / "areas.json").read_text()),
         "departments": json.loads((data / "departments.json").read_text()),

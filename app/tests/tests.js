@@ -167,6 +167,48 @@ test('setCount rejects unknown area', () => {
   try { m.setCount('nope', 1); } catch (_) { threw = true; }
   assert(threw, 'unknown area should throw');
 });
+test('canUndo is false on a fresh model', () => {
+  const m = freshModel();
+  assert(m.canUndo() === false, 'nothing to undo yet');
+  eq(m.undo(), null);
+});
+test('undo restores the value from before the last setCount', () => {
+  const m = freshModel();
+  m.setCount('presort-phase-1', 5);
+  m.setCount('presort-phase-1', 9);
+  assert(m.canUndo(), 'should have an undoable change');
+  const done = m.undo();
+  eq(done.areaId, 'presort-phase-1'); eq(done.restored, 5);
+  eq(m.getCount('presort-phase-1'), 5);
+  assert(m.canUndo() === false, 'undo is single-level, no redo');
+});
+test('undo of a first-time set clears the area (prev was 0)', () => {
+  const m = freshModel();
+  m.setCount('presort-phase-1', 4);
+  m.undo();
+  eq(m.getCount('presort-phase-1'), 0);
+  eq(m.areasWithCount(), 0);
+});
+test('undo of a Clear restores the prior count', () => {
+  const m = freshModel();
+  m.setCount('presort-phase-1', 7);
+  m.setCount('presort-phase-1', 0); // Clear
+  m.undo();
+  eq(m.getCount('presort-phase-1'), 7);
+});
+test('replaceCounts disables undo (bulk import is not single-undoable)', () => {
+  const m = freshModel();
+  m.setCount('presort-phase-1', 3);
+  m.replaceCounts({ 'end-of-line-a': 2 });
+  assert(m.canUndo() === false, 'import replace clears the undo');
+  eq(m.undo(), null);
+});
+test('clearUndo drops the pending undo', () => {
+  const m = freshModel();
+  m.setCount('presort-phase-1', 3);
+  m.clearUndo();
+  assert(m.canUndo() === false);
+});
 test('areasForIBeam returns valid areas; multi works', () => {
   const m = freshModel();
   const areas = m.areasForIBeam('E16').map((a) => a.id).sort();
@@ -366,6 +408,8 @@ test('operator template fill defaults missing bgUris to {}', () => {
 // ---------- render ----------
 const passed = results.filter((r) => r.ok).length;
 const failed = results.length - passed;
+// Machine-readable signal for the CI runner (tests/run_ci.py) — no scraping.
+window.__TEST_RESULT__ = { passed, failed, total: results.length };
 const summary = document.getElementById('summary');
 summary.textContent = `${passed}/${results.length} passed` + (failed ? ` — ${failed} FAILED` : ' — all green');
 summary.className = 'summary ' + (failed ? 'fail' : 'ok');

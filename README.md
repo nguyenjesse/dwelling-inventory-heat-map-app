@@ -70,6 +70,11 @@ missing placeholder token, no `<script>` block, or a raw `</script` that survive
 escaping — so a mis-built manager can never ship a blank heat map to a receiving
 site.
 
+Every generated operator file shows a **build timestamp** in a small footer (e.g.
+`POC3 · built 2026-07-31 14:23 UTC-7`) — the local time it was built, so an
+associate can tell how fresh their emailed file is. Python-built POC3 files stamp
+the build machine's time; a file BAM generates in the browser stamps that moment.
+
 **Building Area Manager (BAM)** is the double-click editor. It manages a site's
 **floors** (add / rename / delete, each with its own background image), **areas**
 (create / rename / delete / duplicate, place the region box, assign **Pole**
@@ -145,10 +150,17 @@ the floor-plan background & region alignment, and the heat-map scale.
 ## Testing
 
 Serve the app and open `tests/tests.html` — the in-browser suite covers the
-heat-map color math, manifest integrity, the count model, legacy-data migration,
-the Area Breakdown / Inbound-Outbound roll-ups, and CSV/JSON import/export
-round-trips, plus seed-derived categories, the site-namespaced counts key, and
-the in-browser operator-file generation. It currently runs **49/49 green**.
+heat-map color math, manifest integrity, the count model (including single-level
+undo), legacy-data migration, the Area Breakdown / Inbound-Outbound roll-ups, and
+CSV/JSON import/export round-trips, plus seed-derived categories, the
+site-namespaced counts key, and the in-browser operator-file generation. It
+currently runs **55/55 green**.
+
+CI (`.github/workflows/ci.yml`) runs the same suite headless on every push/PR via
+`tests/run_ci.py` (serves `app/`, drives headless Chromium with Playwright, reads
+the runner's `window.__TEST_RESULT__` signal), and also rebuilds the standalones
+and fails if a committed `*.html` is stale versus `app/` — ignoring only the
+build-timestamp line, which floats by design.
 
 After changing anything under `app/`, rebuild the standalone and confirm it opens
 **fully styled from `file://`** before shipping it (a DOM-node count alone can
