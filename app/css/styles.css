@@ -65,11 +65,6 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 .entry-form input[readonly] { background: #f0f2f4; color: var(--muted); }
 .entry-form input:focus, .entry-form select:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
 .form-actions { display: flex; gap: .5rem; margin-top: .3rem; }
-.entry-form .form-advance {
-  display: flex; align-items: center; gap: .4rem; margin-top: .6rem;
-  font-weight: 400; cursor: pointer;
-}
-.entry-form .form-advance input { width: auto; }
 .form-msg { min-height: 1.2em; font-size: .82rem; margin: .6rem 0 0; }
 .form-msg.error { color: var(--danger); }
 .form-msg.success { color: var(--success); }

@@ -28,9 +28,6 @@ export function createCountEditor(root, model, { onChange, onSelectArea, floorId
         <button type="submit" class="btn btn-primary" disabled data-act="save">Save count</button>
         <button type="button" class="btn" data-act="clear" disabled>Clear</button>
       </div>
-      <label class="inline form-advance">
-        <input id="advanceNext" type="checkbox" /> Advance to next area after Save
-      </label>
       <p class="form-msg" role="status" aria-live="polite"></p>
     </form>`;
 
@@ -41,12 +38,7 @@ export function createCountEditor(root, model, { onChange, onSelectArea, floorId
   const palletsEl = form.pallets;
   const saveBtn = form.querySelector('[data-act="save"]');
   const clearBtn = form.querySelector('[data-act="clear"]');
-  const advanceEl = form.querySelector('#advanceNext');
   const msgEl = form.querySelector('.form-msg');
-
-  // Area IDs in the dropdown's (department-grouped) order for the current floor.
-  // Drives "advance to next area after Save"; rebuilt whenever the floor changes.
-  let orderedIds = [];
 
   function setMsg(text, kind = '') {
     msgEl.textContent = text || '';
@@ -57,11 +49,9 @@ export function createCountEditor(root, model, { onChange, onSelectArea, floorId
   // floor's areas are listed). Clears the current selection.
   function buildOptions(fid) {
     const onFloor = new Set(model.areasOnFloor(fid).map((a) => a.id));
-    orderedIds = [];
     const optgroups = model.seed.departments.map((d) => {
       const areas = model.areasInDept(d.id).filter((a) => onFloor.has(a.id))
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-      areas.forEach((a) => orderedIds.push(a.id));
       const opts = areas
         .map((a) => `<option value="${a.id}">${a.name}</option>`).join('');
       return opts ? `<optgroup label="${d.name}">${opts}</optgroup>` : '';
@@ -125,20 +115,6 @@ export function createCountEditor(root, model, { onChange, onSelectArea, floorId
     palletsEl.value = saved;
     setMsg(`Set ${area.name} to ${saved} pallet${saved === 1 ? '' : 's'}.`, 'success');
     if (onChange) onChange();
-
-    // Rapid entry: hop straight to the next area on the floor and focus its count
-    // field, so a full sweep is type-Enter-type-Enter with no dropdown trips.
-    if (advanceEl.checked) {
-      const idx = orderedIds.indexOf(area.id);
-      const nextId = idx >= 0 ? orderedIds[idx + 1] : undefined;
-      if (nextId) {
-        selectArea(nextId);
-        if (onSelectArea) onSelectArea(nextId); // sync map highlight + panel
-      } else {
-        setMsg(`Set ${area.name} to ${saved} pallet${saved === 1 ? '' : 's'}. `
-          + 'Reached the last area.', 'success');
-      }
-    }
   });
 
   clearBtn.addEventListener('click', () => {
