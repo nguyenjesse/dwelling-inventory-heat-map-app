@@ -197,6 +197,39 @@ def operator_script(seed_literal: str, bg_literal: str, bundle: str) -> str:
     )
 
 
+def validate_operator_template(operator_template: str, template_literal: str) -> None:
+    """Fail loudly if the template the editor embeds is unusable.
+
+    The editor builds each receiving site's operator file by substituting into
+    OPERATOR_TEMPLATE in the browser. A degenerate template (empty body, missing
+    JS, missing placeholder tokens) or a broken escape would still produce a
+    valid-looking editor whose "Build operator file" silently emits a blank page,
+    with no error until someone opens the result. Catch it here instead.
+    """
+    problems = []
+    if len(operator_template) < 500:
+        problems.append(
+            f"template is empty or too small ({len(operator_template)} chars) — "
+            "body/CSS/JS inlining likely failed")
+    for token in ("__BAM_SEED_DATA__", "__BAM_BG_IMAGE_DATA_URIS__"):
+        if token not in operator_template:
+            problems.append(
+                f"placeholder token {token!r} missing — opbuild.js can't fill the "
+                "seed/image data")
+    if "<script>" not in operator_template:
+        problems.append("no <script> block — the operator app's JS bundle is missing")
+    # The template embeds as a JS string inside the editor's own <script>; a raw
+    # </script> (any unescaped '<') closes that tag early and blanks the editor.
+    if re.search(r"</script", template_literal, re.IGNORECASE):
+        problems.append(
+            "embedded template still contains a raw '</script' — the "
+            "'<' -> '\\u003c' escaping did not apply")
+    if problems:
+        raise SystemExit(
+            "OPERATOR_TEMPLATE validation failed; refusing to write the editor:\n  - "
+            + "\n  - ".join(problems))
+
+
 def build_operator_template(css: str) -> str:
     """The site-agnostic operator page, as a string with placeholder tokens for
     SEED_DATA / BG_IMAGE_DATA_URIS, to embed in the editor for in-browser builds."""
@@ -247,6 +280,10 @@ def main() -> None:
     # would otherwise close that script tag early, so escape every "<" as < —
     # valid JSON that decodes back to real markup at runtime.
     template_literal = json.dumps(operator_template).replace("<", "\\u003c")
+
+    # Guard: a degenerate or mis-escaped template would still emit a working-looking
+    # editor whose "Build operator file" silently produces a blank operator page.
+    validate_operator_template(operator_template, template_literal)
 
     def editor_script(seed_literal: str, bg_literal: str) -> str:
         return (
