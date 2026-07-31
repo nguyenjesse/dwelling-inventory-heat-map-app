@@ -2,9 +2,28 @@
 // department) or have one pushed in from a map-region click, then type the
 // area's pallet count directly. Replaces the old scan-one-container form.
 
+// Case-insensitive substring match over an area's name and I-beam location.
+// Pure (no DOM) so the search box below and the tests can share it. An empty
+// query matches nothing (the results list stays hidden). Mirrors the editor's
+// own list filter (editor.js renderList).
+export function matchAreas(areas, query) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return [];
+  return areas.filter((a) =>
+    a.name.toLowerCase().includes(q) ||
+    String(a.iBeamLocation || '').toLowerCase().includes(q));
+}
+
 export function createCountEditor(root, model, { onChange, onSelectArea, floorId } = {}) {
   root.innerHTML = `
     <form class="entry-form" autocomplete="off" novalidate>
+      <div class="field area-search-field">
+        <label for="areaSearch">Find area</label>
+        <input id="areaSearch" type="search" autocomplete="off"
+               placeholder="Search name or I-Beam…" aria-expanded="false"
+               role="combobox" aria-controls="areaResults" aria-autocomplete="list" />
+        <ul id="areaResults" class="area-results" role="listbox" hidden></ul>
+      </div>
       <div class="field">
         <label for="areaSelect">Area</label>
         <select id="areaSelect" name="areaSelect">
@@ -36,9 +55,15 @@ export function createCountEditor(root, model, { onChange, onSelectArea, floorId
   const ibeamEl = form.iBeam;
   const deptEl = form.dept;
   const palletsEl = form.pallets;
+  const searchEl = form.querySelector('#areaSearch');
+  const resultsEl = form.querySelector('#areaResults');
   const saveBtn = form.querySelector('[data-act="save"]');
   const clearBtn = form.querySelector('[data-act="clear"]');
   const msgEl = form.querySelector('.form-msg');
+
+  // The floor whose areas the dropdown + search operate over. Kept in sync by
+  // buildOptions (initial paint + floor switches).
+  let currentFloorId = floorId || model.defaultFloorId();
 
   function setMsg(text, kind = '') {
     msgEl.textContent = text || '';
@@ -48,6 +73,9 @@ export function createCountEditor(root, model, { onChange, onSelectArea, floorId
   // Rebuild the area dropdown for one floor (departments are global; only that
   // floor's areas are listed). Clears the current selection.
   function buildOptions(fid) {
+    currentFloorId = fid;
+    hideResults();
+    searchEl.value = '';
     const onFloor = new Set(model.areasOnFloor(fid).map((a) => a.id));
     const optgroups = model.seed.departments.map((d) => {
       const areas = model.areasInDept(d.id).filter((a) => onFloor.has(a.id))
@@ -87,6 +115,86 @@ export function createCountEditor(root, model, { onChange, onSelectArea, floorId
     populate();
     if (areaEl.value && onSelectArea) onSelectArea(areaEl.value);
   });
+
+  // ---- type-ahead area search ----
+  // A quick way to jump to one of the floor's areas by name or I-beam without
+  // scrolling the department-grouped dropdown. Selecting a result behaves like
+  // picking from the dropdown (syncs map/panel via onSelectArea) and focuses the
+  // count field so the operator can type straight away.
+  let activeResult = -1; // index of the keyboard-highlighted result, -1 = none
+  const MAX_RESULTS = 8;
+
+  function hideResults() {
+    resultsEl.hidden = true;
+    resultsEl.innerHTML = '';
+    activeResult = -1;
+    searchEl.setAttribute('aria-expanded', 'false');
+  }
+
+  function renderResults() {
+    const matches = matchAreas(model.areasOnFloor(currentFloorId), searchEl.value)
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+      .slice(0, MAX_RESULTS);
+    if (!matches.length) { hideResults(); return; }
+    resultsEl.innerHTML = matches.map((a, i) => {
+      const dept = model.getDept(a.departmentId);
+      const meta = [a.iBeamLocation || '—', dept ? dept.name : ''].filter(Boolean).join(' · ');
+      return `<li data-id="${a.id}" data-i="${i}" role="option">`
+        + `<span class="ar-name">${a.name}</span>`
+        + `<span class="ar-meta">${meta}</span></li>`;
+    }).join('');
+    resultsEl.hidden = false;
+    activeResult = -1;
+    searchEl.setAttribute('aria-expanded', 'true');
+  }
+
+  function highlight(i) {
+    const items = resultsEl.querySelectorAll('li');
+    if (!items.length) return;
+    activeResult = (i + items.length) % items.length;
+    items.forEach((li, idx) => li.classList.toggle('active', idx === activeResult));
+    items[activeResult].scrollIntoView({ block: 'nearest' });
+  }
+
+  // Select an area from the search results: mirror the dropdown selection path
+  // (populate + notify) and drop focus into the count field.
+  function commitSearch(id) {
+    if (!model.getArea(id)) return;
+    areaEl.value = id;
+    populate();
+    setMsg('');
+    searchEl.value = '';
+    hideResults();
+    if (onSelectArea) onSelectArea(id);
+    palletsEl.focus();
+    palletsEl.select();
+  }
+
+  searchEl.addEventListener('input', renderResults);
+  searchEl.addEventListener('focus', () => { if (searchEl.value) renderResults(); });
+  searchEl.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (resultsEl.hidden) renderResults(); highlight(activeResult + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); highlight(activeResult - 1); }
+    else if (e.key === 'Enter') {
+      // The search box lives inside the entry <form>; keep Enter from submitting.
+      const items = resultsEl.querySelectorAll('li');
+      if (!items.length) return;
+      e.preventDefault();
+      const pick = items[activeResult >= 0 ? activeResult : 0];
+      commitSearch(pick.dataset.id);
+    } else if (e.key === 'Escape') {
+      if (!resultsEl.hidden) { e.preventDefault(); hideResults(); }
+    }
+  });
+  // mousedown (not click) so the selection lands before the input's blur hides
+  // the list; preventDefault keeps focus off the <li>.
+  resultsEl.addEventListener('mousedown', (e) => {
+    const li = e.target.closest('li');
+    if (!li) return;
+    e.preventDefault();
+    commitSearch(li.dataset.id);
+  });
+  searchEl.addEventListener('blur', () => setTimeout(hideResults, 0));
 
   // Restrict the count field to whole, non-negative numbers as the user types.
   // A native number input otherwise accepts ".", "e", "+" and "-"; block those

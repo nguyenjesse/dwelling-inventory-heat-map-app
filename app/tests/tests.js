@@ -6,6 +6,7 @@ import { createBreakdown } from '../js/breakdown.js';
 import { createIoSummary } from '../js/iosummary.js';
 import { importCounts, exportCsv } from '../js/importexport.js';
 import { fillOperatorTemplate, SEED_TOKEN, BG_TOKEN } from '../js/opbuild.js';
+import { matchAreas } from '../js/form.js';
 
 const results = [];
 function test(name, fn) {
@@ -387,6 +388,33 @@ test('import requires Area and Pallets columns', () => {
   assert(errors.some((e) => /Missing required columns/.test(e.message)));
 });
 clearAllCountKeys();
+
+// ---------- operator area search (matchAreas) ----------
+const searchAreas = [
+  { id: 'a1', name: 'Presort Phase 1', iBeamLocation: 'J12', departmentId: 'd' },
+  { id: 'a2', name: 'Presort Phase 2', iBeamLocation: 'J13', departmentId: 'd' },
+  { id: 'a3', name: 'End of Line A', iBeamLocation: 'K7', departmentId: 'd' },
+  { id: 'a4', name: 'RPN Staging', iBeamLocation: '', departmentId: 'd' },
+];
+test('matchAreas empty query returns nothing', () => {
+  eq(matchAreas(searchAreas, '').length, 0);
+  eq(matchAreas(searchAreas, '   ').length, 0);
+});
+test('matchAreas matches on name (case-insensitive)', () => {
+  const ids = matchAreas(searchAreas, 'presort').map((a) => a.id).sort();
+  eq(ids.join(','), 'a1,a2');
+});
+test('matchAreas matches on I-beam location', () => {
+  const ids = matchAreas(searchAreas, 'k7').map((a) => a.id);
+  eq(ids.join(','), 'a3');
+});
+test('matchAreas tolerates a missing I-beam', () => {
+  const ids = matchAreas(searchAreas, 'rpn').map((a) => a.id);
+  eq(ids.join(','), 'a4');
+});
+test('matchAreas no match returns empty', () => {
+  eq(matchAreas(searchAreas, 'zzz').length, 0);
+});
 
 // ---------- operator-file generation (Building Area Manager) ----------
 test('operator template fill inserts JSON verbatim ($-safe)', () => {
