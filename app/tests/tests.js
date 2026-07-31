@@ -7,6 +7,7 @@ import { createIoSummary } from '../js/iosummary.js';
 import { importCounts, exportCsv } from '../js/importexport.js';
 import { fillOperatorTemplate, SEED_TOKEN, BG_TOKEN } from '../js/opbuild.js';
 import { matchAreas } from '../js/form.js';
+import { SCHEMA_VERSION, migrate, readVersion, resolveProjectBundle } from '../js/schema.js';
 
 const results = [];
 function test(name, fn) {
@@ -414,6 +415,42 @@ test('matchAreas tolerates a missing I-beam', () => {
 });
 test('matchAreas no match returns empty', () => {
   eq(matchAreas(searchAreas, 'zzz').length, 0);
+});
+
+// ---------- schema versioning ----------
+test('readVersion reads version/schemaVersion, falls back on junk', () => {
+  eq(readVersion({ version: 3 }), 3);
+  eq(readVersion({ schemaVersion: 2 }), 2);
+  eq(readVersion({}, 1), 1);
+  eq(readVersion({ version: 0 }, 1), 1);
+  eq(readVersion({ version: 'x' }, 1), 1);
+});
+test('migrate is a no-op at the current baseline', () => {
+  const obj = { a: 1 };
+  eq(migrate(obj, SCHEMA_VERSION, SCHEMA_VERSION), obj);
+});
+test('resolveProjectBundle passes through a current-version bundle', () => {
+  const b = { version: SCHEMA_VERSION, siteCode: 'X' };
+  const { bundle, warning } = resolveProjectBundle(b);
+  eq(bundle, b); eq(warning, '');
+});
+test('resolveProjectBundle treats a pre-versioned bundle as current (no warning)', () => {
+  const { warning } = resolveProjectBundle({ siteCode: 'X' }); // no version field
+  eq(warning, '');
+});
+test('resolveProjectBundle warns on a newer bundle and still returns it', () => {
+  const b = { version: SCHEMA_VERSION + 1, siteCode: 'X' };
+  const { bundle, warning } = resolveProjectBundle(b);
+  eq(bundle, b);
+  assert(/newer/i.test(warning), 'warns the file is newer');
+});
+test('validateManifest warns on a too-new schemaVersion', () => {
+  const { warnings } = validateManifest({ ...seed, schemaVersion: SCHEMA_VERSION + 1 });
+  assert(warnings.some((w) => /newer data format/i.test(w)), 'warns on newer format');
+});
+test('validateManifest does not warn at the current schemaVersion', () => {
+  const { warnings } = validateManifest({ ...seed, schemaVersion: SCHEMA_VERSION });
+  assert(!warnings.some((w) => /newer data format/i.test(w)), 'no version warning at baseline');
 });
 
 // ---------- operator-file generation (Building Area Manager) ----------

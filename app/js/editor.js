@@ -8,6 +8,7 @@
 import { loadSeed, bgSrcFor } from './model.js';
 import { download } from './importexport.js';
 import { fillOperatorTemplate, readImageDataUrl } from './opbuild.js';
+import { SCHEMA_VERSION, resolveProjectBundle } from './schema.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const $ = (s) => document.querySelector(s);
@@ -602,6 +603,7 @@ const DEFAULT_CATEGORIES = [
     return {
       siteCode: code,
       siteName: code,
+      schemaVersion: SCHEMA_VERSION, // data-model version this file was built against
       builtAt: buildStamp(), // local time this operator file was generated
       floors: floors.map((f) => ({ ...f })),
       areas: areas.map((a) => ({ ...a })),
@@ -640,7 +642,7 @@ const DEFAULT_CATEGORIES = [
     try { bgImageDataUris = await collectBgUris(); }
     catch (err) { status('Cannot save: ' + err.message + '.'); return; }
     const bundle = {
-      version: 1,
+      version: SCHEMA_VERSION,
       siteCode: code,
       floors, areas, departments, categories,
       regions: { regions },
@@ -660,8 +662,13 @@ const DEFAULT_CATEGORIES = [
       let b;
       try { b = JSON.parse(reader.result); }
       catch { status('That file isn’t a valid project (.json).'); return; }
-      applyBundle(b);
-      status(`Loaded project “${b.siteCode || ''}”. Review, then Build operator file.`);
+      // Check the project's format version, migrating older files and warning on
+      // ones written by a newer editor before we apply them.
+      const { bundle, warning } = resolveProjectBundle(b);
+      applyBundle(bundle);
+      status(warning
+        ? `Loaded project “${bundle.siteCode || ''}”. ⚠ ${warning}`
+        : `Loaded project “${bundle.siteCode || ''}”. Review, then Build operator file.`);
     };
     reader.readAsText(file);
   });
