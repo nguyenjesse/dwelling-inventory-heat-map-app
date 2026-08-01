@@ -74,9 +74,16 @@
 .coord input { width: 66px; font: inherit; padding: .25rem .4rem; border: 1px solid var(--border); border-radius: 5px; }
 
 .editor-canvas { position: relative; flex: 1; overflow: auto; background: #eceff1; }
-.editor-canvas .stage { position: relative; }
+/* The stage is a drag surface, never a text surface. Without `user-select: none` a
+   drag across it leaves a document selection behind, and the *next* pointerdown inside
+   that selection makes the browser begin a native HTML5 drag of it instead of
+   delivering pointermove — the box creeps a few pixels, the cursor turns into the
+   no-drop circle, and the gesture is dead until something collapses the selection
+   (clicking the Lock checkbox, or another box). `touch-action: none` is the same
+   bargain for touch, matching .map-viewport on the operator map. */
+.editor-canvas .stage { position: relative; user-select: none; -webkit-user-select: none; touch-action: none; }
 .editor-canvas img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
-.editor-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.editor-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
 .ed-area { fill: #2f528f; fill-opacity: .18; stroke: #2f528f; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: move; }
 svg.locked .ed-area { cursor: default; }
 .ed-area.active { fill: #ff9800; fill-opacity: .3; stroke: #e65100; stroke-width: 2px; }
