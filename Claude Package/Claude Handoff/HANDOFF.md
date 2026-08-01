@@ -1,95 +1,84 @@
-# HANDOFF — Code → Code · 2026-08-01 03:21 UTC
+# HANDOFF — Code → Code · 2026-08-01 05:40 UTC
 
 ## What happened this session
-Ran `startup`, then brainstormed feature ideas and **scoped, planned, and shipped
-five** of them plus **two follow-up CSS fixes** — all reviewed, opened as PRs, and
-**merged to `main` by the user**. `main` is now at **`ef11eba`**. Nothing is queued.
+Ran `startup`, cleaned up the stale merged branch, then shipped **two of the
+deferred ideas**: #12 self-dating JSON export wrapper, and a set of editor
+multi-select quality-of-life upgrades (clearer styling + map Ctrl-click + group
+move/nudge). All reviewed and smoke-tested. **Work is NOT yet on `main`** — it
+sits as two commits on `claude/startup-skill-ce8u3c`; the user will manually
+open a PR and merge.
 
-The five features (see the eight commits below): operator area quick-search,
-data-schema versioning, editor undo/redo, editor bulk area operations, and dated
-export filenames.
-
-## Changes on disk (all merged to `main`)
-Commits `8bbad2c`…`828b916` (plus merge `ef11eba`):
-- **`8bbad2c` #2 operator quick-search** — `app/js/form.js` gains a type-ahead box
-  (name/I-Beam) + a pure exported `matchAreas()`; results route through the existing
-  dropdown/`onSelectArea` path and focus the count field. Styling in `styles.css`.
-- **`efb5195` #16 schema versioning** — new `app/js/schema.js` (`SCHEMA_VERSION=1`,
-  `migrate`, `readVersion`, `resolveProjectBundle`). BAM `loadProject` now version-
-  checks (migrate older / warn on newer); `saveProject` + `assembleSeed` +
-  `build-standalone.py` stamp the version; `validate.js` warns on a too-new seed;
-  counts key version centralized. `schema.js` is first in both bundle orders.
-- **`d786dcd` #7 editor undo/redo** — new `app/js/history.js` (generic bounded
-  stack). `editor.js` snapshots/restores editable state, `commitHistory()` wired
-  into every mutation, coalesced per gesture. Undo/Redo buttons + Ctrl/⌘+Z /
-  Shift+Z (skips text fields). `restore()` preserves selection when the area
-  survives.
-- **`242e86f` #9 bulk operations** — new `app/js/selection.js` (pure `rangeSelect`).
-  Ctrl/Shift-click multi-select in the sidebar + a bulk bar (move-to-department,
-  duplicate, delete), each one undo step. `selection.js` in the editor bundle order.
-- **`f2bee85` #12 dated exports** — `exportFilename(base, ext, date)` in
-  `importexport.js`, used by `app.js` for CSV+JSON. Filename-only; payloads
-  unchanged, so imports round-trip identically.
-- **`3ff1925` + `828b916` CSS fixes** — `.ed-bulk[hidden]` and `.ed-empty[hidden]`
-  `{ display: none }` so the `hidden` attribute actually hides them (see gotcha).
+## Changes on disk (branch `claude/startup-skill-ce8u3c`, 2 commits ahead of `main` @ `b94c5e6`)
+- **`fb5e826` — #12 export wrapper + clearer multi-select styling**
+  - `app/js/importexport.js`: `exportJson` now returns
+    `{ schemaVersion, takenAt, counts:[...] }` (imports `SCHEMA_VERSION` from
+    `schema.js`). Inner `counts` array unchanged, so it round-trips through
+    `importCounts` (which already reads `parsed.counts`) — imports byte-compatible.
+  - `app/css/editor.css`: multi-selected map areas were only a denser blue; now a
+    distinct **violet fill + dashed outline**; the primary keeps an orange dashed
+    stroke; sidebar rows get a violet accent bar (`.ed-area.multi`,
+    `.ed-area.active.multi`, `.area-list li.multi-selected`).
+- **`694d06e` — map multi-select + group move/nudge**
+  - `app/js/selection.js`: new pure `clampGroupDelta(boxes, dx, dy, W, H)` —
+    clamps a shared translation by the group's bounding box (unit-tested).
+  - `app/js/editor.js`: map **Ctrl/⌘-click** toggles selection; grabbing a
+    selected box drags the whole group by one shared delta; plain click isolates;
+    arrow keys nudge the group (4px / Alt 1px). See the pointerdown/move/`end()`
+    and keydown-nudge blocks.
+- Standalones (`*.html`) rebuilt by the **pre-commit hook** (it IS installed and
+  fires in this clone — rebuilds when `app/`/`build/` is staged).
 
 ## Decisions taken and why (don't re-litigate)
-- **Schema baseline is v1 and purely additive** — the migration registry is empty,
-  `migrate()` is a no-op today. Nothing changes shape now; the plumbing exists so a
-  future shape change can bump `SCHEMA_VERSION` and register a migrator.
-- **`app/js/model.js` was deliberately NOT modified** — it carries the intentional
-  NUL delimiter (~line 114). The schema guard reads `seed.schemaVersion` directly in
-  `validate.js` instead, so touching model.js was unnecessary. Keep it untouched.
-- **#9 is sidebar multi-select only.** Map marquee/rubber-band select was scoped as
-  a deliberate phase-2 follow-up, not built.
-- **#12 is dated-filename only** — no in-app snapshot storage and no JSON
-  `{schemaVersion,takenAt,counts}` wrapper (kept to the user's "just a button"
-  framing; the wrapper is a noted optional if they ever want self-dating files).
-- **Undo is snapshot-based with selection-preserving restore** (keeps you on the
-  edited area if it survived; re-selects a restored area after an undo of a delete).
+- **Multi-area resize: user chose to SKIP it entirely.** Scoped three variants —
+  (A) "Match size" bulk button [low effort/high value], (B) group bbox
+  proportional-scale handles [high effort/low value here], (C) uniform edge-grow
+  [skip]. Recommended A only; user declined all. Don't rebuild this analysis.
+- **No Shift-range select on the map** (user's call) — sidebar range is list-order,
+  which reads oddly against spatial layout. Ctrl/⌘-click toggle is the only map gesture.
+- **Group is clamped as one bounding box, never per-area** — this is the whole point:
+  an aligned row stays aligned at a canvas edge instead of bunching. Keep it that way.
+- **Click-to-isolate**: a plain click (no travel >3px) on a selected box collapses
+  to it; press-drag moves the group. Resolved on pointer-up via the `dragMoved` flag.
+- **Export wrapper is filename-independent metadata only** — no in-app snapshot store.
 
 ## Verification status
-- **Tests: 82/82 green** (was 55; +27 across the phases), run headless in-container
-  via Node `playwright-core` + `headless_shell` (see Dead ends).
-- **Per-feature functional smokes** passed both served over HTTP and from the built
-  `file://` standalones: search select/focus, project version guard, undo/redo of
-  new/rename/delete + keyboard, bulk dup/delete/move with undo, dated download
-  filenames, and both `[hidden]` fixes via **computed `display`**.
-- **CI rebuild-diff guard simulated locally = green** for all three standalones
-  (ignoring the floating `builtAt`). The user's merged PRs carried real CI.
+- **Unit tests: 89/89 green** (was 82; +3 JSON-wrapper, +4 `clampGroupDelta`).
+- **Functional smoke 8/8** in real headless Chromium: map Ctrl-click selection,
+  shared drag delta across all boxes, selection survives drag, 4px group nudge,
+  click-to-isolate. Verified visually too (group drags as a rigid unit).
+- The user confirmed in-app: "tested it out and it all works and looks good."
 
 ## Dead ends & gotchas (carried forward — still true)
-- **`[hidden]` + author `display` trap:** an author rule like `.ed-bulk{display:flex}`
-  overrides the UA `[hidden]{display:none}`, so `el.hidden = true` sets the property
-  but the element stays visible. Fix is `.selector[hidden]{display:none}` (done for
-  `.ed-bulk` and `.ed-empty`). **Watch for this on any toggled flex/grid element.**
-- **Smokes must assert computed `display`, not `el.hidden`** — the property toggled
-  correctly the whole time and hid the bulk-bar bug from the first smoke pass.
-- **Local headless testing:** `tests/run_ci.py` uses *Python* Playwright, absent
-  in-container. Use Node `playwright-core` (installed into the scratchpad) with
-  `executablePath: /opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell`;
-  full chromium won't run headless here, `headless_shell` does. `import pkg from
-  'playwright-core'; const { chromium } = pkg;` (CommonJS).
-- **`app/js/model.js` is git-"binary"** (intentional NUL, ~line 114) — grep `-a`,
-  never "fix" it, hand-merge.
-- **The three top-level `*.html` are GENERATED** by `build/build-standalone.py`;
-  never hand-edit — the pre-commit hook rebuilds them when `app/`/`build/` is staged.
-- **CI rebuild-diff guard normalizes only the `builtAt` line;** a new *stable* seed
-  field is fine as long as the standalones are rebuilt + committed.
-- **Branch deletion over git is blocked** (proxy 403); use the GitHub web UI.
-- **Do NOT gitignore `Claude Package/`** — fresh Code-on-web sessions clone the repo
-  and see only committed files, so this handoff must stay tracked on `main`.
-- **This repo's layout differs from the skill's `main/` convention:** the app lives
-  under `app/`, and the handoff at `Claude Package/Claude Handoff/HANDOFF.md`.
+- **The `.multi` CSS class is on EVERY selected box, including the active one**
+  (`ed-area active multi`). A smoke assertion of "2 multi + 1 active" is wrong —
+  it's N multi total. Bit me once.
+- **Local headless testing:** `tests/run_ci.py` uses *Python* Playwright (absent
+  in-container). Use Node `playwright-core` installed into the **scratchpad**
+  (ephemeral — reinstall next session with `npm install playwright-core`), with
+  `executablePath: /opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell`
+  (full chromium won't run headless here; `headless_shell` does). Serve `app/`
+  over HTTP and read `window.__TEST_RESULT__` — no scraping. Scratch runners
+  (`run_tests.mjs`, `smoke.mjs`) were in the session scratchpad, now gone.
+- **`app/js/model.js` is git-"binary"** (intentional NUL ~line 114) — grep `-a`,
+  never "fix" it, hand-merge. It was NOT touched this session.
+- **The top-level `*.html` are GENERATED** — never hand-edit; the pre-commit hook
+  rebuilds them. CI rebuild-diff guard normalizes only the floating `builtAt` line.
+- **Branch deletion over git is blocked** (proxy 403) — use the GitHub web UI.
+- **Do NOT gitignore `Claude Package/`** — fresh Code-on-web sessions clone the
+  repo and see only committed files, so this handoff must stay tracked.
+- **Repo layout differs from the skill's `main/` convention:** app is under `app/`,
+  handoff at `Claude Package/Claude Handoff/HANDOFF.md`.
 
 ## Suggested next steps
-- **Nothing queued.** All requested work is merged to `main`. Await direction.
-- If follow-up starts, branch fresh from `main` (this branch's PR is merged and
-  can't take new commits).
-- Deferred ideas, only if the user asks: **#9 map marquee-select** (phase 2);
-  **#12 JSON `{schemaVersion,takenAt,counts}` export wrapper** (self-dating files,
-  round-trips through `importCounts` already); the long-deferred **BAM localStorage
-  autosave**.
+- **User's next action:** open a PR from `claude/startup-skill-ce8u3c` and merge to
+  `main` (CI carries the real rebuild-diff guard). Nothing else queued.
+- If follow-up work starts AFTER that merge, branch fresh from `main` (this branch's
+  PR will be merged and can't take new commits).
+- Deferred ideas still on the shelf, only if asked: **#9 map marquee/rubber-band
+  select** (phase 2); **BAM editor autosave to localStorage** (the *editor* WIP has
+  no persistence — the operator counts already autosave via `storage.js`);
+  **"Match size" bulk action** (option A above — the one multi-resize variant worth
+  building if they change their mind).
 
 ## Open questions
 - None blocking.
