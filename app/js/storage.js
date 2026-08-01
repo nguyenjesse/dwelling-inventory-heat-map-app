@@ -9,9 +9,14 @@
 // Manager editor; the served dev app and unit tests have none, so they use
 // 'default'.
 
+import { COUNTS_KEY_VERSION } from './schema.js';
+
 const SITE = (typeof SEED_DATA !== 'undefined' && SEED_DATA && SEED_DATA.siteCode)
   ? String(SEED_DATA.siteCode) : 'default';
-const KEY = `dwelling.counts.v1.${SITE}`;
+// Counts key carries an explicit version. To evolve the payload shape: bump
+// COUNTS_KEY_VERSION in schema.js (starting a fresh key) and read+migrate the
+// previous key here in loadCounts, the same way legacy poc3.* keys are adopted.
+const KEY = `dwelling.counts.v${COUNTS_KEY_VERSION}.${SITE}`;
 const LEGACY_COUNTS_KEY = 'poc3.counts.v1';   // pre-namespacing (POC3-only) key
 const LEGACY_RECORDS_KEY = 'poc3.records.v1';  // pre-count model: array of records
 

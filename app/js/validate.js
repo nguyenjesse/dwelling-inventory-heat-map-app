@@ -1,11 +1,20 @@
 // validate.js — startup manifest validation. Replaces Excel's silent
 // `On Error Resume Next` shape lookups with explicit, visible reporting.
 
+import { SCHEMA_VERSION } from './schema.js';
+
 // Returns { errors: [...], warnings: [...] }. Errors are integrity problems
 // that break the data<->map contract; warnings are non-fatal notes.
 export function validateManifest(seed) {
   const errors = [];
   const warnings = [];
+
+  // A file stamped with a newer data-model version than this app understands may
+  // carry fields we ignore; surface it rather than mis-reading silently.
+  if (Number.isInteger(seed.schemaVersion) && seed.schemaVersion > SCHEMA_VERSION) {
+    warnings.push(`This file uses a newer data format (v${seed.schemaVersion}); `
+      + `this app reads v${SCHEMA_VERSION}. Some data may not display correctly.`);
+  }
 
   const areaIds = seed.areas.map((a) => a.id);
   const areaIdSet = new Set(areaIds);

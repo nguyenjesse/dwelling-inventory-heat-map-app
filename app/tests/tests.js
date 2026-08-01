@@ -4,8 +4,12 @@ import { validateManifest } from '../js/validate.js';
 import { createModel } from '../js/model.js';
 import { createBreakdown } from '../js/breakdown.js';
 import { createIoSummary } from '../js/iosummary.js';
-import { importCounts, exportCsv } from '../js/importexport.js';
+import { importCounts, exportCsv, exportFilename } from '../js/importexport.js';
 import { fillOperatorTemplate, SEED_TOKEN, BG_TOKEN } from '../js/opbuild.js';
+import { matchAreas } from '../js/form.js';
+import { SCHEMA_VERSION, migrate, readVersion, resolveProjectBundle } from '../js/schema.js';
+import { createHistory } from '../js/history.js';
+import { rangeSelect } from '../js/selection.js';
 
 const results = [];
 function test(name, fn) {
@@ -387,6 +391,153 @@ test('import requires Area and Pallets columns', () => {
   assert(errors.some((e) => /Missing required columns/.test(e.message)));
 });
 clearAllCountKeys();
+
+// ---------- operator area search (matchAreas) ----------
+const searchAreas = [
+  { id: 'a1', name: 'Presort Phase 1', iBeamLocation: 'J12', departmentId: 'd' },
+  { id: 'a2', name: 'Presort Phase 2', iBeamLocation: 'J13', departmentId: 'd' },
+  { id: 'a3', name: 'End of Line A', iBeamLocation: 'K7', departmentId: 'd' },
+  { id: 'a4', name: 'RPN Staging', iBeamLocation: '', departmentId: 'd' },
+];
+test('matchAreas empty query returns nothing', () => {
+  eq(matchAreas(searchAreas, '').length, 0);
+  eq(matchAreas(searchAreas, '   ').length, 0);
+});
+test('matchAreas matches on name (case-insensitive)', () => {
+  const ids = matchAreas(searchAreas, 'presort').map((a) => a.id).sort();
+  eq(ids.join(','), 'a1,a2');
+});
+test('matchAreas matches on I-beam location', () => {
+  const ids = matchAreas(searchAreas, 'k7').map((a) => a.id);
+  eq(ids.join(','), 'a3');
+});
+test('matchAreas tolerates a missing I-beam', () => {
+  const ids = matchAreas(searchAreas, 'rpn').map((a) => a.id);
+  eq(ids.join(','), 'a4');
+});
+test('matchAreas no match returns empty', () => {
+  eq(matchAreas(searchAreas, 'zzz').length, 0);
+});
+
+// ---------- schema versioning ----------
+test('readVersion reads version/schemaVersion, falls back on junk', () => {
+  eq(readVersion({ version: 3 }), 3);
+  eq(readVersion({ schemaVersion: 2 }), 2);
+  eq(readVersion({}, 1), 1);
+  eq(readVersion({ version: 0 }, 1), 1);
+  eq(readVersion({ version: 'x' }, 1), 1);
+});
+test('migrate is a no-op at the current baseline', () => {
+  const obj = { a: 1 };
+  eq(migrate(obj, SCHEMA_VERSION, SCHEMA_VERSION), obj);
+});
+test('resolveProjectBundle passes through a current-version bundle', () => {
+  const b = { version: SCHEMA_VERSION, siteCode: 'X' };
+  const { bundle, warning } = resolveProjectBundle(b);
+  eq(bundle, b); eq(warning, '');
+});
+test('resolveProjectBundle treats a pre-versioned bundle as current (no warning)', () => {
+  const { warning } = resolveProjectBundle({ siteCode: 'X' }); // no version field
+  eq(warning, '');
+});
+test('resolveProjectBundle warns on a newer bundle and still returns it', () => {
+  const b = { version: SCHEMA_VERSION + 1, siteCode: 'X' };
+  const { bundle, warning } = resolveProjectBundle(b);
+  eq(bundle, b);
+  assert(/newer/i.test(warning), 'warns the file is newer');
+});
+test('validateManifest warns on a too-new schemaVersion', () => {
+  const { warnings } = validateManifest({ ...seed, schemaVersion: SCHEMA_VERSION + 1 });
+  assert(warnings.some((w) => /newer data format/i.test(w)), 'warns on newer format');
+});
+test('validateManifest does not warn at the current schemaVersion', () => {
+  const { warnings } = validateManifest({ ...seed, schemaVersion: SCHEMA_VERSION });
+  assert(!warnings.some((w) => /newer data format/i.test(w)), 'no version warning at baseline');
+});
+
+// ---------- undo/redo history stack ----------
+test('history: fresh stack cannot undo or redo', () => {
+  const h = createHistory();
+  h.init('s0');
+  assert(!h.canUndo() && !h.canRedo(), 'nothing to undo/redo yet');
+  eq(h.undo(), null); eq(h.redo(), null);
+});
+test('history: commit then undo returns the prior snapshot', () => {
+  const h = createHistory();
+  h.init('s0');
+  h.commit('s1');
+  assert(h.canUndo(), 'can undo after a commit');
+  eq(h.undo(), 's0');
+  assert(h.canRedo(), 'can redo after an undo');
+});
+test('history: redo re-applies the undone snapshot', () => {
+  const h = createHistory();
+  h.init('s0'); h.commit('s1'); h.undo();
+  eq(h.redo(), 's1');
+  assert(!h.canRedo(), 'redo consumed');
+});
+test('history: a new commit clears the redo future', () => {
+  const h = createHistory();
+  h.init('s0'); h.commit('s1'); h.undo(); // back at s0, redo has s1
+  h.commit('s2');
+  assert(!h.canRedo(), 'commit drops the redo branch');
+  eq(h.undo(), 's0');
+});
+test('history: multi-step undo/redo walks the timeline', () => {
+  const h = createHistory();
+  h.init('s0'); h.commit('s1'); h.commit('s2'); h.commit('s3');
+  eq(h.undo(), 's2'); eq(h.undo(), 's1');
+  eq(h.redo(), 's2'); eq(h.redo(), 's3');
+  assert(!h.canRedo());
+});
+test('history: limit evicts the oldest undo steps', () => {
+  const h = createHistory({ limit: 2 });
+  h.init('s0'); h.commit('s1'); h.commit('s2'); h.commit('s3');
+  // Only 2 undo steps retained: s2, s1 — s0 fell off.
+  eq(h.undo(), 's2'); eq(h.undo(), 's1');
+  assert(!h.canUndo(), 'oldest step evicted');
+});
+test('history: clear empties both stacks', () => {
+  const h = createHistory();
+  h.init('s0'); h.commit('s1');
+  h.clear();
+  assert(!h.canUndo() && !h.canRedo(), 'cleared');
+});
+
+// ---------- dated export filenames ----------
+test('exportFilename appends a zero-padded dated stamp', () => {
+  const d = new Date(2026, 6, 31, 9, 5); // 2026-07-31 09:05 local
+  eq(exportFilename('poc3-dwelling-counts', 'csv', d), 'poc3-dwelling-counts-2026-07-31_0905.csv');
+});
+test('exportFilename honors base and extension', () => {
+  const d = new Date(2026, 11, 1, 23, 59); // 2026-12-01 23:59 local
+  eq(exportFilename('site-x', 'json', d), 'site-x-2026-12-01_2359.json');
+});
+test('two exports a minute apart get distinct names', () => {
+  const a = exportFilename('c', 'csv', new Date(2026, 0, 1, 8, 0));
+  const b = exportFilename('c', 'csv', new Date(2026, 0, 1, 8, 1));
+  assert(a !== b, 'timestamps differ');
+});
+
+// ---------- bulk-select range (rangeSelect) ----------
+const order = ['a', 'b', 'c', 'd', 'e'];
+test('rangeSelect returns an inclusive forward range', () => {
+  eq(rangeSelect(order, 'b', 'd').join(','), 'b,c,d');
+});
+test('rangeSelect is order-independent (reversed range)', () => {
+  eq(rangeSelect(order, 'd', 'b').join(','), 'b,c,d');
+});
+test('rangeSelect same-id returns the single id', () => {
+  eq(rangeSelect(order, 'c', 'c').join(','), 'c');
+});
+test('rangeSelect full span', () => {
+  eq(rangeSelect(order, 'a', 'e').join(','), 'a,b,c,d,e');
+});
+test('rangeSelect with a missing id falls back to the present one', () => {
+  eq(rangeSelect(order, 'a', 'zz').join(','), 'a');
+  eq(rangeSelect(order, 'zz', 'e').join(','), 'e');
+  eq(rangeSelect(order, 'x', 'y').length, 0);
+});
 
 // ---------- operator-file generation (Building Area Manager) ----------
 test('operator template fill inserts JSON verbatim ($-safe)', () => {

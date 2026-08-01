@@ -5,6 +5,19 @@
 /* area actions + attribute panel */
 .ed-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
 .ed-actions .btn { flex: 1; justify-content: center; font-size: .8rem; padding: .4rem .5rem; }
+
+/* bulk-selection action bar (shown when >1 area is selected) */
+.ed-bulk {
+  display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
+  margin-top: .5rem; padding: .5rem; border: 1px solid var(--accent);
+  border-radius: 6px; background: #eef2f8;
+}
+/* The author `display: flex` above overrides the UA `[hidden]{display:none}`
+   rule, so the hidden attribute needs an explicit override to take effect. */
+.ed-bulk[hidden] { display: none; }
+.ed-bulk-count { font-size: .8rem; font-weight: 600; color: var(--accent); }
+.ed-bulk select { font: inherit; font-size: .8rem; padding: .3rem .4rem; border: 1px solid var(--border); border-radius: 5px; background: #fff; flex: 1; min-width: 0; }
+.ed-bulk-actions { display: inline-flex; gap: .3rem; }
 .btn-danger { color: #fff; background: var(--danger); border-color: var(--danger); }
 .btn-danger:hover { background: #b71c1c; }
 .btn-danger:disabled { opacity: .5; }
@@ -24,7 +37,13 @@
 
 /* empty state shown when a site has no floors yet */
 .ed-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .4rem; padding: 2rem; text-align: center; color: var(--muted); }
+/* The author `display: flex` overrides the UA `[hidden]{display:none}`, so the
+   hidden attribute needs an explicit override to actually hide the empty state. */
+.ed-empty[hidden] { display: none; }
 .ed-empty p { max-width: 30rem; margin: 0; line-height: 1.5; }
+
+/* undo/redo group in the editor header */
+.hist-group { display: inline-flex; align-items: center; gap: .2rem; }
 
 /* floor selector in the editor header */
 .floor-group { display: inline-flex; align-items: center; gap: .3rem; }
@@ -35,6 +54,8 @@
 .area-list li { padding: .4rem .5rem; border-radius: 5px; cursor: pointer; font-size: .84rem; display: flex; justify-content: space-between; gap: .4rem; }
 .area-list li:hover { background: #eef1f4; }
 .area-list li.active { background: var(--accent); color: #fff; }
+.area-list li.multi-selected { background: #cfe0f5; }
+.area-list li.multi-selected.active { background: var(--accent); color: #fff; }
 .area-list li .dept { font-size: .72rem; color: var(--muted); }
 .area-list li.active .dept { color: #dbe4f5; }
 .area-list li .missing { color: var(--danger); font-size: .72rem; }
@@ -59,5 +80,6 @@
 .ed-area { fill: #2f528f; fill-opacity: .18; stroke: #2f528f; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: move; }
 svg.locked .ed-area { cursor: default; }
 .ed-area.active { fill: #ff9800; fill-opacity: .3; stroke: #e65100; stroke-width: 2px; }
+.ed-area.multi { fill: #2f528f; fill-opacity: .32; stroke: #2f528f; stroke-width: 2px; }
 .ed-handle { fill: #fff; stroke: #e65100; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: nwse-resize; }
 .ed-label { font: 600 11px Arial, sans-serif; fill: #14213d; paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; }

@@ -130,6 +130,21 @@ export function importCounts(model, text, format) {
   return { counts, errors, total };
 }
 
+// Filename-safe local timestamp: YYYY-MM-DD_HHMM.
+function fileStamp(d) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+    + `_${p(d.getHours())}${p(d.getMinutes())}`;
+}
+
+// Build a dated export filename: `<base>-YYYY-MM-DD_HHMM.<ext>`. The timestamp
+// keeps successive exports distinct (they don't overwrite), so a folder of them
+// reads as a time series — the simplest "trend over time" without any in-app
+// snapshot storage.
+export function exportFilename(base, ext, d = new Date()) {
+  return `${base}-${fileStamp(d)}.${ext}`;
+}
+
 // Trigger a browser download of text content.
 export function download(filename, text, mime = 'text/plain') {
   const blob = new Blob([text], { type: mime });

@@ -39,6 +39,10 @@ BAM_BLANK_OUT = ROOT / "Building-Area-Manager.html"        # blank editor (distr
 # This repo's own site identity, baked into the POC3 builds.
 SITE_CODE = "POC3"
 
+# Data-model schema version stamped into generated seeds. Keep in sync with
+# SCHEMA_VERSION in app/js/schema.js.
+SCHEMA_VERSION = 1
+
 # Tokens the editor's opbuild.js replaces inside OPERATOR_TEMPLATE. Keep in sync
 # with SEED_TOKEN / BG_TOKEN in app/js/opbuild.js.
 SEED_TOKEN = '"__BAM_SEED_DATA__"'
@@ -47,6 +51,7 @@ BG_TOKEN = '"__BAM_BG_IMAGE_DATA_URIS__"'
 # JS modules in dependency order. Everything lands in one scope, so anything
 # referenced at load time must be defined before its first use.
 APP_JS_ORDER = [
+    "schema.js",
     "storage.js",
     "heatmap.js",
     "validate.js",
@@ -65,6 +70,9 @@ APP_JS_ORDER = [
 # The editor needs the seed/model/storage, the download + operator-template
 # helpers, and its own logic.
 EDITOR_JS_ORDER = [
+    "schema.js",
+    "history.js",
+    "selection.js",
     "storage.js",
     "importexport.js",
     "opbuild.js",
@@ -77,6 +85,7 @@ EDITOR_JS_ORDER = [
 BLANK_SEED = {
     "siteCode": "",
     "siteName": "",
+    "schemaVersion": SCHEMA_VERSION,
     "floors": [],
     "areas": [],
     "departments": [],
@@ -114,6 +123,7 @@ def load_seed() -> dict:
     seed = {
         "siteCode": SITE_CODE,
         "siteName": SITE_CODE,
+        "schemaVersion": SCHEMA_VERSION,
         "builtAt": build_stamp(),
         "floors": json.loads((data / "floors.json").read_text()),
         "areas": json.loads((data / "areas.json").read_text()),
