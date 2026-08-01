@@ -72,6 +72,7 @@ APP_JS_ORDER = [
 EDITOR_JS_ORDER = [
     "schema.js",
     "history.js",
+    "selection.js",
     "storage.js",
     "importexport.js",
     "opbuild.js",

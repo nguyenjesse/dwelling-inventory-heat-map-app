@@ -9,6 +9,7 @@ import { fillOperatorTemplate, SEED_TOKEN, BG_TOKEN } from '../js/opbuild.js';
 import { matchAreas } from '../js/form.js';
 import { SCHEMA_VERSION, migrate, readVersion, resolveProjectBundle } from '../js/schema.js';
 import { createHistory } from '../js/history.js';
+import { rangeSelect } from '../js/selection.js';
 
 const results = [];
 function test(name, fn) {
@@ -501,6 +502,26 @@ test('history: clear empties both stacks', () => {
   h.init('s0'); h.commit('s1');
   h.clear();
   assert(!h.canUndo() && !h.canRedo(), 'cleared');
+});
+
+// ---------- bulk-select range (rangeSelect) ----------
+const order = ['a', 'b', 'c', 'd', 'e'];
+test('rangeSelect returns an inclusive forward range', () => {
+  eq(rangeSelect(order, 'b', 'd').join(','), 'b,c,d');
+});
+test('rangeSelect is order-independent (reversed range)', () => {
+  eq(rangeSelect(order, 'd', 'b').join(','), 'b,c,d');
+});
+test('rangeSelect same-id returns the single id', () => {
+  eq(rangeSelect(order, 'c', 'c').join(','), 'c');
+});
+test('rangeSelect full span', () => {
+  eq(rangeSelect(order, 'a', 'e').join(','), 'a,b,c,d,e');
+});
+test('rangeSelect with a missing id falls back to the present one', () => {
+  eq(rangeSelect(order, 'a', 'zz').join(','), 'a');
+  eq(rangeSelect(order, 'zz', 'e').join(','), 'e');
+  eq(rangeSelect(order, 'x', 'y').length, 0);
 });
 
 // ---------- operator-file generation (Building Area Manager) ----------

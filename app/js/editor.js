@@ -10,6 +10,7 @@ import { download } from './importexport.js';
 import { fillOperatorTemplate, readImageDataUrl } from './opbuild.js';
 import { SCHEMA_VERSION, resolveProjectBundle } from './schema.js';
 import { createHistory } from './history.js';
+import { rangeSelect } from './selection.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const $ = (s) => document.querySelector(s);
@@ -134,7 +135,9 @@ const DEFAULT_CATEGORIES = [
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   }
 
-  let activeId = null;
+  let activeId = null;          // the "primary" area (drives handles + attr panel)
+  let selected = new Set();     // all selected areas (includes activeId); >1 = bulk
+  let visibleOrder = [];        // area ids in current sidebar order (for shift-range)
   const rectEls = new Map();
 
   function drawAll() {
@@ -144,7 +147,8 @@ const DEFAULT_CATEGORIES = [
       const g = regions[a.id];
       if (!g) continue;
       const r = document.createElementNS(SVGNS, 'rect');
-      r.setAttribute('class', 'ed-area' + (a.id === activeId ? ' active' : ''));
+      r.setAttribute('class', 'ed-area' + (a.id === activeId ? ' active' : '')
+        + (selected.size > 1 && selected.has(a.id) ? ' multi' : ''));
       r.setAttribute('x', g.x); r.setAttribute('y', g.y);
       r.setAttribute('width', g.w); r.setAttribute('height', g.h);
       r.dataset.id = a.id;
@@ -260,19 +264,28 @@ const DEFAULT_CATEGORIES = [
   function renderList(filter = '') {
     const f = filter.trim().toLowerCase();
     list.innerHTML = '';
+    visibleOrder = [];
     const matches = (a) =>
       !f || a.name.toLowerCase().includes(f) || (a.iBeamLocation || '').toLowerCase().includes(f);
     const onFloor = floorAreas().filter(matches);
 
     const addRow = (a) => {
+      visibleOrder.push(a.id);
       const li = document.createElement('li');
       li.dataset.id = a.id;
       if (a.id === activeId) li.classList.add('active');
+      if (selected.size > 1 && selected.has(a.id)) li.classList.add('multi-selected');
       // Department is conveyed by the group header now; the row only flags a
       // missing region.
       li.innerHTML = `<span>${a.name}</span>` +
         (regions[a.id] ? '' : '<span class="missing">no region</span>');
-      li.addEventListener('click', () => setActive(a.id, true));
+      // Ctrl/Cmd-click toggles one area; Shift-click extends a range from the
+      // primary; a plain click selects just this one.
+      li.addEventListener('click', (e) => {
+        if (e.shiftKey) extendSelection(a.id);
+        else if (e.ctrlKey || e.metaKey) toggleInSelection(a.id);
+        else setActive(a.id);
+      });
       list.appendChild(li);
     };
     // One header per department (in configured order), areas sorted A→Z within.
@@ -296,14 +309,43 @@ const DEFAULT_CATEGORIES = [
   }
   $('#areaSearch').addEventListener('input', (e) => renderList(e.target.value));
 
-  function setActive(id, _scrollMap = false) {
-    activeId = id;
-    if (id && !regions[id]) regions[id] = { x: W / 2 - 40, y: H / 2 - 20, w: 80, h: 40 }; // seed a default box
+  // Repaint everything that reflects the current selection (map, list, fields,
+  // attrs, bulk bar). Does not change what's selected.
+  function renderSelection() {
     drawAll();
     renderList($('#areaSearch').value);
     syncFields();
     syncAttrs();
-    $('#selName').textContent = (areas.find((a) => a.id === id) || {}).name || 'No area selected';
+    $('#selName').textContent = (areas.find((a) => a.id === activeId) || {}).name || 'No area selected';
+    updateBulkBar();
+  }
+
+  function setActive(id, { keepSelection = false } = {}) {
+    activeId = id;
+    if (id && !regions[id]) regions[id] = { x: W / 2 - 40, y: H / 2 - 20, w: 80, h: 40 }; // seed a default box
+    if (!keepSelection) selected = id ? new Set([id]) : new Set();
+    renderSelection();
+  }
+
+  // Ctrl/Cmd-click: add or remove one area from the selection.
+  function toggleInSelection(id) {
+    if (selected.has(id) && selected.size > 1) {
+      selected.delete(id);
+      if (activeId === id) activeId = [...selected][selected.size - 1];
+    } else {
+      selected.add(id);
+      activeId = id;
+    }
+    renderSelection();
+  }
+
+  // Shift-click: select the inclusive range between the primary and the clicked
+  // area, in the sidebar's current order. The primary stays put as the anchor.
+  function extendSelection(id) {
+    const anchor = activeId || id;
+    selected = new Set(rangeSelect(visibleOrder, anchor, id));
+    selected.add(anchor);
+    renderSelection();
   }
 
   // ---- numeric x/y/w/h fields ----
@@ -341,6 +383,7 @@ const DEFAULT_CATEGORIES = [
   function switchFloor(fid) {
     currentFloorId = fid;
     activeId = null;
+    selected = new Set();
     applyFloorStage();
     drawAll();
     renderList($('#areaSearch').value);
@@ -349,6 +392,7 @@ const DEFAULT_CATEGORIES = [
     $('#selName').textContent = 'No area selected';
     fillFloorSelect();
     updateControls();
+    updateBulkBar();
   }
   floorSelect.addEventListener('change', () => switchFloor(floorSelect.value));
 
@@ -549,11 +593,78 @@ const DEFAULT_CATEGORIES = [
     areas = areas.filter((x) => x.id !== activeId);
     delete regions[activeId];
     activeId = null;
+    selected = new Set();
     drawAll(); renderList($('#areaSearch').value); syncFields(); syncAttrs();
     updateControls();
+    updateBulkBar();
     $('#selName').textContent = 'No area selected';
     commitHistory();
     status(`Deleted "${a.name}".`);
+  });
+
+  // ---- bulk operations on a multi-selection (Ctrl/Shift-click to build one) ----
+  const bulkBar = $('#bulkBar'), bulkCount = $('#bulkCount'),
+    bulkDept = $('#bulkDept'), bulkDup = $('#bulkDup'), bulkDel = $('#bulkDel');
+
+  function fillBulkDept() {
+    bulkDept.innerHTML = '<option value="">Move to department…</option>' +
+      departments.map((d) => `<option value="${d.id}">${d.name}</option>`).join('');
+  }
+  function updateBulkBar() {
+    const n = selected.size;
+    if (n > 1) { bulkCount.textContent = `${n} areas selected`; fillBulkDept(); bulkBar.hidden = false; }
+    else { bulkBar.hidden = true; }
+  }
+
+  bulkDept.addEventListener('change', () => {
+    const deptId = bulkDept.value;
+    if (!deptId || selected.size < 2) return;
+    const ids = [...selected];
+    for (const id of ids) { const a = areas.find((x) => x.id === id); if (a) a.departmentId = deptId; }
+    bulkDept.value = '';
+    commitHistory();
+    renderSelection();
+    status(`Moved ${ids.length} areas to "${deptName(deptId)}".`);
+  });
+
+  bulkDup.addEventListener('click', () => {
+    const ids = [...selected];
+    if (ids.length < 2) return;
+    const taken = new Set(areas.map((a) => a.id));
+    const newIds = [];
+    for (const srcId of ids) {
+      const src = areas.find((x) => x.id === srcId);
+      if (!src) continue;
+      const name = nextName(`Copy of ${src.name}`);
+      const id = uniqueId(slugify(name), taken);
+      taken.add(id);
+      areas.push({ id, name, departmentId: src.departmentId, iBeamLocation: src.iBeamLocation, mapRegionId: id, floorId: src.floorId });
+      const g = regions[srcId];
+      if (g) regions[id] = round(clampBox({ x: g.x + 12, y: g.y + 12, w: g.w, h: g.h }));
+      newIds.push(id);
+    }
+    if (!newIds.length) return;
+    selected = new Set(newIds);
+    activeId = newIds[newIds.length - 1];
+    commitHistory();
+    renderSelection();
+    updateControls();
+    status(`Duplicated ${newIds.length} areas.`);
+  });
+
+  bulkDel.addEventListener('click', () => {
+    const ids = [...selected];
+    if (ids.length < 2) return;
+    if (!confirm(`Delete ${ids.length} selected areas? This removes them and their region boxes.`)) return;
+    const idset = new Set(ids);
+    areas = areas.filter((a) => !idset.has(a.id));
+    for (const id of ids) delete regions[id];
+    selected = new Set(); activeId = null;
+    commitHistory();
+    renderSelection();
+    updateControls();
+    $('#selName').textContent = 'No area selected';
+    status(`Deleted ${ids.length} areas.`);
   });
 
   // ---- keyboard nudge (skips when typing in a field, or when locked) ----
@@ -721,6 +832,7 @@ const DEFAULT_CATEGORIES = [
     siteInput.value = b.siteCode || '';
     currentFloorId = (floors[0] || {}).id || null;
     activeId = null;
+    selected = new Set();
     refreshAll();
     resetHistory(); // a freshly loaded project starts a new undo timeline
   }
@@ -734,6 +846,7 @@ const DEFAULT_CATEGORIES = [
     bgFiles.clear();
     objUrlCache.forEach((u) => URL.revokeObjectURL(u)); objUrlCache.clear();
     currentFloorId = null; activeId = null;
+    selected = new Set();
     siteInput.value = '';
     refreshAll();
     resetHistory(); // clearing to an empty site starts a new undo timeline
@@ -780,6 +893,7 @@ const DEFAULT_CATEGORIES = [
     // selection (so undoing a delete re-selects the restored area); else none.
     const onFloor = (id) => areas.some((a) => a.id === id && a.floorId === currentFloorId);
     activeId = onFloor(keepActive) ? keepActive : (onFloor(s.activeId) ? s.activeId : null);
+    selected = activeId ? new Set([activeId]) : new Set();
     siteInput.value = s.siteCode || '';
     refreshAll();
     $('#selName').textContent = (areas.find((a) => a.id === activeId) || {}).name || 'No area selected';
@@ -824,6 +938,7 @@ const DEFAULT_CATEGORIES = [
     syncFields();
     syncAttrs();
     updateControls();
+    updateBulkBar();
     $('#selName').textContent = 'No area selected';
   }
 

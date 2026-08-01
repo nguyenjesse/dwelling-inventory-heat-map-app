@@ -45,6 +45,15 @@
         <button id="delArea" class="btn btn-danger" disabled>Delete</button>
       </div>
 
+      <div id="bulkBar" class="ed-bulk" hidden>
+        <span id="bulkCount" class="ed-bulk-count"></span>
+        <select id="bulkDept" title="Move all selected areas to a department"></select>
+        <span class="ed-bulk-actions">
+          <button id="bulkDup" class="btn ed-mini">Duplicate</button>
+          <button id="bulkDel" class="btn btn-danger ed-mini">Delete</button>
+        </span>
+      </div>
+
       <div class="ed-attrs">
         <label class="ed-field">Name
           <input id="aName" type="text" placeholder="Area name" disabled />
@@ -66,7 +75,7 @@
       </div>
 
       <input id="areaSearch" type="search" placeholder="Search areas…" />
-      <p class="muted" id="editorHint">Select an area to edit it. Regions are locked by default — uncheck “Lock regions” to drag its box or corners (arrow keys nudge; Shift+Arrow resizes), or edit x/y/w/h above to reposition while locked.</p>
+      <p class="muted" id="editorHint">Select an area to edit it; Ctrl/⌘-click or Shift-click rows to select several at once for bulk actions. Regions are locked by default — uncheck “Lock regions” to drag its box or corners (arrow keys nudge; Shift+Arrow resizes), or edit x/y/w/h above to reposition while locked.</p>
       <ul id="areaList" class="area-list"></ul>
     </aside>
 
