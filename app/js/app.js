@@ -8,7 +8,7 @@ import { createPanel } from './panel.js';
 import { createLegend } from './legend.js';
 import { createBreakdown } from './breakdown.js';
 import { createIoSummary } from './iosummary.js';
-import { exportCsv, exportJson, importCounts, download } from './importexport.js';
+import { exportCsv, exportJson, importCounts, download, exportFilename } from './importexport.js';
 import { chooseAction } from './modal.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -148,9 +148,9 @@ async function main() {
 
   // ---- import / export ----
   $('#exportCsv').addEventListener('click', () =>
-    download(`${filePrefix}-dwelling-counts.csv`, exportCsv(model), 'text/csv'));
+    download(exportFilename(`${filePrefix}-dwelling-counts`, 'csv'), exportCsv(model), 'text/csv'));
   $('#exportJson').addEventListener('click', () =>
-    download(`${filePrefix}-dwelling-counts.json`, exportJson(model), 'application/json'));
+    download(exportFilename(`${filePrefix}-dwelling-counts`, 'json'), exportJson(model), 'application/json'));
   $('#importBtn').addEventListener('click', () => $('#importFile').click());
   $('#importFile').addEventListener('change', async (e) => {
     const file = e.target.files[0];

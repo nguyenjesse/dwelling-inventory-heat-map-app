@@ -4,7 +4,7 @@ import { validateManifest } from '../js/validate.js';
 import { createModel } from '../js/model.js';
 import { createBreakdown } from '../js/breakdown.js';
 import { createIoSummary } from '../js/iosummary.js';
-import { importCounts, exportCsv } from '../js/importexport.js';
+import { importCounts, exportCsv, exportFilename } from '../js/importexport.js';
 import { fillOperatorTemplate, SEED_TOKEN, BG_TOKEN } from '../js/opbuild.js';
 import { matchAreas } from '../js/form.js';
 import { SCHEMA_VERSION, migrate, readVersion, resolveProjectBundle } from '../js/schema.js';
@@ -502,6 +502,21 @@ test('history: clear empties both stacks', () => {
   h.init('s0'); h.commit('s1');
   h.clear();
   assert(!h.canUndo() && !h.canRedo(), 'cleared');
+});
+
+// ---------- dated export filenames ----------
+test('exportFilename appends a zero-padded dated stamp', () => {
+  const d = new Date(2026, 6, 31, 9, 5); // 2026-07-31 09:05 local
+  eq(exportFilename('poc3-dwelling-counts', 'csv', d), 'poc3-dwelling-counts-2026-07-31_0905.csv');
+});
+test('exportFilename honors base and extension', () => {
+  const d = new Date(2026, 11, 1, 23, 59); // 2026-12-01 23:59 local
+  eq(exportFilename('site-x', 'json', d), 'site-x-2026-12-01_2359.json');
+});
+test('two exports a minute apart get distinct names', () => {
+  const a = exportFilename('c', 'csv', new Date(2026, 0, 1, 8, 0));
+  const b = exportFilename('c', 'csv', new Date(2026, 0, 1, 8, 1));
+  assert(a !== b, 'timestamps differ');
 });
 
 // ---------- bulk-select range (rangeSelect) ----------
