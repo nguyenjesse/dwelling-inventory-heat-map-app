@@ -71,6 +71,7 @@ APP_JS_ORDER = [
 # helpers, and its own logic.
 EDITOR_JS_ORDER = [
     "schema.js",
+    "history.js",
     "storage.js",
     "importexport.js",
     "opbuild.js",

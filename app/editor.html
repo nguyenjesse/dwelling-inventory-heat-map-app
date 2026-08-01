@@ -24,6 +24,10 @@
         <button id="renameFloor" class="btn ed-mini" title="Rename this floor">✎</button>
         <button id="delFloor" class="btn ed-mini" title="Delete this floor">🗑</button>
       </span>
+      <span class="hist-group" title="Undo / redo layout edits">
+        <button id="undoBtn" class="btn ed-mini" title="Undo (Ctrl/Cmd+Z)" disabled>↶</button>
+        <button id="redoBtn" class="btn ed-mini" title="Redo (Ctrl/Cmd+Shift+Z)" disabled>↷</button>
+      </span>
       <label class="btn" title="Replace the current floor's background image">Load background…<input id="bgFile" type="file" accept="image/*" hidden /></label>
       <label class="btn" title="Prevent accidental dragging — clicking still selects a region; edit x/y/w/h to reposition">🔒 <input id="lockRegions" type="checkbox" checked /> Lock regions</label>
       <button id="buildOperator" class="btn btn-primary" title="Generate this site's operator heat-map file to hand to associates">Build operator file</button>

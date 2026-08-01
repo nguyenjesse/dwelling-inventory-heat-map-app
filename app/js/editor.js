@@ -9,6 +9,7 @@ import { loadSeed, bgSrcFor } from './model.js';
 import { download } from './importexport.js';
 import { fillOperatorTemplate, readImageDataUrl } from './opbuild.js';
 import { SCHEMA_VERSION, resolveProjectBundle } from './schema.js';
+import { createHistory } from './history.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const $ = (s) => document.querySelector(s);
@@ -74,6 +75,7 @@ const DEFAULT_CATEGORIES = [
   let categories = (Array.isArray(seed.categories) && seed.categories.length ? seed.categories : DEFAULT_CATEGORIES)
     .map((c) => ({ ...c }));
   let currentFloorId = (floors[0] || {}).id || null;
+  const history = createHistory({ limit: 100 });
   const deptName = (id) => (departments.find((d) => d.id === id) || {}).name || id;
 
   // Background sources. Freshly loaded images are held as File objects (keyed by
@@ -185,6 +187,7 @@ const DEFAULT_CATEGORIES = [
 
   // ---- interaction ----
   let drag = null; // {mode:'move'|handle, id, start:{x,y}, orig:{...}}
+  let dragMoved = false; // whether the current drag actually changed the box
   let locked = true; // in-memory; boots locked to prevent accidental drags
   svg.addEventListener('pointerdown', (e) => {
     const handle = e.target.closest('.ed-handle');
@@ -202,6 +205,7 @@ const DEFAULT_CATEGORIES = [
       setActive(area.dataset.id);
       drag = { mode: 'move', id: area.dataset.id, start: toUnits(e.clientX, e.clientY), orig: { ...regions[area.dataset.id] } };
     } else { return; }
+    dragMoved = false;
     svg.setPointerCapture(e.pointerId);
   });
 
@@ -221,9 +225,16 @@ const DEFAULT_CATEGORIES = [
       g = { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
     }
     regions[drag.id] = round(clampBox(g));
+    dragMoved = true;
     updateActiveRect();
   });
-  const end = () => { if (drag) { drag = null; drawAll(); syncFields(); } };
+  const end = () => {
+    if (!drag) return;
+    const moved = dragMoved;
+    drag = null; dragMoved = false;
+    drawAll(); syncFields();
+    if (moved) commitHistory();
+  };
   svg.addEventListener('pointerup', end);
   svg.addEventListener('pointercancel', end);
 
@@ -307,6 +318,8 @@ const DEFAULT_CATEGORIES = [
     regions[activeId] = round(clampBox({ x: +fx.value || 0, y: +fy.value || 0, w: +fw.value || 4, h: +fh.value || 4 }));
     updateActiveRect();
   }));
+  // Commit one undo step per field edit on blur / Enter (not per keystroke).
+  [fx, fy, fw, fh].forEach((el) => el.addEventListener('change', () => { if (activeId) commitHistory(); }));
 
   // ---- region lock toggle (in-memory; boots locked) ----
   const lockToggle = $('#lockRegions');
@@ -364,6 +377,7 @@ const DEFAULT_CATEGORIES = [
       floors.push({ id, name, image, imageWidth: natW, imageHeight: natH });
       bgFiles.set(id, file);
       switchFloor(id);
+      commitHistory();
       status(`Added floor "${name}" (${natW}×${natH}). Create areas and place their boxes; the image is baked into the operator file you build.`);
     });
   });
@@ -375,6 +389,7 @@ const DEFAULT_CATEGORIES = [
     if (!name) return;
     f.name = name;
     fillFloorSelect();
+    commitHistory();
     status(`Renamed floor to "${name}".`);
   });
 
@@ -394,6 +409,7 @@ const DEFAULT_CATEGORIES = [
     bgFiles.delete(f.id);
     if (objUrlCache.has(f.id)) { URL.revokeObjectURL(objUrlCache.get(f.id)); objUrlCache.delete(f.id); }
     switchFloor((floors[0] || {}).id || null);
+    commitHistory();
     status(`Deleted floor "${f.name}".`);
   });
 
@@ -438,19 +454,22 @@ const DEFAULT_CATEGORIES = [
     const li = list.querySelector('li.active span'); if (li) li.textContent = a.name;
   });
   // On commit (blur / Enter) re-sort the list so the renamed area drops into its
-  // new alphabetical slot. Deferred off 'input' so a full re-render never steals
-  // the caret mid-typing.
-  aName.addEventListener('change', () => renderList($('#areaSearch').value));
+  // new alphabetical slot, and record one undo step for the whole rename.
+  // Deferred off 'input' so a full re-render never steals the caret mid-typing.
+  aName.addEventListener('change', () => { renderList($('#areaSearch').value); commitHistory(); });
   aPole.addEventListener('input', () => {
     const a = areas.find((x) => x.id === activeId); if (!a) return;
     a.iBeamLocation = aPole.value.trim();
   });
+  // Commit the pole edit as one undo step on blur / Enter (not per keystroke).
+  aPole.addEventListener('change', commitHistory);
   aDept.addEventListener('change', () => {
     const a = areas.find((x) => x.id === activeId); if (!a) return;
     a.departmentId = aDept.value;
     const dept = departments.find((d) => d.id === a.departmentId);
     fillCatOptions(dept ? dept.categoryId : (categories[0] || {}).id);
     renderList($('#areaSearch').value);
+    commitHistory();
   });
   // The category belongs to the department; changing it here retags the whole
   // department (all its areas), matching how the operator app groups them.
@@ -459,6 +478,7 @@ const DEFAULT_CATEGORIES = [
     const dept = departments.find((d) => d.id === a.departmentId);
     if (!dept) return;
     dept.categoryId = aCat.value;
+    commitHistory();
     status(`Department "${dept.name}" set to ${(categories.find((c) => c.id === aCat.value) || {}).name || aCat.value}.`);
   });
 
@@ -476,6 +496,7 @@ const DEFAULT_CATEGORIES = [
     fillDeptOptions(a ? a.departmentId : id);
     fillCatOptions(categoryId);
     renderList($('#areaSearch').value);
+    commitHistory();
     status(`Added department "${name}" (${(categories.find((c) => c.id === categoryId) || {}).name || categoryId}).`);
   });
   btnDeptRename.addEventListener('click', () => {
@@ -486,6 +507,7 @@ const DEFAULT_CATEGORIES = [
     d.name = name;
     fillDeptOptions(d.id);
     renderList($('#areaSearch').value);
+    commitHistory();
     status(`Renamed department to "${name}".`);
   });
 
@@ -503,6 +525,7 @@ const DEFAULT_CATEGORIES = [
     areas.push({ id, name, departmentId: (departments[0] || {}).id || '', iBeamLocation: '', mapRegionId: id, floorId: currentFloorId });
     setActive(id);                 // seeds a default centered box
     updateControls();
+    commitHistory();
     aName.focus(); aName.select();
     status(`Created "${name}" on this floor — name it, set Pole + Department, then place its box.`);
   });
@@ -516,6 +539,7 @@ const DEFAULT_CATEGORIES = [
     // identical size (w/h), nudged position so it's visible and not exactly overlapping
     regions[id] = round(clampBox({ x: g.x + 12, y: g.y + 12, w: g.w, h: g.h }));
     setActive(id);
+    commitHistory();
     status(`Duplicated "${src.name}" (same size ${g.w}×${g.h}).`);
   });
   btnDel.addEventListener('click', () => {
@@ -528,10 +552,13 @@ const DEFAULT_CATEGORIES = [
     drawAll(); renderList($('#areaSearch').value); syncFields(); syncAttrs();
     updateControls();
     $('#selName').textContent = 'No area selected';
+    commitHistory();
     status(`Deleted "${a.name}".`);
   });
 
   // ---- keyboard nudge (skips when typing in a field, or when locked) ----
+  let nudgePending = false; // a burst of nudges commits once on key release
+  const ARROWS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
   document.addEventListener('keydown', (e) => {
     if (locked) return; // lock also freezes arrow-key nudging; use the x/y/w/h fields instead
     if (!activeId || !regions[activeId]) return;
@@ -546,7 +573,12 @@ const DEFAULT_CATEGORIES = [
     else return;
     e.preventDefault();
     regions[activeId] = round(clampBox(g));
+    nudgePending = true;
     drawAll(); syncFields();
+  });
+  // Coalesce a held/repeated nudge into one undo step when the key is released.
+  document.addEventListener('keyup', (e) => {
+    if (nudgePending && ARROWS.includes(e.key)) { nudgePending = false; commitHistory(); }
   });
 
   // ---- background swap for the current floor ----
@@ -564,6 +596,7 @@ const DEFAULT_CATEGORIES = [
       bgFiles.set(f.id, file);
       if (objUrlCache.has(f.id)) { URL.revokeObjectURL(objUrlCache.get(f.id)); objUrlCache.delete(f.id); }
       edImg.src = displaySrc(f);
+      commitHistory();
       status(`Floor "${f.name}" background set (${img.naturalWidth}×${img.naturalHeight}). ` +
         (img.naturalWidth === W && img.naturalHeight === H
           ? 'Matches the region grid.'
@@ -576,6 +609,7 @@ const DEFAULT_CATEGORIES = [
   const siteInput = $('#siteCode');
   siteInput.value = seed.siteCode || '';
   siteInput.addEventListener('input', updateControls);
+  siteInput.addEventListener('change', commitHistory); // one undo step per edit
 
   // ---- collect background data URIs for build/save (async) ----
   // Fresh loads come from their File bytes (down-scaled if huge); already-baked or
@@ -688,6 +722,7 @@ const DEFAULT_CATEGORIES = [
     currentFloorId = (floors[0] || {}).id || null;
     activeId = null;
     refreshAll();
+    resetHistory(); // a freshly loaded project starts a new undo timeline
   }
 
   // ---- new (empty) site ----
@@ -701,11 +736,77 @@ const DEFAULT_CATEGORIES = [
     currentFloorId = null; activeId = null;
     siteInput.value = '';
     refreshAll();
+    resetHistory(); // clearing to an empty site starts a new undo timeline
     siteInput.focus();
     status('New site — enter a Site code, then add your first floor (＋ next to Floor).');
   });
 
   function status(msg) { $('#editorStatus').textContent = msg; }
+
+  // ---- undo / redo (snapshot-based) ----
+  // A snapshot is a deep copy of the editable state. bgFiles is cloned by
+  // membership (same immutable File refs) so add/delete-floor is reversible;
+  // bgUriByName holds already-baked data URIs and is left shared.
+  function snapshot() {
+    return {
+      areas: areas.map((a) => ({ ...a })),
+      departments: departments.map((d) => ({ ...d })),
+      floors: floors.map((f) => ({ ...f })),
+      categories: categories.map((c) => ({ ...c })),
+      regions: Object.fromEntries(Object.entries(regions).map(([k, v]) => [k, { ...v }])),
+      bgFiles: new Map(bgFiles),
+      currentFloorId,
+      activeId,
+      siteCode: siteInput.value,
+    };
+  }
+
+  function restore(s) {
+    const keepActive = activeId; // try to keep the user's current selection
+    areas = s.areas.map((a) => ({ ...a }));
+    departments = s.departments.map((d) => ({ ...d }));
+    floors = s.floors.map((f) => ({ ...f }));
+    categories = s.categories.map((c) => ({ ...c }));
+    for (const k of Object.keys(regions)) delete regions[k];
+    for (const [k, v] of Object.entries(s.regions)) regions[k] = { ...v };
+    bgFiles.clear();
+    for (const [k, v] of s.bgFiles) bgFiles.set(k, v);
+    // Object URLs may point at floors that changed; drop them so displaySrc
+    // rebuilds lazily.
+    objUrlCache.forEach((u) => URL.revokeObjectURL(u)); objUrlCache.clear();
+    currentFloorId = s.currentFloorId;
+    // Keep the current selection if that area survived on the restored floor (so
+    // undoing an edit leaves you on it); else fall back to the snapshot's own
+    // selection (so undoing a delete re-selects the restored area); else none.
+    const onFloor = (id) => areas.some((a) => a.id === id && a.floorId === currentFloorId);
+    activeId = onFloor(keepActive) ? keepActive : (onFloor(s.activeId) ? s.activeId : null);
+    siteInput.value = s.siteCode || '';
+    refreshAll();
+    $('#selName').textContent = (areas.find((a) => a.id === activeId) || {}).name || 'No area selected';
+    updateHistoryButtons();
+  }
+
+  // Record the state after a committed mutation.
+  function commitHistory() { history.commit(snapshot()); updateHistoryButtons(); }
+  // Reset history to the current state (after load / new site / boot).
+  function resetHistory() { history.init(snapshot()); updateHistoryButtons(); }
+
+  function updateHistoryButtons() {
+    $('#undoBtn').disabled = !history.canUndo();
+    $('#redoBtn').disabled = !history.canRedo();
+  }
+  function doUndo() { const s = history.undo(); if (s) restore(s); else updateHistoryButtons(); }
+  function doRedo() { const s = history.redo(); if (s) restore(s); else updateHistoryButtons(); }
+  $('#undoBtn').addEventListener('click', doUndo);
+  $('#redoBtn').addEventListener('click', doRedo);
+  document.addEventListener('keydown', (e) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    // Leave native text-undo alone while a field is focused.
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey) { e.preventDefault(); doUndo(); }
+    else if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); doRedo(); }
+  });
 
   // Enable/disable controls that need a floor or areas.
   function updateControls() {
@@ -728,4 +829,5 @@ const DEFAULT_CATEGORIES = [
 
   // init
   refreshAll();
+  resetHistory();
 })();

@@ -8,6 +8,7 @@ import { importCounts, exportCsv } from '../js/importexport.js';
 import { fillOperatorTemplate, SEED_TOKEN, BG_TOKEN } from '../js/opbuild.js';
 import { matchAreas } from '../js/form.js';
 import { SCHEMA_VERSION, migrate, readVersion, resolveProjectBundle } from '../js/schema.js';
+import { createHistory } from '../js/history.js';
 
 const results = [];
 function test(name, fn) {
@@ -451,6 +452,55 @@ test('validateManifest warns on a too-new schemaVersion', () => {
 test('validateManifest does not warn at the current schemaVersion', () => {
   const { warnings } = validateManifest({ ...seed, schemaVersion: SCHEMA_VERSION });
   assert(!warnings.some((w) => /newer data format/i.test(w)), 'no version warning at baseline');
+});
+
+// ---------- undo/redo history stack ----------
+test('history: fresh stack cannot undo or redo', () => {
+  const h = createHistory();
+  h.init('s0');
+  assert(!h.canUndo() && !h.canRedo(), 'nothing to undo/redo yet');
+  eq(h.undo(), null); eq(h.redo(), null);
+});
+test('history: commit then undo returns the prior snapshot', () => {
+  const h = createHistory();
+  h.init('s0');
+  h.commit('s1');
+  assert(h.canUndo(), 'can undo after a commit');
+  eq(h.undo(), 's0');
+  assert(h.canRedo(), 'can redo after an undo');
+});
+test('history: redo re-applies the undone snapshot', () => {
+  const h = createHistory();
+  h.init('s0'); h.commit('s1'); h.undo();
+  eq(h.redo(), 's1');
+  assert(!h.canRedo(), 'redo consumed');
+});
+test('history: a new commit clears the redo future', () => {
+  const h = createHistory();
+  h.init('s0'); h.commit('s1'); h.undo(); // back at s0, redo has s1
+  h.commit('s2');
+  assert(!h.canRedo(), 'commit drops the redo branch');
+  eq(h.undo(), 's0');
+});
+test('history: multi-step undo/redo walks the timeline', () => {
+  const h = createHistory();
+  h.init('s0'); h.commit('s1'); h.commit('s2'); h.commit('s3');
+  eq(h.undo(), 's2'); eq(h.undo(), 's1');
+  eq(h.redo(), 's2'); eq(h.redo(), 's3');
+  assert(!h.canRedo());
+});
+test('history: limit evicts the oldest undo steps', () => {
+  const h = createHistory({ limit: 2 });
+  h.init('s0'); h.commit('s1'); h.commit('s2'); h.commit('s3');
+  // Only 2 undo steps retained: s2, s1 — s0 fell off.
+  eq(h.undo(), 's2'); eq(h.undo(), 's1');
+  assert(!h.canUndo(), 'oldest step evicted');
+});
+test('history: clear empties both stacks', () => {
+  const h = createHistory();
+  h.init('s0'); h.commit('s1');
+  h.clear();
+  assert(!h.canUndo() && !h.canRedo(), 'cleared');
 });
 
 // ---------- operator-file generation (Building Area Manager) ----------
