@@ -9,7 +9,7 @@ import { fillOperatorTemplate, SEED_TOKEN, BG_TOKEN } from '../js/opbuild.js';
 import { matchAreas } from '../js/form.js';
 import { SCHEMA_VERSION, migrate, readVersion, resolveProjectBundle } from '../js/schema.js';
 import { createHistory } from '../js/history.js';
-import { rangeSelect, clampGroupDelta, normalizeRect, rectHits } from '../js/selection.js';
+import { rangeSelect, clampGroupDelta, normalizeRect, rectHits, paintOrder } from '../js/selection.js';
 
 const results = [];
 function test(name, fn) {
@@ -629,6 +629,31 @@ test('rectHits finds nothing in a gap, and nothing among no entries', () => {
 test('a zero-area marquee (plain click) on bare canvas selects nothing', () => {
   // This is what makes "click empty space to deselect" need no special case.
   eq(rectHits(boxes, normalizeRect(35, 35, 35, 35)).length, 0);
+});
+
+// ---------- paint order (selected boxes stay grabbable) ----------
+const paintIds = ['a', 'b', 'c', 'd'];
+test('paintOrder moves the raised id last so it paints on top', () => {
+  eq(paintOrder(paintIds, (id) => id === 'b').join(','), 'a,c,d,b');
+});
+test('paintOrder keeps a box that is already last where it is', () => {
+  eq(paintOrder(paintIds, (id) => id === 'd').join(','), 'a,b,c,d');
+});
+test('paintOrder preserves relative order within both groups', () => {
+  // A multi-selection must not have its internal order scrambled — the marquee's
+  // "primary is the last hit" rule reads that order.
+  eq(paintOrder(paintIds, (id) => id === 'a' || id === 'c').join(','), 'b,d,a,c');
+});
+test('paintOrder is a no-op when nothing or everything is raised', () => {
+  eq(paintOrder(paintIds, () => false).join(','), 'a,b,c,d');
+  eq(paintOrder(paintIds, () => true).join(','), 'a,b,c,d');
+  eq(paintOrder([], () => true).length, 0);
+});
+test('paintOrder raises a box above the neighbour it was dragged onto', () => {
+  // The D20 regression: 'a' is dragged on top of 'b', which comes later in model
+  // order. Painted in model order 'b' covers 'a' and swallows the next press.
+  const ids = ['a', 'b'];
+  eq(paintOrder(ids, (id) => id === 'a').join(','), 'b,a');
 });
 
 // ---------- operator-file generation (Building Area Manager) ----------

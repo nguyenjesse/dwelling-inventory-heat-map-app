@@ -295,9 +295,16 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 .coord input { width: 66px; font: inherit; padding: .25rem .4rem; border: 1px solid var(--border); border-radius: 5px; }
 
 .editor-canvas { position: relative; flex: 1; overflow: auto; background: #eceff1; }
-.editor-canvas .stage { position: relative; }
+/* The stage is a drag surface, never a text surface. Without `user-select: none` a
+   drag across it leaves a document selection behind, and the *next* pointerdown inside
+   that selection makes the browser begin a native HTML5 drag of it instead of
+   delivering pointermove — the box creeps a few pixels, the cursor turns into the
+   no-drop circle, and the gesture is dead until something collapses the selection
+   (clicking the Lock checkbox, or another box). `touch-action: none` is the same
+   bargain for touch, matching .map-viewport on the operator map. */
+.editor-canvas .stage { position: relative; user-select: none; -webkit-user-select: none; touch-action: none; }
 .editor-canvas img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
-.editor-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.editor-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
 .ed-area { fill: #2f528f; fill-opacity: .18; stroke: #2f528f; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: move; }
 svg.locked .ed-area { cursor: default; }
 .ed-area.active { fill: #ff9800; fill-opacity: .3; stroke: #e65100; stroke-width: 2px; }
@@ -316,9 +323,14 @@ svg.locked .ed-area { cursor: default; }
    is a tool overlay, and in violet its own boundary got lost among the previews. */
 .ed-marquee { fill: #37474f; fill-opacity: .08; stroke: #263238; stroke-width: 1.5px; stroke-dasharray: 5 3; vector-effect: non-scaling-stroke; pointer-events: none; }
 .ed-area.preview { fill: #8e24aa; fill-opacity: .26; stroke: #8e24aa; stroke-width: 2px; stroke-dasharray: 5 3; }
-/* While Alt is held a drag makes a marquee anywhere, including over a box — so the
-   move cursor would be a lie. */
-svg.marquee-ready .ed-area, svg.marquee-ready.locked .ed-area { cursor: crosshair; }
+/* While Alt is held a drag makes a marquee anywhere — bare canvas, a box, or a resize
+   handle — so every cursor under it would otherwise be a lie. The bare-canvas case needs
+   the svg itself: it has no cursor of its own, so without this rule Alt changes the
+   cursor over boxes but not over the empty floor, which reads as the affordance being
+   broken exactly where the gesture is most ordinary. */
+svg.marquee-ready,
+svg.marquee-ready .ed-area, svg.marquee-ready.locked .ed-area,
+svg.marquee-ready .ed-handle { cursor: crosshair; }
 
 .ed-handle { fill: #fff; stroke: #e65100; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: nwse-resize; }
 .ed-label { font: 600 11px Arial, sans-serif; fill: #14213d; paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; }
@@ -563,6 +575,19 @@ function rectHits(entries, r) {
     if (e.x < r.x + r.w && e.x + e.w > r.x && e.y < r.y + r.h && e.y + e.h > r.y) hits.push(e.id);
   }
   return hits;
+}
+
+// `ids` reordered so the ones `isRaised` accepts come last, each group otherwise
+// keeping its original relative order. The editor paints in this order, so a selected
+// box lands on top of anything it overlaps — and since SVG hit-testing follows paint
+// order, the box you can see is the box you grab. Without the raise, a box dragged onto
+// a neighbour that happens to come later in model order is buried underneath it, and
+// the next press silently grabs the neighbour instead: the drag reads as ignored until
+// you retry enough times to shuffle the obstruction away.
+function paintOrder(ids, isRaised) {
+  const base = [], raised = [];
+  for (const id of ids) (isRaised(id) ? raised : base).push(id);
+  return base.concat(raised);
 }
 
 // The largest in-bounds translation of a group of boxes by a *shared* delta: every
@@ -1286,11 +1311,16 @@ const DEFAULT_CATEGORIES = [
   // ---- stage ----
   const stage = document.createElement('div');
   stage.className = 'stage';
-  stage.innerHTML = `<img id="edImg" alt="" />
+  stage.innerHTML = `<img id="edImg" alt="" draggable="false" />
     <svg id="edSvg" preserveAspectRatio="none"></svg>`;
   $('#editor').appendChild(stage);
   const svg = $('#edSvg');
   const edImg = $('#edImg');
+  // Last line of defence against a native drag starting on the stage. CSS alone leaves
+  // gaps (a stray selection made before the pointer reached the stage still counts, and
+  // the floor-plan image is natively draggable in some engines), and a native drag
+  // silently stops the pointermove stream mid-gesture.
+  stage.addEventListener('dragstart', (e) => e.preventDefault());
 
   let W = 1808, H = 1125; // current floor's pixel dimensions
   function applyFloorStage() {
@@ -1311,7 +1341,13 @@ const DEFAULT_CATEGORIES = [
   function drawAll() {
     svg.innerHTML = '';
     rectEls.clear();
-    for (const a of floorAreas()) {
+    // Selected boxes paint last, so the box you just moved sits on top of whatever it
+    // landed on and stays the one your next press grabs. `marqueeEntries` still reads
+    // model order, so hit-order for a sweep is unaffected by this.
+    const byId = new Map(floorAreas().map((a) => [a.id, a]));
+    const order = paintOrder([...byId.keys()], (id) => id === activeId || selected.has(id));
+    for (const id of order) {
+      const a = byId.get(id);
       const g = regions[a.id];
       if (!g) continue;
       const r = document.createElementNS(SVGNS, 'rect');
@@ -1365,10 +1401,14 @@ const DEFAULT_CATEGORIES = [
     const handle = e.target.closest('.ed-handle');
     const area = e.target.closest('.ed-area');
     const target = area || handle;
+    // Every press here begins a gesture we own — a marquee, a move, a resize, or a
+    // plain select. Suppressing the default stops the browser treating it as the start
+    // of a text selection or a native drag, either of which kills the pointer stream.
+    e.preventDefault();
     // Alt forces a marquee even when the press lands on a box, so a floor plan with
     // no bare canvas left can still be rubber-banded. Checked before the Ctrl branch
     // below, which would otherwise swallow Ctrl+Alt (an *additive* forced marquee).
-    if (e.altKey) { e.preventDefault(); startMarquee(e); return; }
+    if (e.altKey) { startMarquee(e); return; }
     // Ctrl/⌘-click on the map toggles that area in the selection (mirrors the
     // sidebar) and never arms a drag — works locked or unlocked.
     if ((e.ctrlKey || e.metaKey) && target) { toggleInSelection(target.dataset.id); return; }

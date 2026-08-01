@@ -74,9 +74,16 @@
 .coord input { width: 66px; font: inherit; padding: .25rem .4rem; border: 1px solid var(--border); border-radius: 5px; }
 
 .editor-canvas { position: relative; flex: 1; overflow: auto; background: #eceff1; }
-.editor-canvas .stage { position: relative; }
+/* The stage is a drag surface, never a text surface. Without `user-select: none` a
+   drag across it leaves a document selection behind, and the *next* pointerdown inside
+   that selection makes the browser begin a native HTML5 drag of it instead of
+   delivering pointermove — the box creeps a few pixels, the cursor turns into the
+   no-drop circle, and the gesture is dead until something collapses the selection
+   (clicking the Lock checkbox, or another box). `touch-action: none` is the same
+   bargain for touch, matching .map-viewport on the operator map. */
+.editor-canvas .stage { position: relative; user-select: none; -webkit-user-select: none; touch-action: none; }
 .editor-canvas img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
-.editor-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.editor-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
 .ed-area { fill: #2f528f; fill-opacity: .18; stroke: #2f528f; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: move; }
 svg.locked .ed-area { cursor: default; }
 .ed-area.active { fill: #ff9800; fill-opacity: .3; stroke: #e65100; stroke-width: 2px; }
@@ -95,9 +102,14 @@ svg.locked .ed-area { cursor: default; }
    is a tool overlay, and in violet its own boundary got lost among the previews. */
 .ed-marquee { fill: #37474f; fill-opacity: .08; stroke: #263238; stroke-width: 1.5px; stroke-dasharray: 5 3; vector-effect: non-scaling-stroke; pointer-events: none; }
 .ed-area.preview { fill: #8e24aa; fill-opacity: .26; stroke: #8e24aa; stroke-width: 2px; stroke-dasharray: 5 3; }
-/* While Alt is held a drag makes a marquee anywhere, including over a box — so the
-   move cursor would be a lie. */
-svg.marquee-ready .ed-area, svg.marquee-ready.locked .ed-area { cursor: crosshair; }
+/* While Alt is held a drag makes a marquee anywhere — bare canvas, a box, or a resize
+   handle — so every cursor under it would otherwise be a lie. The bare-canvas case needs
+   the svg itself: it has no cursor of its own, so without this rule Alt changes the
+   cursor over boxes but not over the empty floor, which reads as the affordance being
+   broken exactly where the gesture is most ordinary. */
+svg.marquee-ready,
+svg.marquee-ready .ed-area, svg.marquee-ready.locked .ed-area,
+svg.marquee-ready .ed-handle { cursor: crosshair; }
 
 .ed-handle { fill: #fff; stroke: #e65100; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: nwse-resize; }
 .ed-label { font: 600 11px Arial, sans-serif; fill: #14213d; paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; }

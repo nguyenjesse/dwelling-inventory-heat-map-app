@@ -10,7 +10,7 @@ import { download } from './importexport.js';
 import { fillOperatorTemplate, readImageDataUrl } from './opbuild.js';
 import { SCHEMA_VERSION, resolveProjectBundle } from './schema.js';
 import { createHistory } from './history.js';
-import { rangeSelect, clampGroupDelta, normalizeRect, rectHits } from './selection.js';
+import { rangeSelect, clampGroupDelta, normalizeRect, rectHits, paintOrder } from './selection.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const $ = (s) => document.querySelector(s);
@@ -118,11 +118,16 @@ const DEFAULT_CATEGORIES = [
   // ---- stage ----
   const stage = document.createElement('div');
   stage.className = 'stage';
-  stage.innerHTML = `<img id="edImg" alt="" />
+  stage.innerHTML = `<img id="edImg" alt="" draggable="false" />
     <svg id="edSvg" preserveAspectRatio="none"></svg>`;
   $('#editor').appendChild(stage);
   const svg = $('#edSvg');
   const edImg = $('#edImg');
+  // Last line of defence against a native drag starting on the stage. CSS alone leaves
+  // gaps (a stray selection made before the pointer reached the stage still counts, and
+  // the floor-plan image is natively draggable in some engines), and a native drag
+  // silently stops the pointermove stream mid-gesture.
+  stage.addEventListener('dragstart', (e) => e.preventDefault());
 
   let W = 1808, H = 1125; // current floor's pixel dimensions
   function applyFloorStage() {
@@ -143,7 +148,13 @@ const DEFAULT_CATEGORIES = [
   function drawAll() {
     svg.innerHTML = '';
     rectEls.clear();
-    for (const a of floorAreas()) {
+    // Selected boxes paint last, so the box you just moved sits on top of whatever it
+    // landed on and stays the one your next press grabs. `marqueeEntries` still reads
+    // model order, so hit-order for a sweep is unaffected by this.
+    const byId = new Map(floorAreas().map((a) => [a.id, a]));
+    const order = paintOrder([...byId.keys()], (id) => id === activeId || selected.has(id));
+    for (const id of order) {
+      const a = byId.get(id);
       const g = regions[a.id];
       if (!g) continue;
       const r = document.createElementNS(SVGNS, 'rect');
@@ -197,10 +208,14 @@ const DEFAULT_CATEGORIES = [
     const handle = e.target.closest('.ed-handle');
     const area = e.target.closest('.ed-area');
     const target = area || handle;
+    // Every press here begins a gesture we own — a marquee, a move, a resize, or a
+    // plain select. Suppressing the default stops the browser treating it as the start
+    // of a text selection or a native drag, either of which kills the pointer stream.
+    e.preventDefault();
     // Alt forces a marquee even when the press lands on a box, so a floor plan with
     // no bare canvas left can still be rubber-banded. Checked before the Ctrl branch
     // below, which would otherwise swallow Ctrl+Alt (an *additive* forced marquee).
-    if (e.altKey) { e.preventDefault(); startMarquee(e); return; }
+    if (e.altKey) { startMarquee(e); return; }
     // Ctrl/⌘-click on the map toggles that area in the selection (mirrors the
     // sidebar) and never arms a drag — works locked or unlocked.
     if ((e.ctrlKey || e.metaKey) && target) { toggleInSelection(target.dataset.id); return; }

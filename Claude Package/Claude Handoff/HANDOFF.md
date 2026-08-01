@@ -1,130 +1,134 @@
-# HANDOFF — Code → Code · 2026-08-01 16:30 UTC
+# HANDOFF — Code → Code · 2026-08-01 20:55 UTC
 
 ## What happened this session
 
-Ran `startup`, found the previous baton's "user's next action" (open a PR for the marquee
-work) **still not done**. Before doing it, the user asked for a way to run the manual test
-list without losing their place. That became the session: an **artifact-based test checklist
-runner**, built and refined over four published revisions.
+Picked up the previous baton, found the marquee work had been **merged by the user**
+(PRs #16 and #17 — the old baton's "unmerged, no PR" is dead). Ran the manual test
+checklist, which found **two separate defects in the same drag gesture**. Both are fixed,
+manually confirmed, and open as **PR #18** (`claude/startup-skill-fj1fn3` → `main`,
+commits `0b06a42` and `4fcc15e`). CI green on both. This session is subscribed to PR #18
+activity.
 
-**No code was written and nothing was committed. The repo is clean and untouched.** The
-marquee feature is exactly where the last session left it — one commit on
-`claude/startup-skill-p8cy4n`, unmerged, no PR. `main` is still `50e8bbd`.
+## The one thing to read before touching editor drag code
 
-## The deliverable is an artifact, not a file
+**Automated tests in this app cannot catch native drag-and-drop bugs.** Synthetic mouse
+events (Playwright `page.mouse`) never trigger native DnD, so three consecutive rounds of
+browser checks passed green while a total drag lock-up was live in the app. The bug was
+found *by hand* and identified from a single detail the user reported: the cursor turned
+into the **no-drop "Cancel Circle"**, which is the native DnD cursor.
 
-**https://claude.ai/code/artifact/29f87e87-3154-4046-8b95-010ab0a27eca** — "Test Checklist
-Runner". A self-contained HTML page, deliberately **not** committed to this repo (the user
-wants it reusable across projects; this app's history is the wrong home).
+Consequence for future work: a green Playwright run over the editor's gestures is **not**
+evidence that dragging works. Tests here must assert the *mechanism* (is the stage
+unselectable? is `dragstart` refused? does a drag leave a selection behind?) rather than
+the gesture, because the gesture tests green either way.
 
-Three things a future session needs to know to work on it:
+## The two defects (both were real; only the second was the user's complaint)
 
-- **The source is recoverable.** `WebFetch` on that URL returns the complete original HTML
-  verbatim and writes it to a file on disk. Verified this session. Nothing depends on the
-  scratchpad surviving.
-- **To update it, pass the `url` parameter** to the Artifact tool. Without it, republishing
-  from a new conversation mints a *new* artifact instead of updating this one.
-- **`Artifact action:"list"`** finds it if the URL is lost. It is currently the user's only
-  artifact.
+**1. Native drag killed the pointer stream (`4fcc15e`) — the actual lock-up.**
+Nothing suppressed browser defaults on the editor stage. Every drag left a document text
+selection behind; the *next* `pointerdown` inside that selection made the browser start a
+native HTML5 drag instead of delivering `pointermove`. Box crept a few pixels, cursor went
+no-drop, gesture dead. Clicking the Lock checkbox or another box collapsed the selection
+and bought exactly one more working drag — which is why it looked intermittent. Long
+standing, predates the marquee work, unrelated to overlapping.
+Fixed at four points, and **all four are load-bearing** — each alone leaves a gap:
+`user-select`/`touch-action: none` on `.stage`; `draggable="false"` on `#edImg`; a
+`dragstart` handler that preventDefaults; `preventDefault()` in the svg `pointerdown`.
 
-## Files produced — almost all of them are gone
+**2. Selected boxes painted underneath neighbours (`0b06a42`).**
+`drawAll()` repainted in model order, so a box dragged onto a neighbour later in that
+order was buried under it, and SVG hit-testing (which follows paint order) gave the next
+press to the neighbour. Fixed with a pure `paintOrder()` helper in `selection.js`;
+selected boxes paint last. `marqueeEntries()` still reads model order, so sweep hit-order
+is unchanged.
 
-Everything lived in the session scratchpad and **was never on the user's disk**:
-`test-round-runner.html` (the source), `verify.mjs` (a 144-check Playwright suite), several
-screenshots and debug scripts. Only the published artifact survives.
+**Do not assume #2 fixed the lock-up — it did not.** That was this session's wrong turn
+(below). Two defects, one gesture.
 
-**`verify.mjs` is the real loss.** If you change the runner, expect to rewrite the suite from
-the recovered HTML. Recipe: `npm install playwright-core` into the scratchpad,
-`executablePath: /opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell`,
-serve the file over `python3 -m http.server`, drive it with Playwright.
+## Dead ends and wrong turns — don't repeat these
 
-## Decisions taken — don't re-litigate
-
-- **One reusable runner at one URL**, project-agnostic, holding a library of checklists in
-  `localStorage` — *not* a file per checklist and *not* a template in this repo. The user
-  chose this explicitly after being offered per-checklist artifacts.
-- **The results JSON carries the full checklist definition, not just answers.** This is what
-  lets a future blank session read pasted results cold. Do not "optimise" it to answers only.
-- **`localStorage['claude-test-rounds']` and `format: 'claude-test-round'` must never be
-  renamed.** The interface says "checklist" everywhere, but these two strings (and the
-  `round` key inside the payload) kept their old names on purpose — renaming them orphans the
-  user's recorded progress and breaks previously exported files.
-- **There is no way for Claude to see the user's progress.** The only runtime capabilities on
-  this account are `downloads` and `mcp` — no shared state. Results reach Claude only when
-  the user presses *Copy results for Claude* and pastes. This was stated to the user and
-  accepted; don't promise live visibility.
-- **"Hide completed" hides passed steps only** — failed and blocked steps stay on screen
-  because they are still outstanding work.
-- **The word "Step" and the numbering stay** (user's call), with order-independence stated as
-  a ground rule and `needs …` chips on the five steps that have real prerequisites.
-- **Optional steps must not hold the checklist open** — the verdict counts required steps
-  separately so it can read "All 21 required steps passed".
-
-## Gotchas discovered this session (all cost real debugging time)
-
-- **A `<meta charset="utf-8">` must be the first line.** Without it, every non-ASCII character
-  mangles when the file is served without a charset header or opened from disk.
-- **Quirks mode breaks table colour inheritance.** Opened from disk the page has no doctype,
-  and `<table>` then ignores the inherited `color` — every step title rendered dark-on-dark in
-  dark mode. Fixed with an explicit `table { color: inherit }`; do not remove it as redundant.
-- **`[hidden]` loses to any class that sets `display`.** `.btn { display: inline-flex }` made
-  the hidden Delete button visible. The page now carries `[hidden] { display: none !important }`.
-- **Playwright: a `page.once('dialog')` handler for a confirm that never fires stays armed**
-  and silently eats the next one. Use a register-then-remove helper.
-- **The store isn't written until the first change**, so injecting into `localStorage` right
-  after load finds `null`. Saves are debounced 300 ms — wait longer than that before reading.
-
-## Findings about the app itself (not previously known)
-
-- **`POC3-Building-Area-Manager.html` at the repo root already contains the marquee feature.**
-  It is self-contained (3.7 MB, data and floor plan inlined) and runs by double-click. The
-  whole clone-and-serve route is unnecessary for manual testing.
-- **The site has exactly one floor** (`app/data/floors.json` → "Green Mile"), so the
-  multi-floor test step was impossible to perform and was deleted.
-- **The editor has no persistence** — reloading resets it, which is what makes destructive
-  testing safe.
-- **The user is on Windows PowerShell 5.1 with no local clone.** `&&` is a syntax error there
-  and Python is `python`, not `python3`. Any instructions written for them must respect this.
-
-## Carried forward from the previous baton — still true, still unmerged
-
-- **Alt and Ctrl are orthogonal.** Alt = "where may the sweep start", Ctrl = "replace or add".
-  Alt alone forces a marquee; Ctrl+Alt is the additive composition.
-- **The Alt check must stay above the Ctrl branch in `editor.js` pointerdown** — otherwise
-  Ctrl+Alt on a box is swallowed by `toggleInSelection`. Don't "tidy" the ordering.
-- **Deselect is bound to `#edSvg`, never `document`** — that is what stops app chrome (the
-  Lock-regions toggle) clearing a selection.
-- **`app/js/model.js` is git-"binary"** (intentional NUL ~line 114) — grep `-a`, hand-merge,
-  never "fix".
-- **The top-level `*.html` are generated** — never hand-edit; the pre-commit hook rebuilds
-  them, and CI carries a rebuild-diff guard.
-- **Branch deletion over git is blocked** (proxy 403) — use the GitHub web UI.
-- **Do NOT gitignore `Claude Package/`** — fresh Code-on-web sessions clone the repo and see
-  only committed files, so this handoff must stay tracked. (The `handoff` skill's generic
-  advice says to gitignore it; this repo overrides that.)
+- **First diagnosis of the lock-up was wrong.** Concluded it was the paint-order bug,
+  fixed it, shipped it, and the user retested: still broken. Paint order *was* a genuine
+  bug (user's R5/R6 confirm it's fixed), but it was never the reported symptom.
+- **Theorised `pointercancel` from text selection, then discarded it** because a headless
+  repro showed `pointercancel: 0` and an empty `getSelection()`. That discard was the
+  mistake — the theory was essentially right, and headless simply cannot reproduce it.
+- **Two "failures" during verification were test artifacts, not app bugs.** Playwright
+  clamps mouse moves at the viewport edge, which looks exactly like a lock-up (reload and
+  re-select before a resize block). And `.ed-area` under a *locked* editor is
+  `cursor: default`, not `move` — the editor boots locked.
+- **`tests/run_ci.py` cannot run in a Code-on-web container.** The pip `playwright`
+  package wants browser build 1234; only 1194 is present, and `playwright install` is
+  disallowed here. Workaround: drive `app/tests/tests.html` with node `playwright-core` at
+  `/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell` and read
+  `window.__TEST_RESULT__`. CI itself is unaffected.
 
 ## Verification status
 
-- The runner: **144 automated checks green** in headless Chromium at the last publish —
-  persistence across reload, export/import round-trip, checklist-library isolation, both
-  themes, contrast in both themes, and a guard that pre-existing stored progress survives.
-  That suite no longer exists on disk (see above).
-- The marquee feature: unchanged this session. Still **97/97 unit tests, 19/19 smoke** from
-  the previous session, and still **not confirmed by the user in a real browser** — which is
-  the entire point of the checklist.
+- **102/102 unit tests** (97 existing + 5 new for `paintOrder`), **30 browser checks**,
+  **CI green on both commits** including the rebuild-diff guard.
+- **Rebuild is reproducible** — re-running `build/build-standalone.py` yields no diff
+  beyond the floating `builtAt` line in the two POC3 files.
+- **Manually confirmed by the user across three rounds**: full 23-step checklist
+  (19 pass / 2 fail / 2 optional-blocked), retest 1 (8 pass / 2 fail), retest 2 (**6/6
+  pass** — five consecutive moves, five consecutive resizes, alternating). The originally
+  blocked steps are the optional terminal ones; both were run by Claude and passed.
+
+## Files produced — most are NOT on disk
+
+- **On disk and committed:** the source changes (`app/js/editor.js`, `app/js/selection.js`,
+  `app/css/editor.css`, `app/tests/tests.js`) and the three rebuilt top-level `*.html`.
+- **Session scratchpad only, will not survive** — `verify-fixes.mjs`, `verify-dnd.mjs`,
+  `run-units.mjs`, `probe-d20.mjs`, `repro-d20.mjs`, the recovered runner HTML, and the two
+  retest checklist JSONs. Recreate from the recipe above if needed.
+- **The Test Checklist Runner is an artifact, not a repo file:**
+  https://claude.ai/code/artifact/29f87e87-3154-4046-8b95-010ab0a27eca — `WebFetch` on that
+  URL returns the full HTML source verbatim. **To update it, pass the `url` parameter** to
+  the Artifact tool, or a new conversation mints a *different* artifact.
+
+## Carried forward — still true
+
+- **The runner only seeds itself when `localStorage` is empty.** A published change to the
+  seed checklist will not reach a browser that already loaded an earlier revision. This
+  session added `round.rev` + `refreshSeed()` to handle that: bump `rev` when editing the
+  seed. Recorded results survive the refresh; steps that no longer exist are dropped.
+- **`localStorage['claude-test-rounds']` and `format: 'claude-test-round'` must never be
+  renamed** — renaming orphans the user's recorded progress and breaks exported files.
+- **Claude cannot see the user's checklist progress.** Only `downloads` and `mcp`
+  capabilities exist on this account; results arrive only when the user pastes them.
+- **Alt and Ctrl are orthogonal** — Alt = "where may the sweep start", Ctrl = "replace or
+  add". **The Alt check must stay above the Ctrl branch** in `editor.js` `pointerdown`.
+- **Deselect is bound to `#edSvg`, never `document`** — that is what stops app chrome
+  clearing a selection.
+- **`app/js/model.js` is git-"binary"** (intentional NUL ~line 114) — grep `-a`, hand-merge.
+- **The top-level `*.html` are generated** — never hand-edit; the pre-commit hook rebuilds
+  them and CI carries a rebuild-diff guard.
+- **The site has one floor** ("Green Mile"), the BAM editor has **no persistence** (reload
+  resets it, which is what makes destructive testing safe), and
+  `POC3-Building-Area-Manager.html` at the repo root is self-contained — double-click to
+  run, no clone or server needed.
+- **The user is on Windows PowerShell 5.1 with no local clone** — `&&` is a syntax error
+  there and Python is `python`, not `python3`.
+- **Do NOT gitignore `Claude Package/`** — fresh Code-on-web sessions clone the repo and
+  see only committed files, so this handoff must stay tracked. (The `handoff` skill's
+  generic advice says to gitignore it; this repo overrides that.)
+- **Branch deletion over git is blocked** (proxy 403) — use the GitHub web UI. Merged
+  branches show "1 ahead / N behind" from squash-merging; check `git cherry` / an empty
+  `git diff` against `main` before calling one unsafe to delete.
 
 ## Suggested next steps
 
-1. **User's next action:** open the checklist artifact, follow "Start here — how to run
-   this", download `POC3-Building-Area-Manager.html` from the branch, and work through the
-   21 required steps. Steps 11 and 14 are the critical ones.
-2. **Then:** the user presses *Copy results for Claude* and pastes the JSON back. Read it,
-   and act on any failure — the JSON carries the full checklist so no prior context is needed.
-3. **If the checklist comes back clean:** open a PR from `claude/startup-skill-p8cy4n` to
-   `main` and let the user merge it. CI carries the real rebuild-diff guard.
+1. **PR #18 is open, CI green, no review comments.** It needs the user's review and merge.
+   This session is subscribed to its activity and should keep driving it to merged.
+2. **After merge:** `claude/startup-skill-fj1fn3` can be deleted (web UI), and the
+   checklist artifact's download link should be repointed from the branch back to `main`
+   — bump `round.rev` so the change actually reaches the user's browser.
+3. **If the lock-up ever returns**, the diagnostic question is *when* the no-drop cursor
+   appears: at the instant of the press (something is draggable) versus after a few pixels
+   of movement (a selection is arming a native drag).
 4. Deferred ideas, only if asked: **BAM editor autosave to localStorage**; **"Match size"
    bulk action** (the user declined all three multi-resize variants once already).
 
 ## Open questions
 
-- None blocking. The checklist is waiting on the user's hands, not on a decision.
+- None blocking. PR #18 is waiting on the user's merge.

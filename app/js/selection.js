@@ -38,6 +38,19 @@ export function rectHits(entries, r) {
   return hits;
 }
 
+// `ids` reordered so the ones `isRaised` accepts come last, each group otherwise
+// keeping its original relative order. The editor paints in this order, so a selected
+// box lands on top of anything it overlaps — and since SVG hit-testing follows paint
+// order, the box you can see is the box you grab. Without the raise, a box dragged onto
+// a neighbour that happens to come later in model order is buried underneath it, and
+// the next press silently grabs the neighbour instead: the drag reads as ignored until
+// you retry enough times to shuffle the obstruction away.
+export function paintOrder(ids, isRaised) {
+  const base = [], raised = [];
+  for (const id of ids) (isRaised(id) ? raised : base).push(id);
+  return base.concat(raised);
+}
+
 // The largest in-bounds translation of a group of boxes by a *shared* delta: every
 // box shifts by the same returned (dx, dy) — preserving their relative layout — clamped
 // so the group's bounding box stays inside a WxH canvas. Clamping the group as a whole
