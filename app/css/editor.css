@@ -37,6 +37,9 @@
 
 /* empty state shown when a site has no floors yet */
 .ed-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .4rem; padding: 2rem; text-align: center; color: var(--muted); }
+/* The author `display: flex` overrides the UA `[hidden]{display:none}`, so the
+   hidden attribute needs an explicit override to actually hide the empty state. */
+.ed-empty[hidden] { display: none; }
 .ed-empty p { max-width: 30rem; margin: 0; line-height: 1.5; }
 
 /* undo/redo group in the editor header */
