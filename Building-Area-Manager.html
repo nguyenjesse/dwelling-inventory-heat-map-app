@@ -316,9 +316,14 @@ svg.locked .ed-area { cursor: default; }
    is a tool overlay, and in violet its own boundary got lost among the previews. */
 .ed-marquee { fill: #37474f; fill-opacity: .08; stroke: #263238; stroke-width: 1.5px; stroke-dasharray: 5 3; vector-effect: non-scaling-stroke; pointer-events: none; }
 .ed-area.preview { fill: #8e24aa; fill-opacity: .26; stroke: #8e24aa; stroke-width: 2px; stroke-dasharray: 5 3; }
-/* While Alt is held a drag makes a marquee anywhere, including over a box — so the
-   move cursor would be a lie. */
-svg.marquee-ready .ed-area, svg.marquee-ready.locked .ed-area { cursor: crosshair; }
+/* While Alt is held a drag makes a marquee anywhere — bare canvas, a box, or a resize
+   handle — so every cursor under it would otherwise be a lie. The bare-canvas case needs
+   the svg itself: it has no cursor of its own, so without this rule Alt changes the
+   cursor over boxes but not over the empty floor, which reads as the affordance being
+   broken exactly where the gesture is most ordinary. */
+svg.marquee-ready,
+svg.marquee-ready .ed-area, svg.marquee-ready.locked .ed-area,
+svg.marquee-ready .ed-handle { cursor: crosshair; }
 
 .ed-handle { fill: #fff; stroke: #e65100; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: nwse-resize; }
 .ed-label { font: 600 11px Arial, sans-serif; fill: #14213d; paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; }
@@ -563,6 +568,19 @@ function rectHits(entries, r) {
     if (e.x < r.x + r.w && e.x + e.w > r.x && e.y < r.y + r.h && e.y + e.h > r.y) hits.push(e.id);
   }
   return hits;
+}
+
+// `ids` reordered so the ones `isRaised` accepts come last, each group otherwise
+// keeping its original relative order. The editor paints in this order, so a selected
+// box lands on top of anything it overlaps — and since SVG hit-testing follows paint
+// order, the box you can see is the box you grab. Without the raise, a box dragged onto
+// a neighbour that happens to come later in model order is buried underneath it, and
+// the next press silently grabs the neighbour instead: the drag reads as ignored until
+// you retry enough times to shuffle the obstruction away.
+function paintOrder(ids, isRaised) {
+  const base = [], raised = [];
+  for (const id of ids) (isRaised(id) ? raised : base).push(id);
+  return base.concat(raised);
 }
 
 // The largest in-bounds translation of a group of boxes by a *shared* delta: every
@@ -1311,7 +1329,13 @@ const DEFAULT_CATEGORIES = [
   function drawAll() {
     svg.innerHTML = '';
     rectEls.clear();
-    for (const a of floorAreas()) {
+    // Selected boxes paint last, so the box you just moved sits on top of whatever it
+    // landed on and stays the one your next press grabs. `marqueeEntries` still reads
+    // model order, so hit-order for a sweep is unaffected by this.
+    const byId = new Map(floorAreas().map((a) => [a.id, a]));
+    const order = paintOrder([...byId.keys()], (id) => id === activeId || selected.has(id));
+    for (const id of order) {
+      const a = byId.get(id);
       const g = regions[a.id];
       if (!g) continue;
       const r = document.createElementNS(SVGNS, 'rect');

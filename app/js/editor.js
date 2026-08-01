@@ -10,7 +10,7 @@ import { download } from './importexport.js';
 import { fillOperatorTemplate, readImageDataUrl } from './opbuild.js';
 import { SCHEMA_VERSION, resolveProjectBundle } from './schema.js';
 import { createHistory } from './history.js';
-import { rangeSelect, clampGroupDelta, normalizeRect, rectHits } from './selection.js';
+import { rangeSelect, clampGroupDelta, normalizeRect, rectHits, paintOrder } from './selection.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const $ = (s) => document.querySelector(s);
@@ -143,7 +143,13 @@ const DEFAULT_CATEGORIES = [
   function drawAll() {
     svg.innerHTML = '';
     rectEls.clear();
-    for (const a of floorAreas()) {
+    // Selected boxes paint last, so the box you just moved sits on top of whatever it
+    // landed on and stays the one your next press grabs. `marqueeEntries` still reads
+    // model order, so hit-order for a sweep is unaffected by this.
+    const byId = new Map(floorAreas().map((a) => [a.id, a]));
+    const order = paintOrder([...byId.keys()], (id) => id === activeId || selected.has(id));
+    for (const id of order) {
+      const a = byId.get(id);
       const g = regions[a.id];
       if (!g) continue;
       const r = document.createElementNS(SVGNS, 'rect');
