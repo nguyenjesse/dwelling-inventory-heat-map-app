@@ -4,12 +4,12 @@ import { validateManifest } from '../js/validate.js';
 import { createModel } from '../js/model.js';
 import { createBreakdown } from '../js/breakdown.js';
 import { createIoSummary } from '../js/iosummary.js';
-import { importCounts, exportCsv, exportFilename } from '../js/importexport.js';
+import { importCounts, exportCsv, exportJson, exportFilename } from '../js/importexport.js';
 import { fillOperatorTemplate, SEED_TOKEN, BG_TOKEN } from '../js/opbuild.js';
 import { matchAreas } from '../js/form.js';
 import { SCHEMA_VERSION, migrate, readVersion, resolveProjectBundle } from '../js/schema.js';
 import { createHistory } from '../js/history.js';
-import { rangeSelect } from '../js/selection.js';
+import { rangeSelect, clampGroupDelta } from '../js/selection.js';
 
 const results = [];
 function test(name, fn) {
@@ -390,6 +390,33 @@ test('import requires Area and Pallets columns', () => {
   const { errors } = importCounts(m, 'Foo,Bar\n1,2', 'csv');
   assert(errors.some((e) => /Missing required columns/.test(e.message)));
 });
+
+// ---------- self-dating JSON export wrapper (#12) ----------
+test('JSON export wraps counts with schemaVersion + takenAt', () => {
+  const m = freshModel();
+  m.setCount('presort-phase-1', 3);
+  const obj = JSON.parse(exportJson(m, new Date(2026, 0, 2, 3, 4, 5)));
+  eq(obj.schemaVersion, SCHEMA_VERSION, 'stamps the current schema version');
+  assert(typeof obj.takenAt === 'string' && !Number.isNaN(Date.parse(obj.takenAt)), 'takenAt is an ISO timestamp');
+  assert(Array.isArray(obj.counts), 'counts is an array');
+  eq(obj.counts.length, 1);
+  eq(obj.counts[0].areaId, 'presort-phase-1');
+  eq(obj.counts[0].count, 3);
+});
+test('JSON export omits zero-count areas', () => {
+  const m = freshModel();
+  m.setCount('presort-phase-1', 0);
+  eq(JSON.parse(exportJson(m)).counts.length, 0);
+});
+test('wrapped JSON export round-trips through importCounts', () => {
+  const m = freshModel();
+  m.setCount('presort-phase-1', 4);
+  m.setCount('end-of-line-a', 9);
+  const { counts, errors } = importCounts(m, exportJson(m), 'json');
+  eq(errors.length, 0, 'no import errors');
+  eq(counts['presort-phase-1'], 4);
+  eq(counts['end-of-line-a'], 9);
+});
 clearAllCountKeys();
 
 // ---------- operator area search (matchAreas) ----------
@@ -537,6 +564,28 @@ test('rangeSelect with a missing id falls back to the present one', () => {
   eq(rangeSelect(order, 'a', 'zz').join(','), 'a');
   eq(rangeSelect(order, 'zz', 'e').join(','), 'e');
   eq(rangeSelect(order, 'x', 'y').length, 0);
+});
+
+// ---------- group translate clamp (clampGroupDelta) ----------
+test('clampGroupDelta passes an in-bounds delta through', () => {
+  const boxes = [{ x: 10, y: 10, w: 20, h: 20 }, { x: 40, y: 10, w: 20, h: 20 }];
+  const d = clampGroupDelta(boxes, 5, -3, 100, 100);
+  eq(d.dx, 5); eq(d.dy, -3);
+});
+test('clampGroupDelta clamps at the right/bottom edge, keeping one shared delta', () => {
+  // group bbox maxX=90, maxY=90 on a 100x100 canvas → only +10 of headroom
+  const boxes = [{ x: 10, y: 10, w: 20, h: 20 }, { x: 70, y: 70, w: 20, h: 20 }];
+  const d = clampGroupDelta(boxes, 50, 50, 100, 100);
+  eq(d.dx, 10); eq(d.dy, 10);
+});
+test('clampGroupDelta clamps at the left/top edge', () => {
+  const boxes = [{ x: 5, y: 8, w: 20, h: 20 }];
+  const d = clampGroupDelta(boxes, -50, -50, 100, 100);
+  eq(d.dx, -5); eq(d.dy, -8);
+});
+test('clampGroupDelta on an empty group yields no movement', () => {
+  const d = clampGroupDelta([], 5, 5, 100, 100);
+  eq(d.dx, 0); eq(d.dy, 0);
 });
 
 // ---------- operator-file generation (Building Area Manager) ----------

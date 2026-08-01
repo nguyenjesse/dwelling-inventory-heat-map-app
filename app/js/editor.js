@@ -10,7 +10,7 @@ import { download } from './importexport.js';
 import { fillOperatorTemplate, readImageDataUrl } from './opbuild.js';
 import { SCHEMA_VERSION, resolveProjectBundle } from './schema.js';
 import { createHistory } from './history.js';
-import { rangeSelect } from './selection.js';
+import { rangeSelect, clampGroupDelta } from './selection.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const $ = (s) => document.querySelector(s);
@@ -196,18 +196,31 @@ const DEFAULT_CATEGORIES = [
   svg.addEventListener('pointerdown', (e) => {
     const handle = e.target.closest('.ed-handle');
     const area = e.target.closest('.ed-area');
-    // When locked, still select on click but never arm a drag/resize.
+    const target = area || handle;
+    // Ctrl/⌘-click on the map toggles that area in the selection (mirrors the
+    // sidebar) and never arms a drag — works locked or unlocked.
+    if ((e.ctrlKey || e.metaKey) && target) { toggleInSelection(target.dataset.id); return; }
+    // When locked, plain-click still selects (single) but never arms a drag/resize.
     if (locked) {
-      if (handle) setActive(handle.dataset.id);
-      else if (area) setActive(area.dataset.id);
+      if (target) setActive(target.dataset.id);
       return;
     }
     if (handle) {
       setActive(handle.dataset.id);
       drag = { mode: handle.dataset.handle, id: handle.dataset.id, start: toUnits(e.clientX, e.clientY), orig: { ...regions[handle.dataset.id] } };
     } else if (area) {
-      setActive(area.dataset.id);
-      drag = { mode: 'move', id: area.dataset.id, start: toUnits(e.clientX, e.clientY), orig: { ...regions[area.dataset.id] } };
+      const id = area.dataset.id;
+      if (selected.size > 1 && selected.has(id)) {
+        // Grabbed a member of a multi-selection: arm a group move (all boxes shift
+        // together). Keep the selection as-is; a plain click that doesn't move
+        // isolates this box instead (resolved in end()).
+        const origs = {};
+        for (const sid of selected) if (regions[sid]) origs[sid] = { ...regions[sid] };
+        drag = { mode: 'group', grabbedId: id, start: toUnits(e.clientX, e.clientY), startClient: { x: e.clientX, y: e.clientY }, origs };
+      } else {
+        setActive(id);
+        drag = { mode: 'move', id, start: toUnits(e.clientX, e.clientY), orig: { ...regions[id] } };
+      }
     } else { return; }
     dragMoved = false;
     svg.setPointerCapture(e.pointerId);
@@ -217,6 +230,22 @@ const DEFAULT_CATEGORIES = [
     if (!drag) return;
     const p = toUnits(e.clientX, e.clientY);
     const dx = p.x - drag.start.x, dy = p.y - drag.start.y;
+    if (drag.mode === 'group') {
+      const d = clampGroupDelta(Object.values(drag.origs), dx, dy, W, H);
+      for (const [id, og] of Object.entries(drag.origs)) {
+        const g = round({ x: og.x + d.dx, y: og.y + d.dy, w: og.w, h: og.h });
+        regions[id] = g;
+        const r = rectEls.get(id);
+        if (r) { r.setAttribute('x', g.x); r.setAttribute('y', g.y); }
+      }
+      // Keep the primary's handles + label tracking the move.
+      svg.querySelectorAll('.ed-handle, .ed-label').forEach((n) => n.remove());
+      if (activeId && regions[activeId]) drawHandles(activeId);
+      // Distinguish a real drag from a click (for click-to-isolate) by pointer travel.
+      if (Math.hypot(e.clientX - drag.startClient.x, e.clientY - drag.startClient.y) > 3) dragMoved = true;
+      syncFields();
+      return;
+    }
     const o = drag.orig;
     let g = { ...regions[drag.id] };
     if (drag.mode === 'move') { g.x = o.x + dx; g.y = o.y + dy; }
@@ -235,7 +264,10 @@ const DEFAULT_CATEGORIES = [
   const end = () => {
     if (!drag) return;
     const moved = dragMoved;
+    const isolate = drag.mode === 'group' && !moved ? drag.grabbedId : null;
     drag = null; dragMoved = false;
+    // A plain click (no drag) on a member of a multi-selection collapses to just it.
+    if (isolate) { setActive(isolate); return; }
     drawAll(); syncFields();
     if (moved) commitHistory();
   };
@@ -672,8 +704,27 @@ const DEFAULT_CATEGORIES = [
   const ARROWS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
   document.addEventListener('keydown', (e) => {
     if (locked) return; // lock also freezes arrow-key nudging; use the x/y/w/h fields instead
-    if (!activeId || !regions[activeId]) return;
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+    if (!ARROWS.includes(e.key)) return;
+
+    // Multi-selection: nudge the whole group together, move-only (Shift-resize has
+    // no meaning for a group). Clamp as a group so an aligned row stays aligned at
+    // an edge. One undo step per key burst (committed on keyup, same as single).
+    if (selected.size > 1) {
+      if (e.shiftKey) return;
+      const mv = e.altKey ? 1 : 4;
+      const dx = e.key === 'ArrowLeft' ? -mv : e.key === 'ArrowRight' ? mv : 0;
+      const dy = e.key === 'ArrowUp' ? -mv : e.key === 'ArrowDown' ? mv : 0;
+      const ids = [...selected].filter((id) => regions[id]);
+      const d = clampGroupDelta(ids.map((id) => regions[id]), dx, dy, W, H);
+      for (const id of ids) { const o = regions[id]; regions[id] = round({ x: o.x + d.dx, y: o.y + d.dy, w: o.w, h: o.h }); }
+      e.preventDefault();
+      nudgePending = true;
+      drawAll(); syncFields();
+      return;
+    }
+
+    if (!activeId || !regions[activeId]) return;
     const step = e.shiftKey ? 0 : (e.altKey ? 1 : 4);
     const rstep = e.shiftKey ? (e.altKey ? 1 : 4) : 0;
     let g = { ...regions[activeId] };
