@@ -9,7 +9,7 @@ import { fillOperatorTemplate, SEED_TOKEN, BG_TOKEN } from '../js/opbuild.js';
 import { matchAreas } from '../js/form.js';
 import { SCHEMA_VERSION, migrate, readVersion, resolveProjectBundle } from '../js/schema.js';
 import { createHistory } from '../js/history.js';
-import { rangeSelect, clampGroupDelta } from '../js/selection.js';
+import { rangeSelect, clampGroupDelta, normalizeRect, rectHits } from '../js/selection.js';
 
 const results = [];
 function test(name, fn) {
@@ -586,6 +586,49 @@ test('clampGroupDelta clamps at the left/top edge', () => {
 test('clampGroupDelta on an empty group yields no movement', () => {
   const d = clampGroupDelta([], 5, 5, 100, 100);
   eq(d.dx, 0); eq(d.dy, 0);
+});
+
+// ---------- marquee select (normalizeRect / rectHits) ----------
+test('normalizeRect describes the same region dragged in any direction', () => {
+  const want = 'x10 y20 w30 h40';
+  const show = (r) => `x${r.x} y${r.y} w${r.w} h${r.h}`;
+  eq(show(normalizeRect(10, 20, 40, 60)), want);  // down-right
+  eq(show(normalizeRect(40, 60, 10, 20)), want);  // up-left
+  eq(show(normalizeRect(40, 20, 10, 60)), want);  // down-left
+  eq(show(normalizeRect(10, 60, 40, 20)), want);  // up-right
+});
+test('normalizeRect of a click (no travel) is a zero-area rect', () => {
+  const r = normalizeRect(15, 25, 15, 25);
+  eq(r.x, 15); eq(r.y, 25); eq(r.w, 0); eq(r.h, 0);
+});
+
+const boxes = [
+  { id: 'a', x: 0, y: 0, w: 20, h: 20 },
+  { id: 'b', x: 50, y: 50, w: 20, h: 20 },
+  { id: 'c', x: 60, y: 60, w: 100, h: 100 },
+];
+test('rectHits catches a box the marquee only brushes (intersection, not containment)', () => {
+  // Clips a's bottom-right corner, nowhere near enclosing it.
+  eq(rectHits(boxes, { x: 15, y: 15, w: 10, h: 10 }).join(','), 'a');
+});
+test('rectHits catches a box larger than the marquee itself', () => {
+  // Entirely inside c — containment-only matching would miss this.
+  eq(rectHits(boxes, { x: 100, y: 100, w: 5, h: 5 }).join(','), 'c');
+});
+test('rectHits returns every overlapped box, in entry order', () => {
+  eq(rectHits(boxes, { x: 0, y: 0, w: 200, h: 200 }).join(','), 'a,b,c');
+  eq(rectHits(boxes, { x: 55, y: 55, w: 10, h: 10 }).join(','), 'b,c');
+});
+test('rectHits ignores a marquee that merely touches an edge', () => {
+  eq(rectHits(boxes, { x: 20, y: 0, w: 10, h: 20 }).length, 0);
+});
+test('rectHits finds nothing in a gap, and nothing among no entries', () => {
+  eq(rectHits(boxes, { x: 25, y: 25, w: 20, h: 20 }).length, 0);
+  eq(rectHits([], { x: 0, y: 0, w: 100, h: 100 }).length, 0);
+});
+test('a zero-area marquee (plain click) on bare canvas selects nothing', () => {
+  // This is what makes "click empty space to deselect" need no special case.
+  eq(rectHits(boxes, normalizeRect(35, 35, 35, 35)).length, 0);
 });
 
 // ---------- operator-file generation (Building Area Manager) ----------
