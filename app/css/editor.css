@@ -87,5 +87,17 @@ svg.locked .ed-area { cursor: default; }
 /* The primary area within a multi-selection keeps the violet fill but takes the
    orange active stroke, so you can still see which box drives the attribute panel. */
 .ed-area.active.multi { fill: #8e24aa; fill-opacity: .42; stroke: #e65100; stroke-dasharray: 7 4; }
+/* Rubber-band select: the sweep rectangle itself, and the lighter "will be selected"
+   wash on the boxes it is currently touching. The preview gets its own class rather
+   than reusing .multi, which only paints above one selection and cascades awkwardly
+   with .active. */
+/* Neutral slate, deliberately NOT the violet of the boxes it is catching — the sweep
+   is a tool overlay, and in violet its own boundary got lost among the previews. */
+.ed-marquee { fill: #37474f; fill-opacity: .08; stroke: #263238; stroke-width: 1.5px; stroke-dasharray: 5 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+.ed-area.preview { fill: #8e24aa; fill-opacity: .26; stroke: #8e24aa; stroke-width: 2px; stroke-dasharray: 5 3; }
+/* While Alt is held a drag makes a marquee anywhere, including over a box — so the
+   move cursor would be a lie. */
+svg.marquee-ready .ed-area, svg.marquee-ready.locked .ed-area { cursor: crosshair; }
+
 .ed-handle { fill: #fff; stroke: #e65100; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: nwse-resize; }
 .ed-label { font: 600 11px Arial, sans-serif; fill: #14213d; paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; }

@@ -10,7 +10,7 @@ import { download } from './importexport.js';
 import { fillOperatorTemplate, readImageDataUrl } from './opbuild.js';
 import { SCHEMA_VERSION, resolveProjectBundle } from './schema.js';
 import { createHistory } from './history.js';
-import { rangeSelect, clampGroupDelta } from './selection.js';
+import { rangeSelect, clampGroupDelta, normalizeRect, rectHits } from './selection.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const $ = (s) => document.querySelector(s);
@@ -197,12 +197,20 @@ const DEFAULT_CATEGORIES = [
     const handle = e.target.closest('.ed-handle');
     const area = e.target.closest('.ed-area');
     const target = area || handle;
+    // Alt forces a marquee even when the press lands on a box, so a floor plan with
+    // no bare canvas left can still be rubber-banded. Checked before the Ctrl branch
+    // below, which would otherwise swallow Ctrl+Alt (an *additive* forced marquee).
+    if (e.altKey) { e.preventDefault(); startMarquee(e); return; }
     // Ctrl/⌘-click on the map toggles that area in the selection (mirrors the
     // sidebar) and never arms a drag — works locked or unlocked.
     if ((e.ctrlKey || e.metaKey) && target) { toggleInSelection(target.dataset.id); return; }
+    // Press on bare canvas: rubber-band select. Above the lock check because a
+    // marquee only reads the layout, it never moves anything — same reasoning that
+    // lets Ctrl-click select while locked.
+    if (!target) { startMarquee(e); return; }
     // When locked, plain-click still selects (single) but never arms a drag/resize.
     if (locked) {
-      if (target) setActive(target.dataset.id);
+      setActive(target.dataset.id);
       return;
     }
     if (handle) {
@@ -226,7 +234,71 @@ const DEFAULT_CATEGORIES = [
     svg.setPointerCapture(e.pointerId);
   });
 
+  // ---- marquee (rubber-band) select ----
+  // Kept in its own state rather than folded into `drag`, so none of the geometry
+  // paths above have to grow a "…unless it's a marquee" case. A marquee never edits
+  // a region, so it also never touches the undo history.
+  let marquee = null; // { start, additive, rect, hits }
+
+  // Boxes on the current floor as flat { id, x, y, w, h } entries. Deliberately
+  // unfiltered by the sidebar search: the map paints every area on the floor, so the
+  // marquee catches what you can actually see rather than what the list happens to show.
+  const marqueeEntries = () =>
+    floorAreas().filter((a) => regions[a.id]).map((a) => ({ id: a.id, ...regions[a.id] }));
+
+  function startMarquee(e) {
+    const rect = document.createElementNS(SVGNS, 'rect');
+    rect.setAttribute('class', 'ed-marquee');
+    svg.appendChild(rect); // last child, so it paints over the boxes
+    marquee = {
+      start: toUnits(e.clientX, e.clientY),
+      additive: e.ctrlKey || e.metaKey,
+      rect,
+      hits: [],
+    };
+    updateMarquee(marquee.start);
+    svg.setPointerCapture(e.pointerId);
+  }
+
+  function updateMarquee(p) {
+    const r = normalizeRect(marquee.start.x, marquee.start.y, p.x, p.y);
+    marquee.rect.setAttribute('x', r.x); marquee.rect.setAttribute('y', r.y);
+    marquee.rect.setAttribute('width', r.w); marquee.rect.setAttribute('height', r.h);
+    marquee.hits = rectHits(marqueeEntries(), r);
+    // Live preview through a class of its own — `.multi` only paints when more than
+    // one area is selected and its cascade with `.active` is delicate, so a transient
+    // highlight has no business borrowing it. Mutating the cached rects (rather than
+    // calling drawAll, which wipes the svg) is also what keeps the marquee alive.
+    const hit = new Set(marquee.hits);
+    for (const [id, el] of rectEls) el.classList.toggle('preview', hit.has(id));
+  }
+
+  function endMarquee() {
+    const { additive, hits, rect } = marquee;
+    rect.remove();
+    for (const el of rectEls.values()) el.classList.remove('preview');
+    marquee = null;
+    const next = additive ? new Set([...selected, ...hits]) : new Set(hits);
+    // A plain click on bare canvas is just a zero-area marquee that hits nothing, so
+    // clearing the selection needs no case of its own. An additive sweep that hits
+    // nothing unions with nothing and correctly leaves the selection alone.
+    if (!next.size) { setActive(null); return; }
+    selected = next;
+    // Primary = the last hit in draw order, i.e. the one painted on top.
+    if (!selected.has(activeId)) activeId = [...(hits.length ? hits : selected)].pop();
+    renderSelection();
+  }
+
+  // Alt-held affordance: `.ed-area` is `cursor: move`, which would otherwise lie about
+  // what an Alt-drag is going to do. Clearing on window blur stops the cursor getting
+  // stuck after an Alt-Tab, where the keyup lands in another window.
+  const setMarqueeReady = (on) => svg.classList.toggle('marquee-ready', on);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Alt') setMarqueeReady(true); });
+  document.addEventListener('keyup', (e) => { if (e.key === 'Alt') setMarqueeReady(false); });
+  window.addEventListener('blur', () => setMarqueeReady(false));
+
   svg.addEventListener('pointermove', (e) => {
+    if (marquee) { updateMarquee(toUnits(e.clientX, e.clientY)); return; }
     if (!drag) return;
     const p = toUnits(e.clientX, e.clientY);
     const dx = p.x - drag.start.x, dy = p.y - drag.start.y;
@@ -262,6 +334,7 @@ const DEFAULT_CATEGORIES = [
     updateActiveRect();
   });
   const end = () => {
+    if (marquee) { endMarquee(); return; }
     if (!drag) return;
     const moved = dragMoved;
     const isolate = drag.mode === 'group' && !moved ? drag.grabbedId : null;
