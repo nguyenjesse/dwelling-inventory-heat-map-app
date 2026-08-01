@@ -12,6 +12,9 @@
   margin-top: .5rem; padding: .5rem; border: 1px solid var(--accent);
   border-radius: 6px; background: #eef2f8;
 }
+/* The author `display: flex` above overrides the UA `[hidden]{display:none}`
+   rule, so the hidden attribute needs an explicit override to take effect. */
+.ed-bulk[hidden] { display: none; }
 .ed-bulk-count { font-size: .8rem; font-weight: 600; color: var(--accent); }
 .ed-bulk select { font: inherit; font-size: .8rem; padding: .3rem .4rem; border: 1px solid var(--border); border-radius: 5px; background: #fff; flex: 1; min-width: 0; }
 .ed-bulk-actions { display: inline-flex; gap: .3rem; }
