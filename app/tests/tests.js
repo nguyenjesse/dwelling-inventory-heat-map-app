@@ -9,7 +9,7 @@ import { fillOperatorTemplate, SEED_TOKEN, BG_TOKEN } from '../js/opbuild.js';
 import { matchAreas } from '../js/form.js';
 import { SCHEMA_VERSION, migrate, readVersion, resolveProjectBundle } from '../js/schema.js';
 import { createHistory } from '../js/history.js';
-import { rangeSelect } from '../js/selection.js';
+import { rangeSelect, clampGroupDelta } from '../js/selection.js';
 
 const results = [];
 function test(name, fn) {
@@ -564,6 +564,28 @@ test('rangeSelect with a missing id falls back to the present one', () => {
   eq(rangeSelect(order, 'a', 'zz').join(','), 'a');
   eq(rangeSelect(order, 'zz', 'e').join(','), 'e');
   eq(rangeSelect(order, 'x', 'y').length, 0);
+});
+
+// ---------- group translate clamp (clampGroupDelta) ----------
+test('clampGroupDelta passes an in-bounds delta through', () => {
+  const boxes = [{ x: 10, y: 10, w: 20, h: 20 }, { x: 40, y: 10, w: 20, h: 20 }];
+  const d = clampGroupDelta(boxes, 5, -3, 100, 100);
+  eq(d.dx, 5); eq(d.dy, -3);
+});
+test('clampGroupDelta clamps at the right/bottom edge, keeping one shared delta', () => {
+  // group bbox maxX=90, maxY=90 on a 100x100 canvas → only +10 of headroom
+  const boxes = [{ x: 10, y: 10, w: 20, h: 20 }, { x: 70, y: 70, w: 20, h: 20 }];
+  const d = clampGroupDelta(boxes, 50, 50, 100, 100);
+  eq(d.dx, 10); eq(d.dy, 10);
+});
+test('clampGroupDelta clamps at the left/top edge', () => {
+  const boxes = [{ x: 5, y: 8, w: 20, h: 20 }];
+  const d = clampGroupDelta(boxes, -50, -50, 100, 100);
+  eq(d.dx, -5); eq(d.dy, -8);
+});
+test('clampGroupDelta on an empty group yields no movement', () => {
+  const d = clampGroupDelta([], 5, 5, 100, 100);
+  eq(d.dx, 0); eq(d.dy, 0);
 });
 
 // ---------- operator-file generation (Building Area Manager) ----------
