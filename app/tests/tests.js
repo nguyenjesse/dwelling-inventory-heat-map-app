@@ -4,7 +4,7 @@ import { validateManifest } from '../js/validate.js';
 import { createModel } from '../js/model.js';
 import { createBreakdown } from '../js/breakdown.js';
 import { createIoSummary } from '../js/iosummary.js';
-import { importCounts, exportCsv, exportFilename } from '../js/importexport.js';
+import { importCounts, exportCsv, exportJson, exportFilename } from '../js/importexport.js';
 import { fillOperatorTemplate, SEED_TOKEN, BG_TOKEN } from '../js/opbuild.js';
 import { matchAreas } from '../js/form.js';
 import { SCHEMA_VERSION, migrate, readVersion, resolveProjectBundle } from '../js/schema.js';
@@ -389,6 +389,33 @@ test('import requires Area and Pallets columns', () => {
   const m = freshModel();
   const { errors } = importCounts(m, 'Foo,Bar\n1,2', 'csv');
   assert(errors.some((e) => /Missing required columns/.test(e.message)));
+});
+
+// ---------- self-dating JSON export wrapper (#12) ----------
+test('JSON export wraps counts with schemaVersion + takenAt', () => {
+  const m = freshModel();
+  m.setCount('presort-phase-1', 3);
+  const obj = JSON.parse(exportJson(m, new Date(2026, 0, 2, 3, 4, 5)));
+  eq(obj.schemaVersion, SCHEMA_VERSION, 'stamps the current schema version');
+  assert(typeof obj.takenAt === 'string' && !Number.isNaN(Date.parse(obj.takenAt)), 'takenAt is an ISO timestamp');
+  assert(Array.isArray(obj.counts), 'counts is an array');
+  eq(obj.counts.length, 1);
+  eq(obj.counts[0].areaId, 'presort-phase-1');
+  eq(obj.counts[0].count, 3);
+});
+test('JSON export omits zero-count areas', () => {
+  const m = freshModel();
+  m.setCount('presort-phase-1', 0);
+  eq(JSON.parse(exportJson(m)).counts.length, 0);
+});
+test('wrapped JSON export round-trips through importCounts', () => {
+  const m = freshModel();
+  m.setCount('presort-phase-1', 4);
+  m.setCount('end-of-line-a', 9);
+  const { counts, errors } = importCounts(m, exportJson(m), 'json');
+  eq(errors.length, 0, 'no import errors');
+  eq(counts['presort-phase-1'], 4);
+  eq(counts['end-of-line-a'], 9);
 });
 clearAllCountKeys();
 

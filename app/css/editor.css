@@ -54,7 +54,7 @@
 .area-list li { padding: .4rem .5rem; border-radius: 5px; cursor: pointer; font-size: .84rem; display: flex; justify-content: space-between; gap: .4rem; }
 .area-list li:hover { background: #eef1f4; }
 .area-list li.active { background: var(--accent); color: #fff; }
-.area-list li.multi-selected { background: #cfe0f5; }
+.area-list li.multi-selected { background: #edd6f5; box-shadow: inset 3px 0 0 #8e24aa; }
 .area-list li.multi-selected.active { background: var(--accent); color: #fff; }
 .area-list li .dept { font-size: .72rem; color: var(--muted); }
 .area-list li.active .dept { color: #dbe4f5; }
@@ -80,6 +80,12 @@
 .ed-area { fill: #2f528f; fill-opacity: .18; stroke: #2f528f; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: move; }
 svg.locked .ed-area { cursor: default; }
 .ed-area.active { fill: #ff9800; fill-opacity: .3; stroke: #e65100; stroke-width: 2px; }
-.ed-area.multi { fill: #2f528f; fill-opacity: .32; stroke: #2f528f; stroke-width: 2px; }
+/* Multi-selected areas get a distinct violet identity (not just a denser blue)
+   with a dashed outline, so a selection reads at a glance and never blends into
+   the unselected boxes. */
+.ed-area.multi { fill: #8e24aa; fill-opacity: .38; stroke: #6a1b9a; stroke-width: 3px; stroke-dasharray: 7 4; }
+/* The primary area within a multi-selection keeps the violet fill but takes the
+   orange active stroke, so you can still see which box drives the attribute panel. */
+.ed-area.active.multi { fill: #8e24aa; fill-opacity: .42; stroke: #e65100; stroke-dasharray: 7 4; }
 .ed-handle { fill: #fff; stroke: #e65100; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: nwse-resize; }
 .ed-label { font: 600 11px Arial, sans-serif; fill: #14213d; paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; }

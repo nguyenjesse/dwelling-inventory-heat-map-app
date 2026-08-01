@@ -1,5 +1,6 @@
 // importexport.js — per-area CSV/JSON import & export. Validated imports with
 // visible errors (no silent skips, unlike the Excel original).
+import { SCHEMA_VERSION } from './schema.js';
 
 // ---------- CSV helpers ----------
 function csvEscape(v) {
@@ -48,13 +49,21 @@ export function exportCsv(model) {
   return lines.join('\r\n');
 }
 
-export function exportJson(model) {
-  const out = [];
+// The file is wrapped as { schemaVersion, takenAt, counts:[...] } so it is self-
+// describing: you can tell when a snapshot was taken and which data model it used
+// without relying on the filename. The inner `counts` array is the same shape as
+// before and round-trips through importCounts unchanged (it reads `parsed.counts`).
+export function exportJson(model, d = new Date()) {
+  const counts = [];
   for (const area of model.seed.areas) {
     const count = model.getCount(area.id);
-    if (count > 0) out.push({ areaId: area.id, area: area.name, count });
+    if (count > 0) counts.push({ areaId: area.id, area: area.name, count });
   }
-  return JSON.stringify(out, null, 2);
+  return JSON.stringify({
+    schemaVersion: SCHEMA_VERSION,
+    takenAt: d.toISOString(),
+    counts,
+  }, null, 2);
 }
 
 // ---------- Import ----------
