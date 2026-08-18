@@ -1,191 +1,238 @@
 # Dwelling Inventory Heat Map
 
-A dependency-free browser rebuild of the Excel/VBA **POC3 Dwelling Inventory
-Map** workbook. It records how many dwelling pallets sit in each of the 76
-operational warehouse areas and heat-maps that distribution over the floor plan.
-A site can hold a separate layout per **floor**; both the operator map and the
-region editor have a Floor selector (the current site has a single floor).
+A browser tool for recording where **dwelling pallets** — aged, stuck inventory —
+are sitting across the warehouse floor, and heat-mapping that distribution over
+the site's own floor plan. It replaces the Excel/VBA **POC3 Dwelling Inventory
+Map** workbook.
 
-> Private use only. App upgrade to the Excel macro-based workbook.
+Everything ships as **self-contained HTML files**. No install, no server, no
+network, no npm, no accounts. An associate double-clicks one file and it opens in
+any browser, fully offline.
 
-- **No build step, no npm, no server required for associates.** Plain HTML + CSS
-  + ES-module JavaScript.
-- **Local-first.** Counts persist per-machine in the browser (`localStorage`).
-  CSV/JSON import & export move data in and out of Excel.
-- **Offline.** The distributable version is a single self-contained file.
+> Private/internal use. The floor plan and area names are site data, not code —
+> another site sets up its own without touching this repository.
 
-## How it works
+---
 
-1. **Pick an area** — choose it from the department-grouped dropdown, or click
-   its region directly on the map. Either way it loads into the entry card and
-   the count field is focused.
-2. **Type the pallet count** for that area and hit **Save** (or **Clear** to
-   zero it). Save sets the area's absolute count. The count field accepts only
-   whole numbers ≥ 0 — decimals, signs, and other stray characters are blocked
-   as you type.
-3. **The heat map updates live.** Zero-pallet areas are neutral gray; positive
-   counts are colored green → yellow → red, normalized across the *positive*
-   min/max of the areas on the currently visible floor only. Clicking an area
-   also shows its details (I-Beam, department, dept total, % of all pallets) in
-   the side panel. When a site has more than one floor, the **Floor** dropdown
-   filters the map to that floor; the header pallet total stays site-wide.
-4. **Read the roll-ups.** The **Inbound/Outbound** summary (left, under the entry
-   card) totals the two flow categories plus a site-wide grand total. The **Area
-   Breakdown** table (right) rolls counts up per department — click a department
-   to expand its areas (Area / Pole Location / Pallet Count). Both always show
-   every department and area, so a filtered-out category can still be compared.
-   The **category filter** dropdown dims the map to one flow (Inbound or
-   Outbound) or a single department, leaving the roll-ups untouched.
-5. **Import/Export** — CSV columns are `Area, Department, I_Beam_Location,
-   Pallets` (Excel-compatible); JSON export mirrors the same per-area counts.
-   Invalid rows are reported, never silently skipped. On import you choose how to
-   apply the file: **Fully replace** (clear every other area first), **Merge**
-   (update only the areas in the file), or **Cancel**.
+## What actually ships
 
-> Each person's counts live in their own browser and are never shared between
-> machines — matching the requirement that associates' maps stay separate.
+Three files at the repo root. These are the whole deliverable — everything else
+in this repository exists to produce them.
 
-## Two ways to run it
+| File | Size | Who gets it | What it does |
+|---|---|---|---|
+| `POC3-Dwelling-Inventory-Map.html` | ~3.5 MB | **Associates at this site** | The operator heat map. Record counts, read the roll-ups, export to Excel. |
+| `POC3-Building-Area-Manager.html` | ~3.6 MB | **The site admin** | The editor, pre-loaded with POC3's 76 areas, for maintaining this site's layout. |
+| `Building-Area-Manager.html` | ~190 KB | **Another site** | A *blank* editor. They build their own map from their own floor plan and generate their own operator file. |
 
-### 1. Standalone files — just double-click
+Each operator file carries a build timestamp in the footer (e.g.
+`POC3 · built 2026-08-18 19:50 UTC+0`), so anyone can tell how fresh the copy
+they were emailed is.
 
-The build produces three self-contained files at the repo root (data, floor-plan
-image, CSS, and JavaScript all inlined — no server, no install, fully offline):
+---
 
-| File | Who it's for |
-|---|---|
-| `POC3-Dwelling-Inventory-Map.html` | **This site's associates.** The operator heat map. Email it out; each person's counts live in their own browser. |
-| `POC3-Building-Area-Manager.html` | **You (admin).** The editor pre-loaded with POC3's layout, for maintaining this site. |
-| `Building-Area-Manager.html` | **Other sites.** A *blank* editor to hand to a new warehouse so they can set up their own map (see below). |
+## The operator map — recording a count
 
-Rebuild after **any** change to `app/` source or `app/data/`:
+1. **Pick an area.** Click its region on the map, choose it from the
+   department-grouped dropdown, or type into **Find area** to search by name or
+   I-Beam. Any of the three loads the area into the entry card, fills in its
+   I-Beam and Department, and focuses the count field.
+2. **Type the pallet count and Save.** Save sets the area's absolute count;
+   **Clear** zeroes it. The field takes whole numbers ≥ 0 only. **Undo**
+   (or Ctrl/⌘+Z) reverts the last single Save or Clear.
+3. **The heat map repaints live.** Zero-pallet areas are neutral gray; positive
+   counts run green → yellow → red, normalized across the positive counts on the
+   visible floor. Selecting an area outlines it in red, outlines the rest of its
+   department in orange, and fills the side panel with its I-Beam, department,
+   department total, and share of all pallets.
+4. **Read the roll-ups.** The **Inbound / Outbound** summary totals the two flow
+   categories plus a site-wide grand total. The **Area Breakdown** table rolls
+   counts up per department — click a department to expand its areas
+   (Area / Pole Location / Pallet Count). Both always list everything, so a
+   filtered-out department can still be compared. The **Department** filter dims
+   the map to one flow category or one department; **Hide empty** dims areas with
+   no count. Neither filter touches the roll-ups.
+5. **Move data in and out.** **Export CSV** writes a date-stamped, Excel-ready
+   file (`Area, Department, I_Beam_Location, Pallets`); **Export JSON** mirrors
+   the same counts. **Import…** accepts either, reports invalid rows rather than
+   skipping them silently, and asks how to apply the file — **Fully replace**
+   (clear every other area first), **Merge** (update only the file's areas), or
+   **Cancel**.
+
+**Counts live in the browser that recorded them** (`localStorage`), namespaced per
+site code. They are never shared between machines — matching the requirement that
+each associate's map stays their own. Import/export is how a count leaves the
+machine.
+
+---
+
+## Building Area Manager (BAM) — owning the layout
+
+BAM is the double-click editor. No terminal, no repository, no server. It manages:
+
+- **Floors** — add, rename, delete; each carries its own background image.
+- **Areas** — create, rename, duplicate, delete; place and size the region box on
+  the plan; assign **Pole** (I-Beam) and **Department**. Drag or nudge with arrow
+  keys, resize with Shift+Arrow, or type exact `x/y/w/h`. Regions are **locked by
+  default** so a stray drag can't move them.
+- **Multi-select** — Ctrl/⌘-click or Shift-click rows, or rubber-band a group on
+  the map, then bulk-move, bulk-reassign department, duplicate, or delete.
+- **Departments** — create and rename, each tagged into a flow **category**
+  (Inbound or Outbound).
+- **Site code** — names the built file and keeps each site's counts separate.
+- **Undo / redo** across layout edits (Ctrl/⌘+Z, Ctrl/⌘+Shift+Z).
+
+Two things it does entirely in the browser:
+
+- **Build operator file** — generates that site's
+  `<SITECODE>-Dwelling-Inventory-Map.html` with the floor image baked in as
+  base64, and downloads it. This one file is the whole deliverable to associates.
+- **Save / Load project** — round-trips the entire layout *including background
+  images* to a `<SITECODE>-bam-project.json`, so a half-finished site survives a
+  closed tab.
+
+### Setting up another site
+
+Send them **one file: `Building-Area-Manager.html`**. Nothing else — no folder, no
+repository, no instructions to install anything. On a fresh double-click they
+enter a **Site code**, add their **floor** via **Load background…**, create their
+**departments** (tagging each Inbound/Outbound) and **areas**, then click **Build
+operator file**. That downloads *their* operator map, which they hand to their own
+associates. The only thing they must supply is their floor-plan image.
+
+The blank editor opens with **Build operator file**, **Save project**, and **New
+area** all disabled until a floor exists, so an empty map can't be generated by
+accident.
+
+---
+
+## This site's data
+
+- **76 areas** across **6 departments**, on **one floor** ("Green Mile"):
+
+  | Department | Flow | Areas |
+  |---|---|---:|
+  | Sort | Outbound | 31 |
+  | IB Dock | Inbound | 15 |
+  | Fluid Load | Outbound | 14 |
+  | RPN | Inbound | 7 |
+  | OB Dock | Outbound | 5 |
+  | Docksort | Outbound | 4 |
+
+- **63 I-Beam (pole) locations**, mapped one-to-many onto areas.
+- **76 map regions**, originally reconstructed from the Excel workbook's own shape
+  geometry and since maintained in BAM.
+- Flow categories (Inbound / Outbound) are **site data, not code** — each site
+  defines its own grouping and it travels into that site's generated file.
+- Counts are stored as a flat `{ areaId → count }` map keyed by stable machine
+  IDs, so renaming a display label never breaks the map ↔ data link, and adding a
+  floor needs no count migration.
+
+See [`app/README.md`](app/README.md) for the field-level data model, the
+floor-plan/region alignment, and the heat-map color math.
+
+---
+
+## Known limitations
+
+Honest current boundaries, so nobody discovers them in front of an audience:
+
+- **Counts are per-machine.** There is no site-level aggregate unless someone
+  collects the exported CSVs. This is deliberate — each associate's map is their
+  own — but it means "the site's dwelling picture" is an assembly step today.
+- **The color scale floats.** Colors are normalized against the current day's own
+  min/max, so the same 12 pallets can paint yellow one day and green the next.
+  Two exports are not visually comparable; the map is a snapshot, not a trend.
+- **Gray means two things** — "zero dwelling pallets here" and "nobody walked this
+  area yet" are indistinguishable, so an incomplete count reads as a clean floor.
+- **Age is not recorded.** The tool counts dwelling pallets but not how long they
+  have been dwelling, so it cannot yet distinguish an area holding 40 pallets at
+  four days (fine) from one holding three at 29 days (an escalation). See
+  [`Claude Package/Claude Ideas/AGE-BANDS-AND-IOL.md`](Claude%20Package/Claude%20Ideas/AGE-BANDS-AND-IOL.md).
+- **The count field tolerates a mistyped decimal.** `.` and `-` are rejected as
+  keystrokes but the surrounding digits are kept, so typing `3.5` records `35`.
+  Worth fixing before wide rollout.
+- **Operator files are ~3.5 MB**, almost entirely the inlined floor-plan image.
+  Emailable, but close to some attachment limits; a smaller source image shrinks
+  it proportionally.
+
+---
+
+## For maintainers
+
+Everything below produces the three files above. None of it is needed by an
+associate or by a receiving site.
+
+### Rebuilding the standalones
+
+Required after **any** change under `app/` or `app/data/`:
 
 ```bash
 python3 build/build-standalone.py
 ```
 
-The build **fails loudly** if the operator page embedded in the editor
-standalones (`OPERATOR_TEMPLATE`) would be broken — too short (inlining failed), a
-missing placeholder token, no `<script>` block, or a raw `</script` that survived
-escaping — so a mis-built manager can never ship a blank heat map to a receiving
-site.
+The build fails loudly if the operator page embedded in the editors
+(`OPERATOR_TEMPLATE`) would be broken — too short, a missing placeholder token, no
+`<script>` block, or an unescaped `</script` — so a mis-built manager can never
+ship a blank heat map to a receiving site.
 
-Every generated operator file shows a **build timestamp** in a small footer (e.g.
-`POC3 · built 2026-07-31 14:23 UTC-7`) — the local time it was built, so an
-associate can tell how fresh their emailed file is. Python-built POC3 files stamp
-the build machine's time; a file BAM generates in the browser stamps that moment.
+### Folding BAM edits back into POC3
 
-**Building Area Manager (BAM)** is the double-click editor. It manages a site's
-**floors** (add / rename / delete, each with its own background image), **areas**
-(create / rename / delete / duplicate, place the region box, assign **Pole**
-(I-Beam) + **Department**), **departments** (create / rename, each tagged into a
-flow **category** — Inbound or Outbound), and the **Site code**. Two things it can
-do without any server, terminal, or this repo:
-
-- **Build operator file** — generates that site's `<SITECODE>-Dwelling-Inventory-Map.html`
-  in the browser (the floor image is inlined as base64, so the one file is the whole
-  deliverable) and downloads it. This is what you hand to associates.
-- **Save / Load project** — round-trips the entire layout *including background images*
-  to a `<SITECODE>-bam-project.json` file, so a half-finished site survives a closed tab.
-
-### Folding editor changes back into POC3
-
-The POC3 editor and operator standalones are *seeded* from `app/data/` — that,
-not the browser, is where this site's default plan lives. So when POC3's layout
-is edited in BAM, save the project, drop the file in over
-`Claude Package/POC3-bam-project.json`, and import it:
+The POC3 standalones are *seeded* from `app/data/` — that, not the browser, is
+where this site's default layout lives. After editing POC3's layout in BAM, save
+the project over `Claude Package/POC3-bam-project.json` and run **both**, in order:
 
 ```bash
 python3 build/import-bam-project.py     # project JSON -> app/data/ (+ backgrounds)
 python3 build/build-standalone.py       # app/data/ -> the three standalones
 ```
 
-The importer is the exact reverse of **Save project**: it rewrites
-`app/data/*.json` and any changed background in `app/assets/` from the bundle,
-so the next build — and every operator file generated from it — opens with that
-layout already loaded. It refuses to write a project that wouldn't render (an
-area on an unknown floor or department, an area with no region box, a department
-in no flow category, a floor with no background), and normalizes formatting, so
-an unchanged project is a no-op in git and a real edit reads as a clean diff.
-Pass a path to import some other site's file:
-`python3 build/import-bam-project.py path/to/SITE-bam-project.json`.
+The importer is the exact reverse of **Save project**. It refuses to write a
+project that wouldn't render (an area on an unknown floor or department, an area
+with no region box, a department in no flow category, a floor with no background)
+and normalizes formatting, so an unchanged project is a no-op in git. Pass a path
+to import another site's file.
 
-### Setting up another site
+### Dev version
 
-Send them **one file: `Building-Area-Manager.html`** (nothing else — no folder, no
-repo). On a fresh double-click they: enter a **Site code**, add their **floor**(s)
-via **Load background…**, create their **departments** (tagging each Inbound/Outbound)
-and **areas** (placing boxes, setting Pole + Department), then click **Build operator
-file**. That downloads *their* `<CODE>-Dwelling-Inventory-Map.html`, which they hand to
-their own associates. The only thing they must supply is their floor-plan image.
-
-### 2. Served dev version — for editing/development
-
-The modular `app/` source can also be served over HTTP (ES modules + `fetch`
-don't work from `file://`):
+The modular `app/` source must be served over HTTP (ES modules and `fetch` don't
+work from `file://`):
 
 ```bash
 cd app
 python3 -m http.server 8000
-# open http://localhost:8000/index.html   (or /editor.html, /tests/tests.html)
+# http://localhost:8000/index.html   (or /editor.html, /tests/tests.html)
 ```
 
-The test suite (`tests/tests.html`) runs in this served mode.
+### Tests
 
-## Repository layout
+`app/tests/tests.html` is an in-browser suite covering the heat-map color math,
+manifest integrity, the count model and single-level undo, legacy-data migration,
+the Area Breakdown and Inbound/Outbound roll-ups, CSV/JSON round-trips,
+seed-derived categories, the site-namespaced counts key, and in-browser operator
+file generation. It currently runs **102/102 green**.
+
+CI (`.github/workflows/ci.yml`) runs the same suite headless via `tests/run_ci.py`,
+then rebuilds the standalones and fails if a committed `*.html` is stale versus
+`app/` — ignoring only the build-timestamp line, which floats by design.
+
+The unit suite cannot catch interaction or drag-and-drop defects. After changing
+anything under `app/`, rebuild and confirm the standalone opens **fully styled
+from `file://`** before shipping it.
+
+### Repository layout
 
 ```
-POC3-Dwelling-Inventory-Map.html   Generated operator standalone for POC3 (do not hand-edit)
-POC3-Building-Area-Manager.html    Generated editor, seeded with POC3's layout (do not hand-edit)
-Building-Area-Manager.html         Generated BLANK editor — the file to send other sites (do not hand-edit)
-build/build-standalone.py          Inliner that produces all three standalones
+POC3-Dwelling-Inventory-Map.html   Generated operator standalone   (do not hand-edit)
+POC3-Building-Area-Manager.html    Generated POC3-seeded editor    (do not hand-edit)
+Building-Area-Manager.html         Generated BLANK editor          (do not hand-edit)
+build/build-standalone.py          Inliner that produces all three
 build/import-bam-project.py        Loads a BAM "Save project" JSON back into app/data/
 app/                               Modular source (dev version)
-  index.html                       Operator app: area picker + count entry, heat map, panel, legend
-  editor.html                      Building Area Manager (admin: floors, areas, departments, build operator file)
+  index.html                       Operator app
+  editor.html                      Building Area Manager
   tests/tests.html                 In-browser test suite
-  js/                              model, storage, form, map, panel, legend, breakdown, iosummary, heatmap, importexport, modal, validate, opbuild, editor…
-  css/                             styles
-  data/                            floors / areas / departments / categories / ibeam-mappings / regions JSON
-  assets/                          green-mile.png (active background), floor-plan.png (original CAD ref)
-Claude Package/                    Session handoff notes (not app code)
-  POC3-bam-project.json            POC3's saved BAM project — the source app/data/ is imported from
+  js/  css/  data/  assets/        Modules, styles, site data, floor-plan images
+Claude Package/                    Session notes and idea docs (not app code)
+  POC3-bam-project.json            POC3's saved BAM project — what app/data/ is imported from
 ```
-
-See [`app/README.md`](app/README.md) for the app-level details: the data model,
-the floor-plan background & region alignment, and the heat-map scale.
-
-## Data model
-
-- **76 areas** across **6 departments**, each mapped to an I-Beam location, a
-  map region, and a **floor**. Each department is tagged into a flow **category**
-  (Inbound / Outbound) via `categoryId`; the ordered category list lives in
-  `categories.json`. Categories are per-site data (not hard-coded), so a site set
-  up in Building Area Manager carries its own grouping into the generated file.
-- **Floors** (`floors.json`, ordered — first is the default) each carry a name,
-  background image, and dimensions; departments stay global while I-Beam
-  mappings are per-floor. Area IDs are globally unique, so floors act as a *view
-  filter* rather than a partition.
-- Pallet counts are stored as a simple `{ areaId → count }` map, keyed globally
-  by area ID (so adding floors needs no count migration). Earlier
-  per-container-scan data is migrated into per-area counts automatically on first
-  load.
-
-## Testing
-
-Serve the app and open `tests/tests.html` — the in-browser suite covers the
-heat-map color math, manifest integrity, the count model (including single-level
-undo), legacy-data migration, the Area Breakdown / Inbound-Outbound roll-ups, and
-CSV/JSON import/export round-trips, plus seed-derived categories, the
-site-namespaced counts key, and the in-browser operator-file generation. It
-currently runs **102/102 green**.
-
-CI (`.github/workflows/ci.yml`) runs the same suite headless on every push/PR via
-`tests/run_ci.py` (serves `app/`, drives headless Chromium with Playwright, reads
-the runner's `window.__TEST_RESULT__` signal), and also rebuilds the standalones
-and fails if a committed `*.html` is stale versus `app/` — ignoring only the
-build-timestamp line, which floats by design.
-
-After changing anything under `app/`, rebuild the standalone and confirm it opens
-**fully styled from `file://`** before shipping it (a DOM-node count alone can
-hide a broken inline-render).
