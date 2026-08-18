@@ -148,19 +148,39 @@ export function createMapView(root, model, { onSelect, floorId } = {}) {
   }, { passive: false });
 
   // drag to pan (only when zoomed in)
-  let dragging = false, sx = 0, sy = 0;
+  //
+  // Capture is deliberately NOT taken on pointerdown. A captured pointer retargets
+  // the follow-up `click` to the capture element, so the svg's selection handler
+  // never sees it — which is why selection (and the department zone highlight) used
+  // to go dead the moment the map was zoomed past fit, and came back at fit only
+  // because this handler bails at scale <= 1. Arm the pan on pointerdown and take
+  // capture only once the pointer has actually travelled (same 3px the editor uses),
+  // so a plain click stays a click at every zoom level.
+  let dragging = false, panFrom = null, panMoved = false, sx = 0, sy = 0;
   viewport.addEventListener('pointerdown', (e) => {
+    panMoved = false;
     if (scale <= 1) return;
-    dragging = true; sx = e.clientX - tx; sy = e.clientY - ty;
-    viewport.setPointerCapture(e.pointerId); viewport.classList.add('grabbing');
+    panFrom = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    sx = e.clientX - tx; sy = e.clientY - ty;
   });
   viewport.addEventListener('pointermove', (e) => {
+    if (panFrom && !dragging) {
+      if (Math.hypot(e.clientX - panFrom.x, e.clientY - panFrom.y) <= 3) return;
+      dragging = true; panMoved = true;
+      viewport.setPointerCapture(panFrom.id); viewport.classList.add('grabbing');
+    }
     if (!dragging) return;
     tx = e.clientX - sx; ty = e.clientY - sy; constrain(); apply();
   });
-  const endDrag = () => { dragging = false; viewport.classList.remove('grabbing'); };
+  const endDrag = () => { dragging = false; panFrom = null; viewport.classList.remove('grabbing'); };
   viewport.addEventListener('pointerup', endDrag);
   viewport.addEventListener('pointercancel', endDrag);
+  // A pan that actually moved shouldn't also select whatever it started on.
+  viewport.addEventListener('click', (e) => {
+    if (!panMoved) return;
+    panMoved = false;
+    e.stopPropagation();
+  }, true);
 
   // Switch which floor is shown: rebuild boxes + background, reset zoom, and
   // drop any selection (the selected area may not live on the new floor).
