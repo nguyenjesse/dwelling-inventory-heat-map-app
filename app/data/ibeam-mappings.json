@@ -172,6 +172,13 @@
     ]
   },
   {
+    "iBeamLocation": "F16",
+    "floorId": "floor-1",
+    "areaIds": [
+      "new-area-3"
+    ]
+  },
+  {
     "iBeamLocation": "F17",
     "floorId": "floor-1",
     "areaIds": [
@@ -228,13 +235,6 @@
     ]
   },
   {
-    "iBeamLocation": "G16",
-    "floorId": "floor-1",
-    "areaIds": [
-      "a-buffer-5-8"
-    ]
-  },
-  {
     "iBeamLocation": "G17",
     "floorId": "floor-1",
     "areaIds": [
@@ -281,13 +281,6 @@
     "floorId": "floor-1",
     "areaIds": [
       "presort-phase-1"
-    ]
-  },
-  {
-    "iBeamLocation": "H16",
-    "floorId": "floor-1",
-    "areaIds": [
-      "a-buffer-1-4"
     ]
   },
   {
@@ -344,6 +337,13 @@
     "floorId": "floor-1",
     "areaIds": [
       "copy-of-inbound-overflow"
+    ]
+  },
+  {
+    "iBeamLocation": "J15",
+    "floorId": "floor-1",
+    "areaIds": [
+      "new-area-2"
     ]
   },
   {

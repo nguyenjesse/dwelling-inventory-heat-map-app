@@ -112,11 +112,11 @@ accident.
 
   | Department | Flow | Areas |
   |---|---|---:|
-  | Sort | Outbound | 31 |
-  | IB Dock | Inbound | 15 |
+  | Sort | Outbound | 29 |
+  | IB Dock | Inbound | 16 |
   | Fluid Load | Outbound | 14 |
   | RPN | Inbound | 7 |
-  | OB Dock | Outbound | 5 |
+  | OB Dock | Outbound | 6 |
   | Docksort | Outbound | 4 |
 
 - **63 I-Beam (pole) locations**, mapped one-to-many onto areas.

@@ -352,22 +352,6 @@
     "floorId": "floor-1"
   },
   {
-    "id": "a-buffer-5-8",
-    "name": "A Buffer 5-8",
-    "departmentId": "sort",
-    "iBeamLocation": "G16",
-    "mapRegionId": "a-buffer-5-8",
-    "floorId": "floor-1"
-  },
-  {
-    "id": "a-buffer-1-4",
-    "name": "A Buffer 1-4",
-    "departmentId": "sort",
-    "iBeamLocation": "H16",
-    "mapRegionId": "a-buffer-1-4",
-    "floorId": "floor-1"
-  },
-  {
     "id": "new-area",
     "name": "Catwalk RTI Phase 1",
     "departmentId": "fluid-load",
@@ -605,6 +589,22 @@
     "departmentId": "rpn",
     "iBeamLocation": "K21",
     "mapRegionId": "copy-of-docksort-downstack-phase-2",
+    "floorId": "floor-1"
+  },
+  {
+    "id": "new-area-2",
+    "name": "Inbound PR Overflow",
+    "departmentId": "ib-dock",
+    "iBeamLocation": "J15",
+    "mapRegionId": "new-area-2",
+    "floorId": "floor-1"
+  },
+  {
+    "id": "new-area-3",
+    "name": "OB Dock PR Lane",
+    "departmentId": "ob-dock",
+    "iBeamLocation": "F16",
+    "mapRegionId": "new-area-3",
     "floorId": "floor-1"
   }
 ]
