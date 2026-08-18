@@ -333,6 +333,20 @@
     ]
   },
   {
+    "iBeamLocation": "J9",
+    "floorId": "floor-1",
+    "areaIds": [
+      "copy-of-presort-phase-1"
+    ]
+  },
+  {
+    "iBeamLocation": "J10",
+    "floorId": "floor-1",
+    "areaIds": [
+      "copy-of-inbound-overflow"
+    ]
+  },
+  {
     "iBeamLocation": "J17",
     "floorId": "floor-1",
     "areaIds": [
@@ -355,13 +369,6 @@
     ]
   },
   {
-    "iBeamLocation": "K10",
-    "floorId": "floor-1",
-    "areaIds": [
-      "copy-of-presort-phase-1"
-    ]
-  },
-  {
     "iBeamLocation": "K13",
     "floorId": "floor-1",
     "areaIds": [
@@ -380,6 +387,13 @@
     "floorId": "floor-1",
     "areaIds": [
       "docksort-phase-2"
+    ]
+  },
+  {
+    "iBeamLocation": "K21",
+    "floorId": "floor-1",
+    "areaIds": [
+      "copy-of-docksort-downstack-phase-2"
     ]
   },
   {

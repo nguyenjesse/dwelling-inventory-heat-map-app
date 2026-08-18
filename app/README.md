@@ -1,7 +1,7 @@
 # POC3 Dwelling Inventory Map — HTML app
 
 A dependency-free browser rebuild of the Excel/VBA dwelling-inventory heat map.
-Records where dwelling pallets sit across 74 operational areas and heat-maps
+Records where dwelling pallets sit across 76 operational areas and heat-maps
 their distribution over the warehouse floor plan.
 
 - **No build step, no npm.** Plain HTML + CSS + ES-module JavaScript.
@@ -11,8 +11,8 @@ their distribution over the warehouse floor plan.
   own background image; both viewer and editor have a Floor selector. The
   current site has a single floor.
 - **Data** originally extracted from `POC3_Dwelling_Inventory_Map_v1.5` and
-  since maintained in the region editor: currently 74 areas, 6 departments,
-  61 unique I-beam locations (with one-to-many I-beam→area mappings), and 74
+  since maintained in the region editor: currently 76 areas, 6 departments,
+  63 unique I-beam locations (with one-to-many I-beam→area mappings), and 76
   map regions reconstructed from the workbook's own shape geometry.
 
 ## Two ways to run it
@@ -98,12 +98,12 @@ operator files in the browser.
 
 - `floors.json` — `[{id, name, image, imageWidth, imageHeight}]` (ordered; first
   is the default) ×1
-- `areas.json` — `{id, name, departmentId, iBeamLocation, mapRegionId, floorId}` ×74
+- `areas.json` — `{id, name, departmentId, iBeamLocation, mapRegionId, floorId}` ×76
 - `departments.json` — `{id, name, categoryId}` ×6
 - `categories.json` — `[{id, name}]` (ordered flow categories: Outbound, Inbound).
   Departments reference these by `categoryId`; the model derives the grouping so
   each site defines its own — nothing is hard-coded.
-- `ibeam-mappings.json` — `{iBeamLocation, floorId, areaIds[]}` ×61 (unique per floor)
+- `ibeam-mappings.json` — `{iBeamLocation, floorId, areaIds[]}` ×63 (unique per floor)
 - `regions.json` — `{regions:{areaId:{x,y,w,h}}}` — a flat box map keyed by area
   ID (each box is read against its area's floor dimensions)
 
@@ -125,7 +125,7 @@ workbook** (1808×1125) — the exact image the Excel shapes were positioned
 against. The original 61 region boxes were first reconstructed in that image's
 space, then **affine-mapped onto the Green Mile image** (same underlying
 drawing, a different crop/scale) using its content bounding box. The result
-aligns closely; fine-tune any box in the editor (the site has since grown to 74
+aligns closely; fine-tune any box in the editor (the site has since grown to 76
 regions, added directly in the editor).
 
 To swap in another background: open Building Area Manager (`editor.html`, or the

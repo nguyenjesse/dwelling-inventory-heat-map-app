@@ -22,6 +22,18 @@ jobs:
       - name: Run test suite (headless)
         run: python3 tests/run_ci.py
 
+      - name: app/data matches the saved BAM project
+        # POC3's default plan is maintained in the editor and saved to
+        # Claude Package/POC3-bam-project.json; app/data/ is imported from it.
+        # Re-import and fail on any diff, so the two can't drift apart.
+        run: |
+          python3 build/import-bam-project.py
+          if ! git diff --quiet -- app/data app/assets; then
+            echo "::error::app/data is out of sync with Claude Package/POC3-bam-project.json — run: python3 build/import-bam-project.py && python3 build/build-standalone.py"
+            git diff --stat -- app/data app/assets
+            exit 1
+          fi
+
       - name: Standalones are up to date with app/ source
         # Rebuild and compare against the committed files, ignoring only the
         # build timestamp (it floats by design). Any other diff means someone

@@ -78,9 +78,9 @@ test('manifest validates with no errors', () => {
   const { errors } = validateManifest(seed);
   assert(errors.length === 0, 'errors: ' + errors.join('; '));
 });
-test('74 areas', () => eq(seed.areas.length, 74));
+test('76 areas', () => eq(seed.areas.length, 76));
 test('6 departments', () => eq(seed.departments.length, 6));
-test('61 unique I-beams', () => eq(seed.ibeamMappings.length, 61));
+test('63 unique I-beams', () => eq(seed.ibeamMappings.length, 63));
 test('every area lives on a declared floor', () => {
   const fids = new Set(seed.floors.map((f) => f.id));
   assert(fids.size >= 1, 'at least one floor declared');
@@ -114,7 +114,7 @@ test('countsByArea zero-fills every area', () => {
   const m = freshModel();
   m.setCount('presort-phase-1', 3);
   const c = m.countsByArea();
-  eq(Object.keys(c).length, 74);
+  eq(Object.keys(c).length, 76);
   eq(c['pid-1-2'], 0);
 });
 test('setCount to 0 clears the area', () => {
@@ -228,7 +228,7 @@ function renderBreakdown(model) {
 test('breakdown lists one group per department with areas on the floor', () => {
   const m = freshModel();
   const { root } = renderBreakdown(m);
-  // All 74 areas live on the single floor, so all 6 departments appear.
+  // All 76 areas live on the single floor, so all 6 departments appear.
   eq(root.querySelectorAll('.bd-group').length, 6);
 });
 test('breakdown department subtotal equals sum of its area counts', () => {
