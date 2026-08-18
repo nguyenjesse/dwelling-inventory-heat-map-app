@@ -1,7 +1,7 @@
 # Dwelling Inventory Heat Map
 
 A dependency-free browser rebuild of the Excel/VBA **POC3 Dwelling Inventory
-Map** workbook. It records how many dwelling pallets sit in each of the 74
+Map** workbook. It records how many dwelling pallets sit in each of the 76
 operational warehouse areas and heat-maps that distribution over the floor plan.
 A site can hold a separate layout per **floor**; both the operator map and the
 region editor have a Floor selector (the current site has a single floor).
@@ -88,6 +88,28 @@ do without any server, terminal, or this repo:
 - **Save / Load project** — round-trips the entire layout *including background images*
   to a `<SITECODE>-bam-project.json` file, so a half-finished site survives a closed tab.
 
+### Folding editor changes back into POC3
+
+The POC3 editor and operator standalones are *seeded* from `app/data/` — that,
+not the browser, is where this site's default plan lives. So when POC3's layout
+is edited in BAM, save the project, drop the file in over
+`Claude Package/POC3-bam-project.json`, and import it:
+
+```bash
+python3 build/import-bam-project.py     # project JSON -> app/data/ (+ backgrounds)
+python3 build/build-standalone.py       # app/data/ -> the three standalones
+```
+
+The importer is the exact reverse of **Save project**: it rewrites
+`app/data/*.json` and any changed background in `app/assets/` from the bundle,
+so the next build — and every operator file generated from it — opens with that
+layout already loaded. It refuses to write a project that wouldn't render (an
+area on an unknown floor or department, an area with no region box, a department
+in no flow category, a floor with no background), and normalizes formatting, so
+an unchanged project is a no-op in git and a real edit reads as a clean diff.
+Pass a path to import some other site's file:
+`python3 build/import-bam-project.py path/to/SITE-bam-project.json`.
+
 ### Setting up another site
 
 Send them **one file: `Building-Area-Manager.html`** (nothing else — no folder, no
@@ -117,6 +139,7 @@ POC3-Dwelling-Inventory-Map.html   Generated operator standalone for POC3 (do no
 POC3-Building-Area-Manager.html    Generated editor, seeded with POC3's layout (do not hand-edit)
 Building-Area-Manager.html         Generated BLANK editor — the file to send other sites (do not hand-edit)
 build/build-standalone.py          Inliner that produces all three standalones
+build/import-bam-project.py        Loads a BAM "Save project" JSON back into app/data/
 app/                               Modular source (dev version)
   index.html                       Operator app: area picker + count entry, heat map, panel, legend
   editor.html                      Building Area Manager (admin: floors, areas, departments, build operator file)
@@ -126,6 +149,7 @@ app/                               Modular source (dev version)
   data/                            floors / areas / departments / categories / ibeam-mappings / regions JSON
   assets/                          green-mile.png (active background), floor-plan.png (original CAD ref)
 Claude Package/                    Session handoff notes (not app code)
+  POC3-bam-project.json            POC3's saved BAM project — the source app/data/ is imported from
 ```
 
 See [`app/README.md`](app/README.md) for the app-level details: the data model,
@@ -133,7 +157,7 @@ the floor-plan background & region alignment, and the heat-map scale.
 
 ## Data model
 
-- **74 areas** across **6 departments**, each mapped to an I-Beam location, a
+- **76 areas** across **6 departments**, each mapped to an I-Beam location, a
   map region, and a **floor**. Each department is tagged into a flow **category**
   (Inbound / Outbound) via `categoryId`; the ordered category list lives in
   `categories.json`. Categories are per-site data (not hard-coded), so a site set
@@ -154,7 +178,7 @@ heat-map color math, manifest integrity, the count model (including single-level
 undo), legacy-data migration, the Area Breakdown / Inbound-Outbound roll-ups, and
 CSV/JSON import/export round-trips, plus seed-derived categories, the
 site-namespaced counts key, and the in-browser operator-file generation. It
-currently runs **55/55 green**.
+currently runs **102/102 green**.
 
 CI (`.github/workflows/ci.yml`) runs the same suite headless on every push/PR via
 `tests/run_ci.py` (serves `app/`, drives headless Chromium with Playwright, reads
