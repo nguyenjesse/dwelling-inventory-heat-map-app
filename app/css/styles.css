@@ -33,7 +33,15 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 .subtitle { font-size: .8rem; color: var(--muted); }
 .header-tools { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .record-count { font-size: .82rem; color: var(--muted); margin-right: .25rem; }
-.app-footer { padding: .5rem 1rem; font-size: .75rem; color: var(--muted); text-align: right; border-top: 1px solid var(--border); }
+/* Always-present footer: the build stamp only appears on generated files, but the
+   credit line is hard-coded markup so every build (operator + editor) carries it. */
+.app-footer {
+  display: flex; align-items: center; justify-content: flex-end; gap: .75rem;
+  padding: .5rem 1rem; font-size: .75rem; color: var(--muted); border-top: 1px solid var(--border);
+}
+.app-footer .credit { white-space: nowrap; }
+/* Separator only when the build stamp is actually showing. */
+.build-stamp:not([hidden]) + .credit::before { content: "·"; margin-right: .75rem; }
 
 /* ---------- buttons ---------- */
 .btn {

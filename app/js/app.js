@@ -45,12 +45,13 @@ async function main() {
 
   // ---- build stamp footer ----
   // Generated standalones carry a build timestamp; the served dev app has none,
-  // so the footer stays hidden there.
+  // so only the stamp hides there — the footer itself (and its credit line) is
+  // static markup that always shows.
   const { builtAt } = model.buildInfo();
   if (builtAt) {
-    const footer = $('#appFooter');
-    footer.textContent = (siteCode ? `${siteCode} · ` : '') + `built ${builtAt}`;
-    footer.hidden = false;
+    const stamp = $('#buildStamp');
+    stamp.textContent = (siteCode ? `${siteCode} · ` : '') + `built ${builtAt}`;
+    stamp.hidden = false;
   }
 
   // ---- selection + floor state ----
